@@ -1,23 +1,57 @@
 # Sopify Tab
 
-安静的 Chrome 新标签页工作台。装完即可用。本机 coding CLI 聊天是可选项。
+安静的 Chrome 新标签页书桌——装完即用，值得当默认页；本机 Cursor 问答可选。
 
-品牌：Sopify Tab  
-仓库：`sopify-tab`
+![书桌](prototype/shots/desk.png)
 
-Wave 1 交付书桌与标签。设置、Side Panel、本机 Host 不在这一波。
+<img src="prototype/shots/day.png" alt="白天" width="48%"> <img src="prototype/shots/night.png" alt="夜晚" width="48%">
 
-## 未打包加载
+原型视觉。当前扩展交付书桌与标签。
 
-1. Chrome 打开 `chrome://extensions`
+## 快速开始
+
+```text
+1. 打开 chrome://extensions
 2. 打开「开发者模式」
-3. 「加载已解压的扩展程序」，选本仓库的 `extension/` 目录
-4. 打开新标签页，应看到书桌（常用站 / 待办 / 便签 / 这个窗口）和左侧「标签」页
+3. 「加载已解压的扩展程序」→ 选仓库里的 extension/ 目录
+4. 打开新标签页
+```
 
-扩展 ID 由 `extension/manifest.json` 的 `key`（公钥）固定，移动目录后不变。当前 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。
+稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。权限只有 `storage` 与 `tabs`。
 
-私钥不进仓库。unpacked 加载只需要公钥；以后上架签名用的 PEM 由维护者另行保管。
+## 功能（按 Wave）
 
-权限只有 `storage` 和 `tabs`。书桌数据（`sites` `todos` `notes` `name`）写在 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。
+**W1 书桌 + 标签**
+常用站、待办、便签、这个窗口；左侧「标签」页整理当前窗口。跟随系统日夜。数据在本机 `chrome.storage.local`。
 
-详见 `.sopify/blueprint/README.md`。
+**W1.5 轻量光感 / 玻璃**
+轻量光感与玻璃质感。
+
+**W2 Host + 设置**
+未交付。
+
+**W3 Side Panel 只读 ask**
+未交付。
+需另装 Host + Cursor ask。
+
+## 非目标
+
+天气、番茄钟、壁纸商店、多 CLI、可写 / 强制执行、云同步、Agent Pocket、组件墙。
+
+## 隐私
+
+权限只有 `storage` 与 `tabs`。常用站、待办、便签、称呼写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。无账号，无云同步。
+
+## 路线图
+
+- ✅ W1 书桌 + 标签
+- ✅ W1.5 轻量光感 / 玻璃打磨
+- 🔜 W2 Host + 设置
+- 🔜 W3 Side Panel 只读 ask
+- ⏸ Chrome 网上应用店上架未定（先自己用一段时间）
+
+## 许可
+
+[MIT](LICENSE)
+
+细节与约定见 [`.sopify/blueprint/`](.sopify/blueprint/)。
