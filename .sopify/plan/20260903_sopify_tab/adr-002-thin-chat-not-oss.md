@@ -18,4 +18,4 @@ Side Panel 自研薄 UI。不嵌入 Open WebUI、LibreChat、assistant-ui、Mult
 - 接 Multica 守护进程: 拒绝。用户不要依赖 Multica 产品。
 
 ## 影响
-流式协议只对接 `cursor-agent` 的 `stream-json`。以后换 CLI 要另开方案，不在第一版做选择器。
+本方案只对接 `cursor-agent` 的 `stream-json`。不做 CLI 选择器，不检测 Claude / Codex。其它 CLI 另开方案。

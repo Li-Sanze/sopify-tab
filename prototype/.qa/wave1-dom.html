@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-sky="day" data-wave="1" data-sky-pref="day"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Sopify Tab · 新标签页原型</title>
+  <script>
+    // Resolve sky before first paint so system-dark users never see a day flash.
+    (() => {
+      const q = new URLSearchParams(location.search).get('sky');
+      const pref = (q === 'day' || q === 'night' || q === 'auto') ? q : 'auto';
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.sky = pref === 'auto' ? (dark ? 'night' : 'day') : pref;
+      document.documentElement.dataset.skyPref = pref;
+    })();
+  </script>
+  <style>
+    /* =========================================================
+       Shared tokens (shape, motion, layout)
+       ========================================================= */
+    :root {
+      --r-xl: 22px;
+      --r-lg: 16px;
+      --r-md: 12px;
+      --r-sm: 8px;
+
+      --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+      --dur: 180ms;
+      --dur-slow: 280ms;
+      --out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+      --sketch-h: 28px;
+      --rail-w: 84px;
+      --chat-w: clamp(340px, 27vw, 400px);
+      --chat-col: 0px;
+    }
+
+    /* =========================================================
+       Day: light sky, dark ink, white glass with visible hairline
+       ========================================================= */
+    html[data-sky="day"] {
+      color-scheme: light;
+      --sky-top: #5a7ea3;
+      --sky-mid: #98b6cd;
+      --sky-low: #e4ebf0;
+
+      --ink: #182234;
+      --ink-2: #4a5568;
+      --ink-3: #6c7689;
+      --sky-ink: #12203a;
+      --sky-ink-2: rgba(18, 32, 58, 0.8);
+      --sky-ink-3: rgba(18, 32, 58, 0.58);
+      --sky-text-shadow: none;
+
+      --accent: #235f7d;
+      --accent-ink: #ffffff;
+      --accent-soft: rgba(35, 95, 125, 0.12);
+      --ok: #2c7a4e;
+      --warn: #9a6b12;
+      --danger: #b23b3b;
+
+      --glass: rgba(255, 255, 255, 0.78);
+      --glass-edge: rgba(20, 32, 51, 0.12);
+      --glass-hi: rgba(255, 255, 255, 0.95);
+      --struct: rgba(255, 255, 255, 0.58);
+      --struct-edge: rgba(20, 32, 51, 0.1);
+      --hover-bg: rgba(255, 255, 255, 0.6);
+      --tile-bg: rgba(255, 255, 255, 0.55);
+      --tile-bg-hi: #ffffff;
+      --field-bg: rgba(255, 255, 255, 0.72);
+      --field-bg-hi: #ffffff;
+      --sel-bg: #ffffff;
+      --line: rgba(24, 34, 52, 0.1);
+      --line-2: rgba(24, 34, 52, 0.2);
+      --well: rgba(24, 34, 52, 0.06);
+      --well-2: rgba(24, 34, 52, 0.1);
+      --dot-off: #9aa5b8;
+      --toast-bg: rgba(24, 34, 52, 0.92);
+      --toast-ink: #ffffff;
+
+      --shadow-1: 0 1px 2px rgba(15, 30, 50, 0.05), 0 12px 32px -16px rgba(15, 30, 50, 0.28);
+      --shadow-2: 0 2px 6px rgba(15, 30, 50, 0.08), 0 24px 60px -20px rgba(15, 30, 50, 0.4);
+      --blur-sat: saturate(1.35);
+    }
+
+    /* =========================================================
+       Night: deep sky, light ink, dark glass
+       ========================================================= */
+    html[data-sky="night"] {
+      color-scheme: dark;
+      --sky-top: #03050b;
+      --sky-mid: #0a1120;
+      --sky-low: #1c2739;
+
+      --ink: #e9eef6;
+      --ink-2: rgba(233, 238, 246, 0.76);
+      --ink-3: rgba(233, 238, 246, 0.56);
+      --sky-ink: #f3f6fb;
+      --sky-ink-2: rgba(243, 246, 251, 0.78);
+      --sky-ink-3: rgba(243, 246, 251, 0.6);
+      --sky-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+      --accent: #3b8ac0;
+      --accent-ink: #ffffff;
+      --accent-soft: rgba(96, 170, 220, 0.18);
+      --ok: #5fcf95;
+      --warn: #e2b458;
+      --danger: #ef7d7d;
+
+      --glass: rgba(22, 31, 48, 0.66);
+      --glass-edge: rgba(255, 255, 255, 0.12);
+      --glass-hi: rgba(255, 255, 255, 0.08);
+      --struct: rgba(10, 16, 28, 0.62);
+      --struct-edge: rgba(255, 255, 255, 0.1);
+      --hover-bg: rgba(255, 255, 255, 0.07);
+      --tile-bg: rgba(255, 255, 255, 0.06);
+      --tile-bg-hi: rgba(255, 255, 255, 0.12);
+      --field-bg: rgba(255, 255, 255, 0.06);
+      --field-bg-hi: rgba(255, 255, 255, 0.1);
+      --sel-bg: rgba(255, 255, 255, 0.14);
+      --line: rgba(255, 255, 255, 0.09);
+      --line-2: rgba(255, 255, 255, 0.18);
+      --well: rgba(255, 255, 255, 0.07);
+      --well-2: rgba(255, 255, 255, 0.12);
+      --dot-off: #6b778c;
+      --toast-bg: rgba(240, 244, 250, 0.95);
+      --toast-ink: #142033;
+
+      --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 36px -16px rgba(0, 0, 0, 0.6);
+      --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 28px 70px -20px rgba(0, 0, 0, 0.7);
+      --blur-sat: saturate(1.1);
+    }
+
+    /* =========================================================
+       Base
+       ========================================================= */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100dvh;
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--ink);
+      background: var(--sky-mid);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; background: none; padding: 0; }
+    a { color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    svg.i.sm { width: 14px; height: 14px; }
+    svg.i.lg { width: 22px; height: 22px; }
+    code { font-family: var(--mono); font-size: 0.9em; }
+
+    /* =========================================================
+       Sky — CSS + inline SVG only. One light source (off-canvas,
+       top-left). Both skies are a CSS 3D stage: `perspective` on
+       the scene, layers pushed back with translateZ so far things
+       are smaller, softer, and drift slower than near things.
+
+       Day: air gradient (deeper zenith opposite the light, warm haze
+       toward it, pale horizon) + cumulus built from shaded spheres,
+       given billowing edges by an SVG turbulence/displacement filter.
+       Night: three star depths, a faint galactic band, horizon airglow.
+       ========================================================= */
+    .sky {
+      position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 44%, var(--sky-low) 100%);
+      transition: background var(--dur-slow) var(--out);
+    }
+    .sky .day, .sky .night {
+      position: absolute; inset: 0; transition: opacity 400ms var(--out);
+      perspective: 1400px; perspective-origin: 50% 36%;
+    }
+    html[data-sky="day"] .sky .night { opacity: 0; visibility: hidden; }
+    html[data-sky="night"] .sky .day { opacity: 0; visibility: hidden; }
+    html[data-sky="day"] .sky .day,
+    html[data-sky="night"] .sky .night { visibility: visible; }
+    .sky .grain {
+      position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      background-size: 160px 160px;
+    }
+    .sky svg.defs { position: absolute; width: 0; height: 0; }
+
+    /* ---- day: air ---- */
+    .air {
+      position: absolute; inset: 0;
+      background:
+        /* warm light spilling in from the top-left, where the sun is */
+        radial-gradient(72% 64% at 6% -10%, rgba(255, 246, 232, 0.82) 0%, rgba(255, 246, 232, 0.34) 36%, transparent 64%),
+        /* zenith deepens away from the light */
+        radial-gradient(64% 46% at 104% 6%, rgba(30, 62, 100, 0.34), transparent 70%),
+        /* horizon haze: air thickens toward the ground */
+        linear-gradient(180deg, transparent 52%, rgba(255, 252, 247, 0.32) 82%, rgba(255, 250, 243, 0.7) 100%);
+    }
+
+    /* ---- day: cumulus ---- */
+    .cloud {
+      position: absolute; will-change: transform;
+      transform: translate3d(0, 0, var(--z, 0px));
+      animation: drift var(--cd, 200s) ease-in-out infinite alternate;
+      filter: url(#fluff);
+      --c0: #ffffff; --c1: #f6f9fb; --c2: #e2eaf0; --c3: #c4d3de; --c4: rgba(196, 211, 222, 0.5);
+      --sd: rgba(128, 154, 178, 0.42);
+      --sh: rgba(104, 134, 162, 0.5);
+    }
+    .cloud i { position: absolute; display: block; border-radius: 50%; }
+    /* a lit sphere: highlight up-left, a pocket of shadow low-right, rim stays light so it reads against the sky */
+    .cloud .p {
+      background:
+        radial-gradient(circle at 70% 76%, var(--sd) 0%, transparent 40%),
+        radial-gradient(circle at 36% 30%, var(--c0) 0%, var(--c1) 30%, var(--c2) 56%, var(--c3) 74%, var(--c4) 86%, transparent 94%);
+    }
+    /* flat base slab: cumulus are flat underneath and darkest there */
+    .cloud .base {
+      background:
+        radial-gradient(ellipse at 50% 84%, var(--sd) 0%, transparent 56%),
+        radial-gradient(ellipse at 46% 22%, var(--c1) 0%, var(--c2) 40%, var(--c3) 70%, var(--c4) 88%, transparent 100%);
+    }
+    /* shadow the cloud throws on the air below itself */
+    .cloud .shade { background: radial-gradient(ellipse at 50% 50%, var(--sh) 0%, transparent 72%); filter: blur(12px); }
+
+    /* hero: near, upper right, partly out of frame */
+    .cloud.n1 { top: -3%; left: 44%; width: 40vw; height: 12.6vw; --cd: 210s; --dx: 2.6vw; }
+    .cloud.n1 .shade { left: 8%; top: 64%; width: 86%; height: 62%; }
+    .cloud.n1 .base  { left: 4%; top: 44%; width: 92%; height: 60%; }
+    .cloud.n1 .p1    { left: 0; top: 26%; width: 25%; height: 79%; }
+    .cloud.n1 .p2    { left: 50%; top: 2%; width: 31%; height: 98%; }
+    .cloud.n1 .p3    { left: 21%; top: -22%; width: 38%; height: 120%; }
+    .cloud.n1 .p4    { left: 76%; top: 30%; width: 23%; height: 73%; }
+
+    /* near bank on the horizon, right; flatter because we see it from the side */
+    .cloud.n2 { top: 81%; right: -4%; width: 34vw; height: 8.5vw; --cd: 250s; --dx: -1.8vw; }
+    .cloud.n2 .shade { left: 8%; top: 62%; width: 86%; height: 62%; }
+    .cloud.n2 .base  { left: 2%; top: 40%; width: 96%; height: 64%; }
+    .cloud.n2 .p1    { left: 4%; top: 8%; width: 26%; height: 104%; }
+    .cloud.n2 .p2    { left: 26%; top: -22%; width: 34%; height: 136%; }
+    .cloud.n2 .p3    { left: 58%; top: 10%; width: 26%; height: 104%; }
+    .cloud.n2 .p4    { left: 78%; top: 30%; width: 20%; height: 80%; }
+
+    /* mid distance, between greeting and hero; overlaps behind the hero's left end */
+    .cloud.m1 { top: 8%; left: 34%; width: 20vw; height: 5.6vw; --z: -420px; --cd: 300s; --dx: 3vw;
+      --c0: #fdfeff; --c1: #f1f6f9; --c2: #dde6ed; --c3: #c6d4de; --c4: rgba(200, 213, 223, 0.46); --sd: rgba(136, 160, 182, 0.34); --sh: rgba(112, 140, 166, 0.36); }
+    .cloud.m1 .shade { left: 8%; top: 62%; width: 86%; height: 60%; }
+    .cloud.m1 .base  { left: 2%; top: 42%; width: 96%; height: 60%; }
+    .cloud.m1 .p1    { left: 4%; top: 14%; width: 26%; height: 92%; }
+    .cloud.m1 .p2    { left: 26%; top: -22%; width: 36%; height: 128%; }
+    .cloud.m1 .p3    { left: 60%; top: 6%; width: 28%; height: 98%; }
+
+    /* far clouds sit low: atmospheric perspective pulls them toward the horizon, smaller and bluer */
+    .cloud.f1 { top: 99%; left: 67%; width: 23vw; height: 7vw; --z: -600px; --cd: 380s; --dx: -2vw; opacity: 0.94;
+      --c0: #f8fbfd; --c1: #ecf2f6; --c2: #d9e3ea; --c3: #c4d2dc; --c4: rgba(200, 213, 222, 0.42); --sd: rgba(140, 164, 184, 0.3); --sh: rgba(120, 146, 170, 0.26); }
+    .cloud.f1 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
+    .cloud.f1 .base  { left: 0; top: 40%; width: 100%; height: 64%; }
+    .cloud.f1 .p1    { left: 8%; top: 10%; width: 28%; height: 92%; }
+    .cloud.f1 .p2    { left: 32%; top: -16%; width: 34%; height: 118%; }
+    .cloud.f1 .p3    { left: 62%; top: 16%; width: 28%; height: 88%; }
+
+    .cloud.f2 { top: 132%; left: 31%; width: 42vw; height: 10.6vw; --z: -1300px; --cd: 460s; --dx: 2vw; opacity: 0.88;
+      --c0: #f6f9fb; --c1: #e9eff4; --c2: #d8e1e8; --c3: #c6d3dc; --c4: rgba(204, 215, 223, 0.4); --sd: rgba(150, 172, 190, 0.26); --sh: rgba(128, 152, 174, 0.2); }
+    .cloud.f2 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
+    .cloud.f2 .base  { left: 0; top: 40%; width: 100%; height: 62%; }
+    .cloud.f2 .p1    { left: 12%; top: 6%; width: 24%; height: 94%; }
+    .cloud.f2 .p2    { left: 32%; top: -14%; width: 28%; height: 112%; }
+    .cloud.f2 .p3    { left: 56%; top: 10%; width: 24%; height: 92%; }
+
+    @keyframes drift {
+      from { transform: translate3d(0, 0, var(--z, 0px)); }
+      to   { transform: translate3d(var(--dx, 2vw), 0, var(--z, 0px)); }
+    }
+
+    /* ---- night ---- */
+    .way {
+      position: absolute; left: -12%; top: -8%; width: 124%; height: 58%;
+      transform: rotate(-19deg);
+      background:
+        radial-gradient(54% 34% at 52% 50%, rgba(126, 146, 196, 0.15), transparent 70%),
+        radial-gradient(38% 12% at 56% 50%, rgba(160, 176, 220, 0.1), transparent 70%),
+        radial-gradient(30% 22% at 66% 44%, rgba(178, 160, 204, 0.07), transparent 70%);
+      filter: blur(28px);
+    }
+    .glow {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(76% 42% at 50% 106%, rgba(72, 100, 142, 0.5) 0%, rgba(44, 62, 94, 0.22) 46%, transparent 74%),
+        radial-gradient(40% 30% at 12% 108%, rgba(96, 116, 150, 0.16), transparent 70%);
+    }
+    .stars {
+      position: absolute; will-change: transform;
+      transform: translate3d(0, 0, var(--z, 0px));
+      animation: drift var(--cd, 300s) ease-in-out infinite alternate;
+      /* fade into the horizon haze, and thin out behind the clock so the header stays quiet */
+      -webkit-mask-image:
+        linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.55) 72%, transparent 96%),
+        radial-gradient(34% 30% at 14% 16%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.5) 60%, #000 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.55) 72%, transparent 96%),
+        radial-gradient(34% 30% at 14% 16%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.5) 60%, #000 100%);
+      mask-composite: intersect;
+    }
+    /* far: dense, dim, pushed back so perspective shrinks it */
+    .stars.far {
+      inset: -26%; --z: -620px; --cd: 420s; --dx: 1.2vw;
+      background-image:
+        radial-gradient(0.9px 0.9px at 41px 63px,   rgba(235, 240, 248, 0.62) 50%, transparent 100%),
+        radial-gradient(0.7px 0.7px at 173px 141px, rgba(235, 240, 248, 0.42) 50%, transparent 100%),
+        radial-gradient(0.8px 0.8px at 301px 39px,  rgba(235, 240, 248, 0.5) 50%, transparent 100%),
+        radial-gradient(0.7px 0.7px at 452px 213px, rgba(235, 240, 248, 0.36) 50%, transparent 100%),
+        radial-gradient(0.9px 0.9px at 587px 92px,  rgba(235, 240, 248, 0.58) 50%, transparent 100%),
+        radial-gradient(0.7px 0.7px at 688px 300px, rgba(235, 240, 248, 0.4) 50%, transparent 100%),
+        radial-gradient(0.8px 0.8px at 96px 372px,  rgba(235, 240, 248, 0.46) 50%, transparent 100%),
+        radial-gradient(0.7px 0.7px at 352px 458px, rgba(235, 240, 248, 0.34) 50%, transparent 100%),
+        radial-gradient(0.9px 0.9px at 760px 512px, rgba(235, 240, 248, 0.52) 50%, transparent 100%),
+        radial-gradient(0.7px 0.7px at 522px 561px, rgba(235, 240, 248, 0.38) 50%, transparent 100%);
+      background-size: 823px 611px;
+    }
+    /* mid: fewer, a touch bigger and warmer */
+    .stars.mid {
+      inset: -14%; --z: -240px; --cd: 340s; --dx: 1.8vw;
+      background-image:
+        radial-gradient(1.2px 1.2px at 88px 71px,   rgba(250, 247, 240, 0.9) 50%, transparent 100%),
+        radial-gradient(1px 1px at 331px 189px,     rgba(236, 240, 248, 0.7) 50%, transparent 100%),
+        radial-gradient(1.3px 1.3px at 612px 58px,  rgba(255, 253, 246, 0.86) 50%, transparent 100%),
+        radial-gradient(1px 1px at 861px 262px,     rgba(236, 240, 248, 0.62) 50%, transparent 100%),
+        radial-gradient(1.1px 1.1px at 204px 421px, rgba(250, 247, 240, 0.72) 50%, transparent 100%),
+        radial-gradient(1px 1px at 733px 530px,     rgba(236, 240, 248, 0.6) 50%, transparent 100%),
+        radial-gradient(1.2px 1.2px at 478px 641px, rgba(250, 247, 240, 0.7) 50%, transparent 100%);
+      background-size: 1013px 743px;
+    }
+    /* near: hand-placed, a few with halo, slow breathing */
+    .stars.near { inset: 0; --cd: 280s; --dx: 2.4vw; width: 100%; height: 100%; }
+    .stars.near circle { fill: #f7f4ec; }
+    .stars.near .halo { fill: url(#halo); }
+    .stars.near .tw { animation: twinkle var(--tw, 7s) ease-in-out infinite alternate; animation-delay: var(--td, 0s); transform-box: fill-box; transform-origin: center; }
+    @keyframes twinkle { from { opacity: 0.55; transform: scale(0.9); } to { opacity: 1; transform: scale(1.08); } }
+
+    /* =========================================================
+       Sketch bar: prototype-only strip, deliberately neutral
+       ========================================================= */
+    .sketch {
+      position: sticky; top: 0; z-index: 40;
+      height: var(--sketch-h);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 0 12px;
+      background: rgba(14, 18, 26, 0.86); color: rgba(255, 255, 255, 0.78);
+      font-size: 12px; line-height: 1;
+    }
+    .sketch p { margin: 0; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sketch p b { color: #fff; font-weight: 600; margin-right: 6px; }
+    .sketch :focus-visible { outline-color: #fff; }
+    .sketch .groups-row { display: flex; gap: 10px; flex: none; align-items: center; }
+    .scenes { display: flex; gap: 2px; flex: none; }
+    .scenes button {
+      height: 20px; padding: 0 9px; border-radius: 999px; white-space: nowrap;
+      color: rgba(255, 255, 255, 0.62); font-size: 12px;
+      transition: background var(--dur) var(--out), color var(--dur) var(--out);
+    }
+    .scenes button:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+    .scenes button[aria-pressed="true"] { color: #142033; background: rgba(255, 255, 255, 0.92); }
+    .sketch .vsep { width: 1px; height: 14px; background: rgba(255, 255, 255, 0.2); }
+
+    /* =========================================================
+       Shell: rail | desk | chat  (chat column animates 0 → width)
+       ========================================================= */
+    .shell {
+      display: grid;
+      grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--chat-col);
+      min-height: calc(100dvh - var(--sketch-h));
+      transition: grid-template-columns var(--dur-slow) var(--out);
+    }
+    .shell.chat-open { --chat-col: var(--chat-w); }
+
+    .rail {
+      position: sticky; top: var(--sketch-h); height: calc(100dvh - var(--sketch-h));
+      display: flex; flex-direction: column; align-items: center;
+      padding: 18px 10px 14px;
+      background: var(--struct); border-right: 1px solid var(--struct-edge);
+      backdrop-filter: blur(22px) var(--blur-sat); -webkit-backdrop-filter: blur(22px) var(--blur-sat);
+      color: var(--ink);
+    }
+    .brand {
+      width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center;
+      background: var(--accent); color: var(--accent-ink);
+      margin-bottom: 22px;
+    }
+    .brand svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; }
+    .rail nav { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .navbtn {
+      width: 100%; min-height: 56px; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      border-radius: var(--r-md); color: var(--ink-3); font-size: 11.5px; font-weight: 500;
+      transition: background var(--dur) var(--out), color var(--dur) var(--out);
+    }
+    .navbtn:hover { background: var(--well); color: var(--ink); }
+    .navbtn[aria-current="page"] { background: var(--well-2); color: var(--ink); }
+    .navbtn[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 16px; bottom: 16px; width: 3px; border-radius: 3px; background: var(--accent); }
+    .navbtn svg.i { width: 20px; height: 20px; }
+    .rail .spacer { flex: 1; }
+    .navbtn[data-view="settings"],
+    .railfoot { display: none; }
+    html[data-wave="2"] .navbtn[data-view="settings"],
+    html[data-wave="3"] .navbtn[data-view="settings"] { display: flex; }
+    html[data-wave="3"] .railfoot {
+      width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .chatbtn {
+      width: 100%; min-height: 56px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      border-radius: var(--r-md); background: var(--well-2); color: var(--ink);
+      font-size: 11.5px; font-weight: 600;
+      transition: transform var(--dur) var(--out), background var(--dur) var(--out), color var(--dur) var(--out);
+    }
+    .chatbtn:hover { background: var(--line-2); }
+    .chatbtn:active { transform: scale(0.97); }
+    .chatbtn[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dot-off); flex: none; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+    .dot.warn { background: var(--warn); }
+
+    /* =========================================================
+       Main + views. `.main` is a size container so the desk
+       reflows by its own width, not the viewport.
+       ========================================================= */
+    .main { padding: 34px 44px 64px; min-width: 0; container: desk / inline-size; }
+    .shell.chat-open .main { padding-inline: 32px; }
+    .view { display: none; animation: rise var(--dur-slow) var(--out); }
+    .view.active { display: block; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .deskhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap; margin-bottom: 26px; color: var(--sky-ink); text-shadow: var(--sky-text-shadow); }
+    .clock {
+      margin: 0; font-weight: 500; font-variant-numeric: tabular-nums;
+      font-size: clamp(52px, 8cqi, 92px); line-height: 0.95; letter-spacing: -0.035em;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .clock small { font-size: 0.3em; font-weight: 500; letter-spacing: 0; color: var(--sky-ink-2); }
+    .greet { margin: 14px 0 0; font-size: clamp(18px, 2.2cqi, 22px); font-weight: 500; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .greet .name {
+      background: none; border: 0; border-bottom: 1.5px dashed var(--sky-ink-3); border-radius: 0;
+      color: inherit; font: inherit; padding: 0 2px; width: 7ch; max-width: 12ch;
+    }
+    .greet .name:focus-visible { outline-offset: 4px; border-bottom-color: transparent; }
+    .greet .name::placeholder { color: var(--sky-ink-3); }
+    .dateline { margin: 6px 0 0; color: var(--sky-ink-2); font-size: 14px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .dateline .sep::before { content: "·"; }
+
+    .viewhead { margin-bottom: 22px; color: var(--sky-ink); text-shadow: var(--sky-text-shadow); }
+    .viewhead h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+    .viewhead p { margin: 6px 0 0; color: var(--sky-ink-2); font-size: 14px; }
+
+    /* =========================================================
+       Cards
+       ========================================================= */
+    .card {
+      background: var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--r-xl);
+      box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
+      backdrop-filter: blur(24px) var(--blur-sat); -webkit-backdrop-filter: blur(24px) var(--blur-sat);
+      padding: 18px 20px 20px; display: flex; flex-direction: column; min-width: 0;
+      transition: box-shadow var(--dur) var(--out);
+    }
+    .card:hover { box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-2); }
+    .cardhead { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; min-height: 32px; }
+    .cardhead h2 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .cardhead h2 svg.i { color: var(--ink-3); }
+    .count {
+      font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12px;
+      color: var(--ink-2); background: var(--well); border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+    }
+    .count.on { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+    .count.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+    .cardhead .act { margin-left: auto; }
+    .linkbtn {
+      display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border-radius: var(--r-sm);
+      color: var(--accent); font-size: 13px; font-weight: 600; white-space: nowrap;
+      transition: background var(--dur) var(--out);
+    }
+    html[data-sky="night"] .linkbtn { color: #8cc6ea; }
+    .linkbtn:hover { background: var(--accent-soft); }
+    .linkbtn[disabled] { color: var(--ink-3); cursor: not-allowed; opacity: 0.6; }
+    .cardbody { flex: 1; min-height: 0; }
+    .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0 2px; margin: 0; }
+
+    /* desk grid: 3 equal columns; drop to 2 (todo+notes paired, tabs full row), then 1 */
+    .deskgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .card.dock { grid-column: 1 / -1; }
+    @container desk (max-width: 1019px) {
+      .deskgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card.c-tabs { grid-column: 1 / -1; }
+    }
+    @container desk (max-width: 619px) {
+      .deskgrid { grid-template-columns: minmax(0, 1fr); }
+      .deskhead { flex-direction: column; align-items: flex-start; gap: 14px; }
+    }
+
+    /* dock tiles */
+    .tiles { display: flex; flex-wrap: wrap; gap: 10px; }
+    .tile {
+      width: 92px; min-height: 84px; padding: 12px 8px 10px; border-radius: var(--r-lg);
+      display: flex; flex-direction: column; align-items: center; gap: 8px; text-decoration: none;
+      background: var(--tile-bg); border: 1px solid var(--line);
+      transition: background var(--dur) var(--out), border-color var(--dur) var(--out), transform var(--dur) var(--out);
+    }
+    .tile:hover { background: var(--tile-bg-hi); border-color: var(--line-2); transform: translateY(-1px); }
+    .tile:active { transform: scale(0.98); }
+    .tile .glyph {
+      width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+      font-weight: 600; font-size: 15px; color: #fff;
+      background: hsl(var(--h, 190) 26% 44%);
+    }
+    .tile .lbl { font-size: 12.5px; font-weight: 500; color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tile.add { border-style: dashed; background: transparent; color: var(--ink-2); justify-content: center; }
+    .tile.add .glyph { background: var(--well); color: var(--ink-2); }
+    .tile.add:hover { background: var(--tile-bg); }
+    .tileform { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 8px; margin-top: 12px; }
+    .tileform[hidden] { display: none; }
+    @container desk (max-width: 619px) { .tileform { grid-template-columns: 1fr; } }
+
+    /* todo */
+    .todos { list-style: none; margin: 0; padding: 0; }
+    .todo { display: flex; align-items: center; gap: 10px; min-height: 42px; border-bottom: 1px solid var(--line); }
+    .todo:last-child { border-bottom: 0; }
+    .todo label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; padding: 6px 0; }
+    .todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
+    .todo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+    .todo.done span { color: var(--ink-3); text-decoration: line-through; }
+    .iconbtn {
+      width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--ink-3);
+      transition: background var(--dur) var(--out), color var(--dur) var(--out);
+    }
+    .iconbtn:hover { background: var(--well-2); color: var(--ink); }
+    .field {
+      width: 100%; min-height: 40px; padding: 8px 12px;
+      border: 1px solid var(--line-2); border-radius: var(--r-md);
+      background: var(--field-bg); color: var(--ink);
+      transition: border-color var(--dur) var(--out), background var(--dur) var(--out), box-shadow var(--dur) var(--out);
+    }
+    .field:hover { background: var(--field-bg-hi); }
+    .field:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .field::placeholder { color: var(--ink-3); }
+    .field[disabled] { opacity: 0.55; cursor: not-allowed; }
+    .todoadd { margin-top: 10px; }
+
+    /* notes */
+    .notes {
+      width: 100%; min-height: 190px; height: 100%; resize: vertical;
+      padding: 10px 12px; border: 1px solid transparent; border-radius: var(--r-md);
+      background: var(--well); color: var(--ink); line-height: 1.7; font-size: 14px;
+      transition: background var(--dur) var(--out), border-color var(--dur) var(--out), box-shadow var(--dur) var(--out);
+    }
+    .notes:hover { background: var(--field-bg); }
+    .notes:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .saved { font-size: 12px; color: var(--ink-3); }
+
+    /* tabs by domain */
+    .domains { display: flex; flex-direction: column; gap: 2px; }
+    .domain {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+      min-height: 46px; padding: 4px 6px; border-radius: var(--r-md);
+    }
+    .domain:hover { background: var(--hover-bg); }
+    .favicon {
+      width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+      background: hsl(var(--h, 200) 22% 90%); color: hsl(var(--h, 200) 26% 32%);
+      font-weight: 600; font-size: 13px;
+    }
+    html[data-sky="night"] .favicon { background: hsl(var(--h, 200) 22% 24%); color: hsl(var(--h, 200) 40% 82%); }
+    .domain .who { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .domain .who b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar { height: 3px; border-radius: 3px; background: var(--well); overflow: hidden; }
+    .bar i { display: block; height: 100%; width: var(--w, 0%); border-radius: 3px; background: hsl(var(--h, 200) 22% 52%); transition: width var(--dur-slow) var(--out); }
+    .domain .n { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 40px; padding: 0 16px; border-radius: var(--r-md);
+      background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 14px; white-space: nowrap;
+      transition: filter var(--dur) var(--out), transform var(--dur) var(--out), background var(--dur) var(--out);
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { transform: scale(0.98); }
+    .btn.ghost { background: var(--well); color: var(--ink); }
+    .btn.ghost:hover { background: var(--well-2); filter: none; }
+    .btn[disabled] { opacity: 0.45; cursor: not-allowed; filter: none; transform: none; }
+
+    /* =========================================================
+       Tabs view
+       ========================================================= */
+    .tabtools { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .tabtools .field { max-width: 380px; }
+    .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 18px; }
+    .group { padding: 6px 16px 10px; }
+    .grouphead { display: flex; align-items: center; gap: 10px; min-height: 48px; }
+    .grouphead b { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .grouphead .act { margin-left: auto; }
+    .tabrow {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px;
+      min-height: 44px; padding: 0 4px 0 38px; border-radius: var(--r-md);
+    }
+    .tabrow:hover { background: var(--hover-bg); }
+    .tabrow .t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .tabrow .t span:first-child { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tabrow .t span:last-child { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* =========================================================
+       Settings view
+       ========================================================= */
+    .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 18px; }
+    .form { display: flex; flex-direction: column; gap: 14px; }
+    .frow { display: flex; flex-direction: column; gap: 6px; }
+    .frow label, .frow .lbl { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+    .help { font-size: 12.5px; color: var(--ink-3); margin: 0; line-height: 1.5; }
+    .inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .inline .help { flex: 1; min-width: 12em; }
+    fieldset.frow { border: 0; padding: 0; margin: 0; }
+    .note { font-size: 13px; color: var(--ink-2); background: var(--well); border-radius: var(--r-md); padding: 10px 12px; margin: 0; display: flex; gap: 8px; align-items: flex-start; line-height: 1.55; }
+    .note svg.i { color: var(--ink-3); margin-top: 2px; }
+    .status { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+    .host-probe[hidden] { display: none !important; }
+    .status .dot { width: 9px; height: 9px; }
+    .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+    .check { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 7px 0; font-size: 13.5px; }
+    .check .mark { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--line-2); color: transparent; margin-top: 1px; }
+    .check.ok .mark { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .check .mark svg.i { width: 12px; height: 12px; stroke-width: 2.4; }
+    .check small { display: block; color: var(--ink-3); font-size: 12.5px; }
+
+    /* =========================================================
+       Chat column (third grid track). Structural glass like the
+       rail, hairline edge, no drop shadow onto the desk.
+       ========================================================= */
+    .chat {
+      position: sticky; top: var(--sketch-h); height: calc(100dvh - var(--sketch-h));
+      min-width: 0; overflow: hidden;
+    }
+    .chatinner {
+      width: var(--chat-w); height: 100%; margin-left: auto;
+      display: flex; flex-direction: column;
+      background: var(--struct); border-left: 1px solid var(--struct-edge);
+      backdrop-filter: blur(26px) var(--blur-sat); -webkit-backdrop-filter: blur(26px) var(--blur-sat);
+      visibility: hidden; transition: visibility 0s linear var(--dur-slow);
+    }
+    .chat.open .chatinner { visibility: visible; transition: none; }
+    .panelhead { display: flex; align-items: flex-start; gap: 12px; padding: 16px 14px 12px 20px; border-bottom: 1px solid var(--line); }
+    .panelhead h2 { margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tag { font-size: 11px; font-weight: 600; color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 999px; padding: 1px 7px; letter-spacing: 0.01em; }
+    .panelhead p { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-3); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .panelhead .grow { flex: 1; min-width: 0; }
+    .guard { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 20px; border-bottom: 1px solid var(--line); }
+    .guard span { font-size: 11.5px; color: var(--ink-2); background: var(--well); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+    .panelbody { flex: 1; overflow: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .emptystate { margin: auto; text-align: center; max-width: 270px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .emptystate .ring { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--well); color: var(--ink-2); }
+    .emptystate .ring.warn { color: var(--warn); }
+    .emptystate h3 { margin: 4px 0 0; font-size: 15px; }
+    .emptystate p { margin: 0 0 6px; color: var(--ink-3); font-size: 13.5px; }
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 92%; }
+    .msg .who { font-size: 11.5px; color: var(--ink-3); font-weight: 600; letter-spacing: 0.02em; }
+    .msg .bubble { padding: 10px 12px; border-radius: 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.user .bubble { background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 5px; }
+    .msg.bot .bubble { background: var(--well); border-bottom-left-radius: 5px; }
+    .msg.bot .bubble code { background: var(--well-2); padding: 1px 5px; border-radius: 5px; }
+    .panelfoot { padding: 12px 16px 16px 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+    .compose { display: flex; gap: 8px; align-items: flex-end; }
+    .compose textarea { flex: 1; min-height: 44px; max-height: 160px; resize: none; }
+    .compose .btn { width: 44px; height: 44px; padding: 0; }
+    .panelfoot .hint { font-size: 12px; color: var(--ink-3); margin: 0; }
+    .panelfoot .hint.block { color: var(--warn); }
+
+    /* toast */
+    .toast {
+      position: fixed; left: 50%; bottom: 22px; z-index: 70;
+      transform: translate(-50%, 12px); opacity: 0;
+      background: var(--toast-bg); color: var(--toast-ink); font-size: 13px; padding: 9px 14px; border-radius: 999px; pointer-events: none;
+      transition: opacity var(--dur) var(--out), transform var(--dur) var(--out);
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* =========================================================
+       Responsive. Below 760px the chat becomes a temporary layer.
+       ========================================================= */
+    @media (max-width: 760px) {
+      .shell, .shell.chat-open { grid-template-columns: 1fr; }
+      .rail {
+        position: sticky; top: var(--sketch-h); height: auto; z-index: 30;
+        flex-direction: row; gap: 4px; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--struct-edge);
+      }
+      .brand { margin: 0 4px 0 0; width: 36px; height: 36px; flex: none; }
+      .rail nav { flex-direction: row; width: auto; gap: 2px; }
+      .navbtn, .chatbtn { min-height: 44px; flex-direction: row; padding: 0 10px; width: auto; gap: 6px; font-size: 12px; }
+      .navbtn[aria-current="page"]::before { display: none; }
+      html[data-wave="3"] .railfoot { flex-direction: row; width: auto; margin-left: auto; }
+      .main { padding: 22px 16px 48px; }
+      .shell.chat-open .main { padding-inline: 16px; }
+      .chat {
+        position: fixed; inset: var(--sketch-h) 0 0 0; height: auto; z-index: 60;
+        transform: translateY(100%); transition: transform var(--dur-slow) var(--out);
+      }
+      .chat.open { transform: none; }
+      .chatinner { width: 100%; border-left: 0; }
+      .tile { width: calc(33.33% - 7px); }
+      .sketch p { display: none; }
+      .sketch .groups-row { flex: 1; justify-content: space-between; }
+      .sketch .vsep { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <svg class="defs" xmlns="http://www.w3.org/2000/svg" focusable="false">
+      <defs>
+        <!-- billow: low-frequency noise displaces the sphere edges, then a hair of blur -->
+        <filter id="fluff" x="-25%" y="-30%" width="150%" height="160%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.007 0.012" numOctaves="4" seed="11" result="n"></feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="58" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap>
+          <feGaussianBlur stdDeviation="2.2"></feGaussianBlur>
+        </filter>
+        <radialGradient id="halo">
+          <stop offset="0" stop-color="#fbf8f0" stop-opacity="0.9"></stop>
+          <stop offset="0.28" stop-color="#fbf8f0" stop-opacity="0.32"></stop>
+          <stop offset="1" stop-color="#fbf8f0" stop-opacity="0"></stop>
+        </radialGradient>
+      </defs>
+    </svg>
+
+    <div class="day">
+      <div class="air"></div>
+      <!-- far → near; each cloud is shade + base slab + lit spheres -->
+      <div class="cloud f2"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud f1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud m1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud n2"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud n1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p4"></i><i class="p p2"></i><i class="p p3"></i></div>
+    </div>
+
+    <div class="night">
+      <div class="way"></div>
+      <div class="stars far"></div>
+      <div class="stars mid"></div>
+      <svg class="stars near" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <!-- two brighter stars with halo -->
+        <circle class="halo" cx="1042" cy="118" r="18"></circle><circle class="tw" cx="1042" cy="118" r="1.9" style="--tw:8s"></circle>
+        <circle class="halo" cx="386" cy="212" r="14"></circle><circle class="tw" cx="386" cy="212" r="1.5" style="--tw:9s;--td:-3s"></circle>
+        <!-- near field -->
+        <circle cx="486" cy="140" r="1.2" opacity="0.9"></circle>
+        <circle class="tw" cx="562" cy="236" r="1" opacity="0.7" style="--tw:6.5s;--td:-1s"></circle>
+        <circle cx="512" cy="54" r="1.3" opacity="0.85"></circle>
+        <circle cx="640" cy="176" r="0.9" opacity="0.6"></circle>
+        <circle class="tw" cx="742" cy="86" r="1.4" opacity="0.9" style="--tw:7.5s;--td:-5s"></circle>
+        <circle cx="866" cy="232" r="1" opacity="0.7"></circle>
+        <circle cx="948" cy="48" r="1.1" opacity="0.8"></circle>
+        <circle class="tw" cx="1188" cy="196" r="1.2" opacity="0.8" style="--tw:8.5s;--td:-2s"></circle>
+        <circle cx="1286" cy="72" r="1.3" opacity="0.9"></circle>
+        <circle cx="1372" cy="262" r="0.9" opacity="0.6"></circle>
+        <circle cx="670" cy="292" r="1" opacity="0.65"></circle>
+        <circle cx="418" cy="330" r="1.1" opacity="0.7"></circle>
+        <circle class="tw" cx="590" cy="304" r="1" opacity="0.6" style="--tw:7s;--td:-4s"></circle>
+        <circle cx="796" cy="352" r="1.2" opacity="0.7"></circle>
+        <circle cx="1104" cy="318" r="0.9" opacity="0.55"></circle>
+        <circle cx="1240" cy="404" r="1" opacity="0.6"></circle>
+        <circle cx="440" cy="452" r="0.9" opacity="0.5"></circle>
+        <circle cx="990" cy="470" r="1" opacity="0.5"></circle>
+        <circle cx="180" cy="520" r="0.9" opacity="0.45"></circle>
+        <circle cx="704" cy="548" r="0.9" opacity="0.4"></circle>
+        <circle cx="1350" cy="560" r="1" opacity="0.4"></circle>
+      </svg>
+      <div class="glow"></div>
+    </div>
+
+    <div class="grain"></div>
+  </div>
+
+  <!-- sketch bar -->
+  <div class="sketch" role="region" aria-label="原型说明">
+    <p><b>草图</b>默认是 Wave 1 书桌：不提 Host。设置是 Wave 2，对话是 Wave 3 占位，真扩展在 Chrome Side Panel。</p>
+    <div class="groups-row">
+      <div class="scenes" role="group" aria-label="演示场景">
+        <button type="button" data-scene="desk" aria-pressed="true">书桌</button>
+        <button type="button" data-scene="settings" aria-pressed="false">设置</button>
+        <button type="button" data-scene="chat" aria-pressed="false">对话</button>
+        <button type="button" data-scene="offline" aria-pressed="false">未连接</button>
+      </div>
+      <span class="vsep" aria-hidden="true"></span>
+      <div class="scenes" role="group" aria-label="天空">
+        <button type="button" data-sky="auto" aria-pressed="false">系统</button>
+        <button type="button" data-sky="day" aria-pressed="true">白天</button>
+        <button type="button" data-sky="night" aria-pressed="false">晚上</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell" id="shell">
+    <!-- rail -->
+    <aside class="rail" aria-label="侧栏">
+      <div class="brand" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 8.5h16M4 15.5h16"></path><path d="M8 4.5v15"></path></svg>
+      </div>
+      <nav aria-label="主导览">
+        <button type="button" class="navbtn" data-view="desk" aria-current="page">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M9 10v9.5"></path></svg>
+          <span>书桌</span>
+        </button>
+        <button type="button" class="navbtn" data-view="tabs">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"></rect><path d="M3 10h18"></path><path d="M7 3.5h4a1 1 0 0 1 1 1V6"></path></svg>
+          <span>标签</span>
+        </button>
+        <button type="button" class="navbtn" data-view="settings">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2.5"></circle><circle cx="9.5" cy="17" r="2.5"></circle></svg>
+          <span>设置</span>
+        </button>
+      </nav>
+      <div class="spacer"></div>
+      <div class="railfoot">
+        <button type="button" class="chatbtn" id="toggle-panel" aria-expanded="false" aria-controls="panel">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"></path><path d="m8.5 9 2 1.75-2 1.75M13 12.5h3"></path></svg>
+          <span>对话</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- desk -->
+    <main class="main" id="main" tabindex="-1">
+      <!-- ============ 书桌 ============ -->
+      <section class="view active" data-view="desk" aria-labelledby="greet-h">
+        <header class="deskhead">
+          <div>
+            <p class="clock" id="clock" aria-label="当前时间"><span id="clock-hm">16:22</span><small id="clock-sec">09</small></p>
+            <h1 class="greet" id="greet-h">
+              <span id="greet-word">下午好</span>
+              <label class="sr-only" for="name">称呼</label>
+              <input class="name" id="name" type="text" placeholder="你的称呼" autocomplete="nickname">
+            </h1>
+            <p class="dateline"><span id="date-line">9月3日 · 星期四</span><span class="sep" aria-hidden="true"></span><span id="summary-line">2 项待办 · 本窗口 7 个标签</span></p>
+          </div>
+        </header>
+
+        <div class="deskgrid">
+          <section class="card dock" aria-labelledby="h-sites">
+            <div class="cardhead">
+              <h2 id="h-sites"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><path d="M17 13.5v7M13.5 17h7"></path></svg>常用站</h2>
+              <span class="count" id="c-sites">4</span>
+              <button type="button" class="linkbtn act" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">添加</button>
+            </div>
+            <div class="cardbody">
+              <div class="tiles" id="sites">
+          <a class="tile" href="https://github.com" target="_blank" rel="noopener" title="GitHub · https://github.com" style="--h:133">
+            <span class="glyph" aria-hidden="true">G</span>
+            <span class="lbl">GitHub</span>
+          </a>
+          <a class="tile" href="https://linear.app" target="_blank" rel="noopener" title="Linear · https://linear.app" style="--h:127">
+            <span class="glyph" aria-hidden="true">L</span>
+            <span class="lbl">Linear</span>
+          </a>
+          <a class="tile" href="https://developer.chrome.com/docs/extensions" target="_blank" rel="noopener" title="Chrome 扩展文档 · https://developer.chrome.com/docs/extensions" style="--h:153">
+            <span class="glyph" aria-hidden="true">C</span>
+            <span class="lbl">Chrome 扩展文档</span>
+          </a>
+          <a class="tile" href="https://developer.mozilla.org" target="_blank" rel="noopener" title="MDN · https://developer.mozilla.org" style="--h:11">
+            <span class="glyph" aria-hidden="true">M</span>
+            <span class="lbl">MDN</span>
+          </a>
+          <button type="button" class="tile add" id="site-add-2" aria-controls="site-form">
+            <span class="glyph" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></span>
+            <span class="lbl">添加</span>
+          </button></div>
+              <form class="tileform" id="site-form" hidden="">
+                <label class="sr-only" for="site-name">名称</label>
+                <input class="field" id="site-name" placeholder="名称" required="" autocomplete="off">
+                <label class="sr-only" for="site-url">网址</label>
+                <input class="field" id="site-url" type="url" placeholder="https://" required="" autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn">加入</button>
+                <button type="button" class="btn ghost" id="site-cancel">取消</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="card c-todo" aria-labelledby="h-todo">
+            <div class="cardhead">
+              <h2 id="h-todo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 6 9.5l3.5-4M4 16.5l2 2 3.5-4M13 7h7M13 17h7"></path></svg>待办</h2>
+              <span class="count" id="c-todo">2 未完成</span>
+              <button type="button" class="linkbtn act" id="todo-clear">清除已完成</button>
+            </div>
+            <div class="cardbody">
+              <ul class="todos" id="todos">
+          <li class="todo ">
+            <label><input type="checkbox" data-i="0"><span>把常用站收成自己的几个</span></label>
+            <button type="button" class="iconbtn" data-del="0" aria-label="删除待办：把常用站收成自己的几个"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </li>
+          <li class="todo done">
+            <label><input type="checkbox" data-i="1" checked=""><span>看一眼这个窗口的标签</span></label>
+            <button type="button" class="iconbtn" data-del="1" aria-label="删除待办：看一眼这个窗口的标签"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </li>
+          <li class="todo ">
+            <label><input type="checkbox" data-i="2"><span>便签先记一句</span></label>
+            <button type="button" class="iconbtn" data-del="2" aria-label="删除待办：便签先记一句"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </li></ul>
+              <form class="todoadd" id="todo-form">
+                <label class="sr-only" for="todo-input">新待办，回车添加</label>
+                <input class="field" id="todo-input" placeholder="写一条，回车添加" autocomplete="off">
+              </form>
+            </div>
+          </section>
+
+          <section class="card c-notes" aria-labelledby="h-notes">
+            <div class="cardhead">
+              <h2 id="h-notes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v10.5l-4.5 4.5H5z"></path><path d="M14.5 19.5V15H19M8.5 9h7M8.5 12.5h5"></path></svg>便签</h2>
+              <span class="count" id="c-notes">20 字</span>
+              <span class="saved act" id="notes-saved" aria-live="polite">已保存</span>
+            </div>
+            <div class="cardbody">
+              <label class="sr-only" for="notes">便签内容</label>
+              <textarea class="notes" id="notes" placeholder="纯文本，只存在本机"></textarea>
+            </div>
+          </section>
+
+          <section class="card c-tabs" aria-labelledby="h-tabs">
+            <div class="cardhead">
+              <h2 id="h-tabs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"></rect><path d="M3 10h18"></path><path d="M7 3.5h4a1 1 0 0 1 1 1V6"></path></svg>这个窗口</h2>
+              <span class="count" id="c-tabs">7 · 4 域名</span>
+              <button type="button" class="linkbtn act" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+            </div>
+            <div class="cardbody">
+              <div class="domains" id="domains">
+          <div class="domain" style="--h:318">
+            <span class="favicon" aria-hidden="true">G</span>
+            <div class="who"><b>github.com</b><span class="bar" aria-hidden="true"><i style="--w:100%"></i></span></div>
+            <span class="n" aria-label="2 个标签">2</span>
+          </div>
+          <div class="domain" style="--h:339">
+            <span class="favicon" aria-hidden="true">L</span>
+            <div class="who"><b>localhost</b><span class="bar" aria-hidden="true"><i style="--w:100%"></i></span></div>
+            <span class="n" aria-label="2 个标签">2</span>
+          </div>
+          <div class="domain" style="--h:305">
+            <span class="favicon" aria-hidden="true">D</span>
+            <div class="who"><b>developer.chrome.com</b><span class="bar" aria-hidden="true"><i style="--w:100%"></i></span></div>
+            <span class="n" aria-label="2 个标签">2</span>
+          </div>
+          <div class="domain" style="--h:312">
+            <span class="favicon" aria-hidden="true">L</span>
+            <div class="who"><b>linear.app</b><span class="bar" aria-hidden="true"><i style="--w:50%"></i></span></div>
+            <span class="n" aria-label="1 个标签">1</span>
+          </div></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============ 标签 ============ -->
+      <section class="view" data-view="tabs" aria-labelledby="tabs-h">
+        <header class="viewhead">
+          <h1 id="tabs-h">标签</h1>
+          <p id="tabs-sub">只看当前窗口，按域名折叠。localhost 只是一个域名。</p>
+        </header>
+        <div class="tabtools">
+          <label class="sr-only" for="tab-filter">筛选标签</label>
+          <input class="field" id="tab-filter" placeholder="筛选标题或网址" autocomplete="off">
+        </div>
+        <div class="groups" id="groups"></div>
+      </section>
+
+      <!-- ============ 设置 ============ -->
+      <section class="view" data-view="settings" aria-labelledby="settings-h">
+        <header class="viewhead">
+          <h1 id="settings-h">设置</h1>
+          <p>要连本机 Cursor 时再来这里。书桌不依赖这一页。</p>
+        </header>
+        <div class="settings">
+          <section class="card" aria-labelledby="s-host">
+            <div class="cardhead">
+              <h2 id="s-host"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"></path><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"></path></svg>连接本机</h2>
+              <span class="count host-probe act" id="s-host-badge" hidden=""></span>
+            </div>
+            <div class="cardbody form">
+              <div class="status host-probe" id="host-status" hidden="" aria-live="polite"></div>
+              <ul class="checks host-probe" id="host-checks" hidden="" aria-label="连接结果"></ul>
+              <div class="frow">
+                <div class="inline">
+                  <button type="button" class="btn" id="host-toggle">检测 Host</button>
+                  <p class="help" id="host-help">需要时再连。没装也不影响书桌。</p>
+                </div>
+              </div>
+              <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5M12 8v.5"></path></svg><span>经本机 Cursor CLI，只读。Host 不是本地模型，不能写文件或执行命令。</span></p>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="s-cwd">
+            <div class="cardhead">
+              <h2 id="s-cwd"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"></path></svg>工作目录</h2>
+            </div>
+            <div class="cardbody form">
+              <div class="frow">
+                <label for="cwd">对话在这个目录里启动 Cursor CLI</label>
+                <input class="field" id="cwd" placeholder="留空，需要时再填" spellcheck="false">
+                <p class="help">默认空。不预填本机路径。</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <!-- chat column -->
+    <aside class="chat" id="panel" role="complementary" aria-label="本机对话" aria-hidden="true" inert="">
+      <div class="chatinner">
+        <header class="panelhead">
+          <div class="grow">
+            <h2>本机对话 <span class="tag">Side Panel 占位</span></h2>
+            <p id="panel-sub">经本机 Cursor CLI，只读</p>
+          </div>
+          <button type="button" class="iconbtn" id="panel-close" aria-label="关闭对话栏">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>
+        </header>
+        <div class="guard" aria-label="对话边界">
+          <span>只读，不写文件不执行</span>
+          <span>另装 Host</span>
+          <span>不是本地模型</span>
+        </div>
+        <div class="panelbody" id="panel-body" aria-live="polite">
+            <div class="emptystate">
+              <div class="ring"><svg class="i lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"></path><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"></path><path d="m4 4 3 3M17 17l3 3"></path></svg></div>
+              <h3>要另装 Host</h3>
+              <p>对话走本机 Cursor CLI，只读。去设置里检测，书桌不受影响。</p>
+              <button type="button" class="btn" data-goto="settings">去设置</button>
+            </div></div>
+        <footer class="panelfoot">
+          <form class="compose" id="compose">
+            <label class="sr-only" for="prompt">给本机 CLI 的消息</label>
+            <textarea class="field" id="prompt" rows="1" placeholder="问本机…" disabled=""></textarea>
+            <button type="submit" class="btn" id="send" aria-label="发送" disabled="">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-4 16-4-7z"></path><path d="m12 13 8-9"></path></svg>
+            </button>
+          </form>
+          <p class="hint block" id="compose-hint">先在设置里连接本机 Host。</p>
+        </footer>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      /* ---------- data ---------- */
+      const state = {
+        view: 'desk',
+        wave: 1,
+        panelOpen: false,
+        host: { installed: false, authorized: false, bridge: false },
+        hostChecked: false,
+        cwd: '',
+        name: '',
+        skyPref: document.documentElement.dataset.skyPref || 'auto',
+        sites: [
+          { name: 'GitHub', url: 'https://github.com' },
+          { name: 'Linear', url: 'https://linear.app' },
+          { name: 'Chrome 扩展文档', url: 'https://developer.chrome.com/docs/extensions' },
+          { name: 'MDN', url: 'https://developer.mozilla.org' },
+        ],
+        todos: [
+          { text: '把常用站收成自己的几个', done: false },
+          { text: '看一眼这个窗口的标签', done: true },
+          { text: '便签先记一句', done: false },
+        ],
+        notes: '周四把常用站收一收。\n便签只在这台机器上。',
+        tabs: [
+          { host: 'github.com', title: 'sopify-tab · README', path: '/nio/sopify-tab' },
+          { host: 'github.com', title: 'multica · PR #42', path: '/nio/multica/pull/42' },
+          { host: 'localhost', title: 'Vite App', path: ':5173' },
+          { host: 'localhost', title: 'Storybook', path: ':6006' },
+          { host: 'linear.app', title: '本周 issue', path: '/team/SOP/active' },
+          { host: 'developer.chrome.com', title: 'Side Panel API', path: '/docs/extensions/reference/api/sidePanel' },
+          { host: 'developer.chrome.com', title: 'Native Messaging', path: '/docs/extensions/develop/concepts/native-messaging' },
+        ],
+        messages: [],
+        filter: '',
+      };
+      const connected = () => state.host.installed && state.host.authorized && state.host.bridge;
+
+      const $ = (s, r = document) => r.querySelector(s);
+      const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+      const mono = (s) => { const t = String(s).trim(); const m = t.match(/[A-Za-z0-9\u4e00-\u9fff]/); return (m ? m[0] : t.slice(0, 1)).toUpperCase(); };
+
+      /* ---------- sky: follow system / day / night ---------- */
+      const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+      function applySky() {
+        const pref = state.skyPref;
+        const sky = pref === 'auto' ? (darkMQ.matches ? 'night' : 'day') : pref;
+        document.documentElement.dataset.sky = sky;
+        document.documentElement.dataset.skyPref = pref;
+        $$('.scenes [data-sky]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sky === pref)));
+      }
+      darkMQ.addEventListener('change', () => { if (state.skyPref === 'auto') applySky(); });
+
+      /* ---------- time (greeting only; sky no longer keys off the hour) ---------- */
+      const greetingOf = (h) => h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 13 ? '中午好' : h < 17 ? '下午好' : h < 20 ? '傍晚好' : '晚上好';
+      function tick() {
+        const d = new Date();
+        const p2 = (n) => String(n).padStart(2, '0');
+        $('#clock-hm').textContent = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
+        $('#clock-sec').textContent = p2(d.getSeconds());
+        const wd = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+        $('#date-line').textContent = `${d.getMonth() + 1}月${d.getDate()}日 · 星期${wd}`;
+        $('#greet-word').textContent = greetingOf(d.getHours()) + (state.name ? '，' : '');
+      }
+
+      /* ---------- desk ---------- */
+      function renderSites() {
+        $('#sites').innerHTML = state.sites.map((s) => `
+ 

@@ -4,23 +4,27 @@
 
 - 核心技术: Chrome Manifest V3，Vanilla HTML / CSS / JavaScript；native host 用 Node，由 install 脚本写入绝对路径
 - 实现要点:
-  - 新标签页只承载书桌和当前窗口标签。Agent 会话活在 Side Panel 文档，避免 `chrome_url_overrides` 卸载把对话一起杀掉。
+  - `prototype/index.html` 只提供栏、卡片、日/夜 token。演示器边界见 `plan.md` Context。
+  - Wave 1 的 newtab 只有书桌和标签。不申请 `sidePanel` 或 `nativeMessaging`。Agent 会话只活在 Wave 3 的 Side Panel 文档里。
+  - 用户书桌数据只写 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查。当次对话只在 Side Panel 内存。
   - `nativeMessaging` 可选。商店包不带 host。Host JSON 的 `allowed_origins` 只列本扩展稳定 ID。
-  - Host 入口必须是可执行文件的绝对路径。本机 `cursor-agent` 是 zsh alias，真实入口是 `/Users/weixin.li/.local/bin/cursor-agent-proxy`。Node 只在 nvm 下，禁止 `/usr/bin/env node`。
-  - CLI 合同：`--print --output-format stream-json --mode ask`。cwd 锁定。不传 `--force`。`--mode ask` 不是 OS 沙箱。
+  - Host 入口必须是可执行文件的绝对路径。本机 `cursor-agent` 是 zsh alias，真实入口是 `/Users/weixin.li/.local/bin/cursor-agent-proxy`。禁止 `/usr/bin/env node`。
+  - CLI 合同：`--print --output-format stream-json --mode ask`。cwd 锁定。不传 `--force`。不传模型选择。`--mode ask` 不是 OS 沙箱。
   - 关闭 Side Panel：结束 `Port`，并杀掉 host 拉起的整棵进程树。
 
 ## 架构设计
 
 ```mermaid
 flowchart TD
-  NTP[newtab 书桌与标签网格] -->|FAB| SP[sidepanel 聊天]
-  TB[工具栏图标] --> SP
-  SP -->|可选 connectNative| NM[Chrome Native Messaging]
+  NTP[newtab 书桌与标签]
+  NTP -->|用户数据| ST[(chrome.storage.local)]
+  NTP -->|当前窗口标签| TABS[chrome.tabs]
+  SET[settings Wave 2] -->|cwd| ST
+  SET -->|可选 permissions.request| NM[Chrome Native Messaging]
+  SP[sidepanel Wave 3] -->|connectNative| NM
   NM --> HOST[com.sopify.tab host]
   HOST --> PROXY[cursor-agent-proxy]
   PROXY --> CLI[cursor-agent --mode ask]
-  NTP -.->|chrome.storage.local| ST[(本机存储)]
 ```
 
 目录约定（Wave 1 才创建产品文件）：
@@ -29,17 +33,31 @@ flowchart TD
 sopify-tab/
   extension/     MV3 扩展
   host/          native host 与 install-host.sh
-  .sopify/      方案与长期知识
+  prototype/     HTML 演示，视觉参考
+  .sopify/       方案与长期知识
 ```
 
 消费边界：
 
-- `newtab.*` 不持有 agent 会话，不申请 `nativeMessaging`。
-- `sidepanel.*` 持有当次会话 DOM；关文档即停当次运行。
-- `background.js` 只做权限、sidePanel 行为、消息转发，不在 service worker 里硬撑长任务。
-- `host/` 只在用户安装后存在于本机；CRX 里最多放脚本源码，不把用户机器路径提交进 git（`host/local-paths.json` 已进 `.gitignore`）。
+- `newtab.*`：书桌和标签。读 `storage.local` 和 `tabs`。Wave 1 不持有会话，不申请 `nativeMessaging`，不渲染 Host 状态。
+- 设置页（Wave 2）：Host 说明与 `cwd`。检测失败只留在本页。
+- `sidepanel.*`（Wave 3）：当次会话 DOM。关文档即停当次运行。不把对话写入 `storage`。
+- `background.js`（Wave 3）：sidePanel 行为、消息转发。不在 service worker 里硬撑长任务，不当书桌数据库。
+- `host/`：只在用户安装后存在于本机。不存放常用站、待办、便签。
+
+`chrome.storage.local` 键：
+
+```text
+sites:  [{name, url}]          Wave 1
+todos:  [{id, text, done}]     Wave 1
+notes:  string                 Wave 1
+name:   string                 Wave 1
+cwd:    string                 Wave 2，默认 ""
+```
+
+不设 `skyPref`、`cli`、`model`。标签、Host 探测结果、对话消息不落盘。
 
 ## 安全与性能
 
-- 安全: 稳定扩展 ID；host 白名单；可选权限；只读 ask；锁 cwd；不覆盖他人 native host；商店 listing 不把聊天说成必装能力。
-- 性能: 第一屏不读 history / bookmarks；无常驻 sidecar；关侧栏释放进程。流式输出走 native port，不把整段 JSON 堆在 NTP。
+- 安全: 稳定扩展 ID；host 白名单；可选权限；只读 ask；锁 cwd；不覆盖他人 native host；listing 不把聊天说成必装。书桌数据不出扩展、不上云、不经 Host。
+- 性能: 第一屏不读 history / bookmarks；无常驻 sidecar；关侧栏释放进程。天空跟随系统，样式参考演示，不验收云层和星空动画。

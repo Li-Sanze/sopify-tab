@@ -3,3 +3,6 @@ node_modules/
 .sopify/state/
 .sopify/plan/*/receipts/
 host/local-paths.json
+.orca/
+.tmp-chrome/
+.tmp-chrome-*/
