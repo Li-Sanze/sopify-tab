@@ -5,16 +5,16 @@ status: planned
 lifecycle_state: planned
 level: architecture
 created: 2026-09-03
-updated: 2026-09-03
+updated: 2026-09-06
 archive_ready: false
 ---
 
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。扩展未开始。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 扩展已落地。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。确认后开始 Wave 1。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 1 已交付书桌与标签。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -66,7 +66,7 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 
 ## Waves / Steps
 
-- [ ] Wave 1：书桌与标签。左侧栏两页、书桌四块、标签整理。权限仅 `storage`、`tabs`。无 Side Panel、无设置、无 Host 文案。
+- [x] Wave 1：书桌与标签。左侧栏两页、书桌四块、标签整理。权限仅 `storage`、`tabs`。无 Side Panel、无设置、无 Host 文案。
 - [ ] Wave 2：设置页（连接本机 + 工作目录）；可选申请 `nativeMessaging`；`host/install-host.sh`。Host 失败不破坏书桌。
 - [ ] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
 - [ ] Wave 4：listing / 隐私披露验收文案（不实际上架）。实际上架操作另开方案。
@@ -101,8 +101,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] 需求锁定，评分 9/10
 - [x] 架构路径确认（侧栏 + Native Messaging，ask 只读）
 - [x] 默认不连、第一屏不提 Host
-- [ ] Wave 1 扩展代码
+- [x] Wave 1 扩展代码
 
 ## Next
 
-确认后开始 Wave 1。确认前不写扩展代码、不 `git push`、不装 Host。
+Wave 1 已落地 `extension/`。下一波再做设置页与可选 Host，不要提前写 Wave 2/3 代码。

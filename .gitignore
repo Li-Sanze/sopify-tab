@@ -6,3 +6,5 @@ host/local-paths.json
 .orca/
 .tmp-chrome/
 .tmp-chrome-*/
+*.crx
+*.pem
