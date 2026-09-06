@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "evidence": {
+    "wave": 1,
+    "summary": "Wave 1 MV3 new-tab workbench landed. Desk and tabs only. No Wave 2/3 product code.",
+    "implemented": [
+      "extension/manifest.json: MV3, chrome_url_overrides.newtab, stable key, permissions storage + tabs only",
+      "extension/newtab.html, newtab.css, newtab.js, sky.js: left rail 书桌 / 标签",
+      "desk: clock, greeting name, sites, todos, plain-text notes in chrome.storage.local",
+      "empty start: no sample sites, todos, or notes",
+      "greeting meta: date + N 项待办 · 本窗口 M 个标签",
+      "current-window tabs via chrome.tabs: group by domain, filter title/URL, close one / close group",
+      "localhost ports shown as labels; tab lists not written to storage",
+      "sky follows prefers-color-scheme only"
+    ],
+    "out_of_scope_not_shipped": [
+      "settings page",
+      "Host copy",
+      "sidePanel",
+      "nativeMessaging",
+      "chat"
+    ],
+    "owner_unpacked_verify": "pending"
+  },
+  "provenance": {
+    "plan_id": "20260903_sopify_tab",
+    "receipt_id": "exec_001",
+    "host": "cursor"
+  },
+  "timestamp": "2026-09-06T08:42:04Z"
+}
