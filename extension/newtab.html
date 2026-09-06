@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Sopify Tab</title>
+  <script src="sky.js"></script>
+  <link rel="stylesheet" href="newtab.css">
+  <script src="newtab.js" defer></script>
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <div class="air"></div>
+    <div class="grain"></div>
+  </div>
+
+  <div class="shell" id="shell">
+    <aside class="rail" aria-label="侧栏">
+      <div class="brand" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3.5 12h12M11.5 8l4 4-4 4M20 6.5v11"/></svg>
+      </div>
+      <nav aria-label="主导览">
+        <button type="button" class="navbtn" data-view="desk" aria-current="page">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 10h17M9 10v9.5"/></svg>
+          <span>书桌</span>
+        </button>
+        <button type="button" class="navbtn" data-view="tabs">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>
+          <span>标签</span>
+        </button>
+      </nav>
+    </aside>
+
+    <main class="main" id="main" tabindex="-1">
+      <section class="view active" data-view="desk" aria-labelledby="greet-h">
+        <header class="deskhead">
+          <div>
+            <p class="clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec">00</small></p>
+            <h1 class="greet" id="greet-h">
+              <span id="greet-word">你好</span>
+              <label class="sr-only" for="name">称呼</label>
+              <input class="name" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24">
+            </h1>
+            <p class="dateline"><span id="date-line"></span><span class="sep" aria-hidden="true"></span><span id="summary-line">0 项待办 · 本窗口 0 个标签</span></p>
+          </div>
+        </header>
+
+        <div class="deskgrid">
+          <section class="card dock" aria-labelledby="h-sites">
+            <div class="cardhead">
+              <h2 id="h-sites"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/></svg>常用站</h2>
+              <span class="count" id="c-sites">0</span>
+            </div>
+            <div class="cardbody">
+              <div class="tiles" id="sites"></div>
+              <form class="tileform" id="site-form" hidden>
+                <label class="sr-only" for="site-name">名称</label>
+                <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
+                <label class="sr-only" for="site-url">网址</label>
+                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn">加入</button>
+                <button type="button" class="btn ghost" id="site-cancel">取消</button>
+              </form>
+            </div>
+            <div class="cardfoot">
+              <button type="button" class="linkbtn" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">添加</button>
+            </div>
+          </section>
+
+          <section class="card c-todo" aria-labelledby="h-todo">
+            <div class="cardhead">
+              <h2 id="h-todo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 6 9.5l3.5-4M4 16.5l2 2 3.5-4M13 7h7M13 17h7"/></svg>待办</h2>
+              <span class="count" id="c-todo">0</span>
+            </div>
+            <div class="cardbody">
+              <ul class="todos" id="todos"></ul>
+              <form class="todoadd" id="todo-form">
+                <label class="sr-only" for="todo-input">新待办，回车添加</label>
+                <input class="field" id="todo-input" placeholder="写一条，回车添加" autocomplete="off">
+              </form>
+            </div>
+            <div class="cardfoot">
+              <span class="muted" id="todo-done"></span>
+              <button type="button" class="linkbtn" id="todo-clear">清除已完成</button>
+            </div>
+          </section>
+
+          <section class="card c-notes" aria-labelledby="h-notes">
+            <div class="cardhead">
+              <h2 id="h-notes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v10.5l-4.5 4.5H5z"/><path d="M14.5 19.5V15H19M8.5 9h7M8.5 12.5h5"/></svg>便签</h2>
+              <span class="count" id="c-notes">0</span>
+            </div>
+            <div class="cardbody">
+              <label class="sr-only" for="notes">便签内容</label>
+              <textarea class="notes" id="notes" placeholder="纯文本，只存在本机"></textarea>
+            </div>
+            <div class="cardfoot">
+              <span class="saved" id="notes-saved" aria-live="polite"></span>
+            </div>
+          </section>
+
+          <section class="card c-tabs" aria-labelledby="h-tabs">
+            <div class="cardhead">
+              <h2 id="h-tabs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>这个窗口</h2>
+              <span class="count" id="c-tabs">0</span>
+            </div>
+            <div class="cardbody">
+              <div class="domains" id="domains"></div>
+            </div>
+            <div class="cardfoot">
+              <span class="muted" id="c-tabs-sub"></span>
+              <button type="button" class="linkbtn" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" data-view="tabs" aria-labelledby="tabs-h">
+        <header class="viewhead">
+          <h1 id="tabs-h">标签</h1>
+          <p id="tabs-sub">只看当前窗口，按域名折叠。localhost 端口只是标签。</p>
+        </header>
+        <div class="tabtools">
+          <label class="sr-only" for="tab-filter">筛选标签</label>
+          <input class="field" id="tab-filter" placeholder="筛选标题或网址" autocomplete="off">
+        </div>
+        <div class="groups" id="groups"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

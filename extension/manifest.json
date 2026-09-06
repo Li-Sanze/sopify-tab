@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Sopify Tab",
+  "version": "0.1.0",
+  "description": "安静的 Chrome 新标签页工作台",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1rqRBCaMmZBoPt1LMtFpxREI+EhOfLzZGCnkY9RMEuOYB8Va403zM897pSsAt1rjdM43e97LA/dIkUGbkruToRGgUgC8GKk8/6yim2jkwGseyVL913RpvT5uVcKmHEIYxgFzjokZZp0msyW9BSygYv++S1DrCl4Zr9Ll3ZsFgSMo0NYFrKBlxDGnJQKvb+RbhB9xrwXgZ8TAZfHzDX1oSR6e/sF0Ea3P3+GmPksFK6B4zy2EYbwiKiTkL3zRhqoPPgGWE13FzYlkptbIVBU9qNqaFXFcxDX4GKmi+aki9i/FLzTuyG8E60zo6clIadUgKMpmpsL4nEwwy3f/TADnfwIDAQAB",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ]
+}

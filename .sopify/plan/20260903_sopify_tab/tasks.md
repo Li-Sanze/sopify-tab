@@ -6,10 +6,10 @@
 
 ## 1. Wave 1 书桌
 
-- [ ] 1.1 在 `extension/manifest.json` 写 MV3：`chrome_url_overrides.newtab`、稳定 `key`、权限仅 `storage` `tabs`。验收：unpacked 加载后新标签页是本扩展，扩展 ID 在移动目录后不变；`chrome://extensions` 看不到 `sidePanel` 或 `nativeMessaging`。
-- [ ] 1.2 在 `extension/newtab.html` `extension/newtab.css` `extension/newtab.js` 做左侧栏两页：书桌、标签。视觉跟 `prototype/index.html` 的栏和卡片走；天空跟随系统。验收：无网络时两页可切；newtab 里没有设置页、没有对话按钮、没有 Host 芯片或「未检测到」；不把演示第三列做进 newtab。
-- [ ] 1.3 在书桌页做时钟、问候称呼、常用站、待办、纯文本便签，读写 `chrome.storage.local` 的 `sites` `todos` `notes` `name`。验收：刷新或新开标签页后数据还在；不预填演示里的样例站点、待办、便签；问候旁只留日期和「N 项待办 · 本窗口 M 个标签」。
-- [ ] 1.4 在书桌「这个窗口」和标签页用 `chrome.tabs` 读当前窗口：按域名分组、标题/网址筛选、关闭单条、关闭整组；localhost 端口只显示为标签。验收：只操作当前窗口，不读 history / bookmarks，不把标签列表写入 `storage`，没有跳转或去重入口。
+- [x] 1.1 在 `extension/manifest.json` 写 MV3：`chrome_url_overrides.newtab`、稳定 `key`、权限仅 `storage` `tabs`。验收：unpacked 加载后新标签页是本扩展，扩展 ID 在移动目录后不变；`chrome://extensions` 看不到 `sidePanel` 或 `nativeMessaging`。
+- [x] 1.2 在 `extension/newtab.html` `extension/newtab.css` `extension/newtab.js` 做左侧栏两页：书桌、标签。视觉跟 `prototype/index.html` 的栏和卡片走；天空跟随系统。验收：无网络时两页可切；newtab 里没有设置页、没有对话按钮、没有 Host 芯片或「未检测到」；不把演示第三列做进 newtab。
+- [x] 1.3 在书桌页做时钟、问候称呼、常用站、待办、纯文本便签，读写 `chrome.storage.local` 的 `sites` `todos` `notes` `name`。验收：刷新或新开标签页后数据还在；不预填演示里的样例站点、待办、便签；问候旁只留日期和「N 项待办 · 本窗口 M 个标签」。
+- [x] 1.4 在书桌「这个窗口」和标签页用 `chrome.tabs` 读当前窗口：按域名分组、标题/网址筛选、关闭单条、关闭整组；localhost 端口只显示为标签。验收：只操作当前窗口，不读 history / bookmarks，不把标签列表写入 `storage`，没有跳转或去重入口。
 
 ## 2. Wave 2 可选 Host
 
