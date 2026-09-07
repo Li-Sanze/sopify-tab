@@ -25,7 +25,7 @@
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 10h17M9 10v9.5"/></svg>
           <span>书桌</span>
         </button>
-        <button type="button" class="navbtn" data-view="tabs">
+        <button type="button" class="navbtn" id="nav-tabs" data-view="tabs">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>
           <span>标签</span>
         </button>
@@ -53,7 +53,7 @@
               <label class="sr-only" for="name">称呼</label>
               <input class="name" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24">
             </h1>
-            <p class="dateline"><span id="date-line"></span><span class="sep" aria-hidden="true"></span><span id="summary-line">0 项待办 · 本窗口 0 个标签</span></p>
+            <p class="dateline" id="date-line"></p>
           </div>
         </header>
 
@@ -121,7 +121,7 @@
             </div>
             <div class="cardfoot">
               <span class="muted" id="c-tabs-sub"></span>
-              <button type="button" class="linkbtn" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
             </div>
           </section>
         </div>

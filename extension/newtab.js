@@ -2,6 +2,7 @@
   'use strict';
 
   const DESK_KEYS = ['sites', 'todos', 'notes', 'name'];
+  const DESK_DOMAIN_CAP = 6;
   const HOST_ID = 'com.sopify.tab';
   const HOST_CHECKS = [
     ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
@@ -166,11 +167,6 @@
     $('#greet-word').textContent = greetingOf(d.getHours()) + (state.name.trim() ? '，' : '');
   }
 
-  function renderSummary() {
-    const left = state.todos.filter((t) => !t.done).length;
-    $('#summary-line').textContent = `${left} 项待办 · 本窗口 ${state.tabs.length} 个标签`;
-  }
-
   function renderSites() {
     const addTile = `
       <button type="button" class="tile add" id="site-add-2" aria-controls="site-form">
@@ -220,7 +216,6 @@
     $('#c-todo').setAttribute('aria-label', `${left} 项未完成`);
     $('#todo-done').textContent = done ? `已完成 ${done}` : '';
     $('#todo-clear').disabled = !done;
-    renderSummary();
   }
 
   function renderNotes() {
@@ -230,19 +225,51 @@
     $('#c-notes').setAttribute('aria-label', `${n} 字`);
   }
 
+  function faviconOf(tabs) {
+    for (const t of tabs) {
+      const u = t && t.favIconUrl;
+      if (typeof u === 'string' && u.trim()) return u.trim();
+    }
+    return '';
+  }
+
+  function bindFaviconFallback(root) {
+    $$('img.fav', root).forEach((img) => {
+      const ok = () => img.classList.add('ok');
+      const fail = () => img.remove();
+      img.addEventListener('load', ok);
+      img.addEventListener('error', fail);
+      if (img.complete) {
+        if (img.naturalWidth) ok();
+        else fail();
+      }
+    });
+  }
+
   function renderDomains() {
     const groups = groupTabs(state.tabs.filter((t) => isDeskSummaryUrl(t.url || '')));
-    const max = Math.max(1, ...groups.map(([, tabs]) => tabs.length));
-    $('#domains').innerHTML = groups.length ? groups.map(([host, tabs]) => `
+    const shown = groups.slice(0, DESK_DOMAIN_CAP);
+    const max = Math.max(1, ...shown.map(([, tabs]) => tabs.length));
+    const box = $('#domains');
+    box.innerHTML = shown.length ? shown.map(([host, tabs]) => {
+      const icon = faviconOf(tabs);
+      const letter = esc(mono(host));
+      const mark = icon
+        ? `<img class="fav" src="${esc(icon)}" alt=""><span class="fav-letter">${letter}</span>`
+        : `<span class="fav-letter">${letter}</span>`;
+      return `
       <div class="domain" style="--h:${hue(host)}">
-        <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
+        <span class="favicon" aria-hidden="true">${mark}</span>
         <div class="who"><b>${esc(host)}</b><span class="bar" aria-hidden="true"><i style="--w:${(tabs.length / max) * 100}%"></i></span></div>
         <span class="n" aria-label="${tabs.length} 个标签">${tabs.length}</span>
-      </div>`).join('') : `<p class="empty">这个窗口还没有网页。</p>`;
+      </div>`;
+    }).join('') : `<p class="empty">这个窗口还没有网页。</p>`;
+    bindFaviconFallback(box);
     $('#c-tabs').textContent = String(state.tabs.length);
     $('#c-tabs').setAttribute('aria-label', `${state.tabs.length} 个标签`);
-    $('#c-tabs-sub').textContent = groups.length ? `${groups.length} 域名` : '';
-    renderSummary();
+    $('#c-tabs-sub').textContent = groups.length
+      ? (groups.length > DESK_DOMAIN_CAP ? `前 ${DESK_DOMAIN_CAP} / ${groups.length} 域名` : `${groups.length} 域名`)
+      : '';
   }
 
   function renderGroups() {
@@ -423,7 +450,7 @@
     } catch { /* fail-soft: desk still works */ }
   }
 
-  function setView(v) {
+  function setView(v, opts) {
     if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
     $$('.view').forEach((el) => el.classList.toggle('active', el.dataset.view === v));
@@ -436,7 +463,9 @@
       $('#cwd').value = state.cwd;
       renderHost();
     }
-    $('#main').focus({ preventScroll: true });
+    const focusNav = opts && opts.focusNav;
+    const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
+    (nav || $('#main')).focus({ preventScroll: true });
   }
 
   let toastT;
@@ -476,7 +505,6 @@
     }
     renderDomains();
     if (state.view === 'tabs') renderGroups();
-    renderSummary();
   }
 
   async function closeTab(id) {
@@ -499,7 +527,7 @@
     if (chatBtn) chatBtn.addEventListener('click', () => { openDialogue(); });
     document.addEventListener('click', (e) => {
       const g = e.target.closest('[data-goto]');
-      if (g) setView(g.dataset.goto);
+      if (g) setView(g.dataset.goto, { focusNav: true });
     });
     window.addEventListener('hashchange', () => {
       if (location.hash === '#settings') setView('settings');
