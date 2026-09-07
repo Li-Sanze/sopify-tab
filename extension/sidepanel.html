@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>本机对话</title>
+  <script src="sky.js"></script>
+  <link rel="stylesheet" href="newtab.css">
+  <link rel="stylesheet" href="sidepanel.css">
+  <script src="sidepanel.js" defer></script>
+</head>
+<body class="sidepanel">
+  <div class="sky" aria-hidden="true">
+    <div class="glow"></div>
+    <div class="mist"></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <header class="panelhead">
+      <div class="grow">
+        <h1>本机对话</h1>
+        <p id="panel-sub">经本机 Cursor CLI，只读</p>
+      </div>
+      <div class="sessionbar">
+        <button type="button" class="linkbtn" id="session-new" hidden>新会话</button>
+        <button type="button" class="linkbtn" id="session-retry" hidden>重试</button>
+        <button type="button" class="linkbtn" id="session-stop" hidden>停止</button>
+      </div>
+    </header>
+
+    <div class="guard" aria-label="对话边界">
+      <span>只读，不写不执行</span>
+      <span>另装 Host</span>
+      <span>不是本地模型</span>
+    </div>
+
+    <div class="panelbody" id="panel-body" aria-live="polite"></div>
+
+    <footer class="panelfoot">
+      <form class="compose" id="compose">
+        <label class="sr-only" for="prompt">给本机 CLI 的消息</label>
+        <textarea class="field" id="prompt" rows="1" placeholder="问本机…" disabled></textarea>
+        <button type="submit" class="btn" id="send" aria-label="发送" disabled>
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-4 16-4-7z"/><path d="m12 13 8-9"/></svg>
+        </button>
+      </form>
+      <p class="hint" id="compose-hint">需要本机 Host 才能发送。</p>
+    </footer>
+  </div>
+</body>
+</html>

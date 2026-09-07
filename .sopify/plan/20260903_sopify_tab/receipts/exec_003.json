@@ -1,0 +1,52 @@
+{
+  "verdict": "pass",
+  "evidence": {
+    "wave": 3,
+    "summary": "Wave 3 Side Panel read-only Cursor ask. Desk stays the product. Host remains optional. Live cursor-agent-proxy not present in this agent VM; stream and process-tree kill verified with a mock proxy.",
+    "implemented": [
+      "left rail quiet 对话 peer + action toolbar open the same side_panel default_path; no red badge",
+      "chat UI only in sidepanel.html; newtab keeps two columns; no third desk column",
+      "ask spawn is cursor-agent-proxy --print --output-format stream-json --mode ask only; never --force / -f / --yolo; cwd from storage.local (may be empty)",
+      "Side Panel streams ask_delta; stop / retry / new session",
+      "session is Side Panel document memory; sidepanel.js never chrome.storage.local.set",
+      "pagehide/beforeunload posts shutdown and disconnects native port; host stdin EOF / stop kills the whole child process tree",
+      "disconnected Side Panel: honest need-Host / not-local-model / read-only / no write-execute copy; not a desk scare wall",
+      "desk first screen has zero Host chips; settings two cards and deferred nativeMessaging unchanged",
+      "W1.5 tokens/glass reused; prefers-reduced-motion and focus-visible kept; no WebGL",
+      "manifest key unchanged; id stays cgkhllpelkjmfamddkjpnmchjikdcbgp"
+    ],
+    "acceptance": {
+      "side_panel_and_toolbar_same_panel": true,
+      "rail_dialogue_quiet_no_badge": true,
+      "no_chat_in_newtab_dom": true,
+      "ask_flags_contract": true,
+      "never_pass_force": true,
+      "cwd_from_settings_may_be_empty": true,
+      "stream_stop_retry_new_session": true,
+      "chat_not_persisted": true,
+      "close_kills_process_tree": true,
+      "honest_copy_when_host_missing": true,
+      "desk_zero_host_chips": true,
+      "settings_two_cards_intact": true,
+      "nativeMessaging_still_optional": true,
+      "fail_soft_desk_keys": true,
+      "readme_roadmap_still_w3_pending": true,
+      "live_cursor_agent_proxy_on_this_vm": false,
+      "chrome_ui_desk_settings_tabs_sidepanel": true
+    },
+    "out_of_scope_not_shipped": [
+      "multi-CLI / Claude / Codex / model list",
+      "write / execute / --force",
+      "store listing",
+      "desk Host marketing chips",
+      "Agent Pocket"
+    ],
+    "owner_unpacked_verify": "agent Chrome 148 file:// UI (branded Chrome blocks --load-extension). Desk rail 对话, two columns, zero Host chips; settings two cards with probes hidden; tabs view; Side Panel honest need-Host copy; 对话 click does not add a third column. node host/test-w3-ask.js passed (stream + stdin-close/stop kill tree). Live cursor-agent-proxy not on this VM — owner should unpacked-load after ./host/install-host.sh and ask once."
+  },
+  "provenance": {
+    "plan_id": "20260903_sopify_tab",
+    "receipt_id": "exec_003",
+    "host": "cursor"
+  },
+  "timestamp": "2026-09-07T05:45:00Z"
+}

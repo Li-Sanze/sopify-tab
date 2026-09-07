@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌与 Wave 2 设置 / 可选 Host 已落地。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地（待合入）。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 2 已交付设置页与 install + detect。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 3 实现中。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -68,7 +68,7 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 
 - [x] Wave 1：书桌与标签。左侧栏两页、书桌四块、标签整理。权限仅 `storage`、`tabs`。无 Side Panel、无设置、无 Host 文案。
 - [x] Wave 2：设置页（连接本机 + 工作目录）；可选申请 `nativeMessaging`；`host/install-host.sh`。Host 失败不破坏书桌。本波停在 install + detect，ask 桥留到 Wave 3。
-- [ ] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
+- [x] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
 - [ ] Wave 4：listing / 隐私披露验收文案（不实际上架）。实际上架操作另开方案。
 
 ## Key Decisions
@@ -103,7 +103,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] 默认不连、第一屏不提 Host
 - [x] Wave 1 扩展代码
 - [x] Wave 2 设置页与可选 Host（install + detect）
+- [x] Wave 3 Side Panel 只读 ask（实现中，等 PR）
 
 ## Next
 
-Wave 2 已落地设置与 `host/`。下一波再做 Side Panel 与 ask 流式，不要提前写 Wave 3 聊天 UI。
+Wave 3 已实现 Side Panel 与 ask 流式，等 PR 审序。下一波做 Wave 4 listing / 隐私披露草稿，不实际上架。

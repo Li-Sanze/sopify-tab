@@ -393,6 +393,24 @@
     }
   }
 
+  async function openDialogue() {
+    try {
+      if (chrome?.sidePanel?.open) {
+        const win = await chrome.windows.getCurrent();
+        if (win && win.id != null) {
+          await chrome.sidePanel.open({ windowId: win.id });
+          return;
+        }
+      }
+    } catch { /* fall through */ }
+    if (!chrome?.runtime?.sendMessage) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'openSidePanel' }, () => {
+        void chrome.runtime.lastError;
+      });
+    } catch { /* fail-soft: desk still works */ }
+  }
+
   function setView(v) {
     if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
@@ -465,10 +483,20 @@
   let notesTimer;
   function bind() {
     $$('.navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    const chatBtn = $('#open-chat');
+    if (chatBtn) chatBtn.addEventListener('click', () => { openDialogue(); });
     document.addEventListener('click', (e) => {
       const g = e.target.closest('[data-goto]');
       if (g) setView(g.dataset.goto);
     });
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#settings') setView('settings');
+    });
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg && msg.type === 'setView') setView(msg.view);
+      });
+    }
 
     $('#name').addEventListener('input', (e) => {
       state.name = e.target.value;
@@ -628,6 +656,7 @@
     setInterval(tick, 1000);
     await refreshTabs();
     if (state.notes) $('#notes-saved').textContent = '已保存';
+    if (location.hash === '#settings') setView('settings');
   }
 
   boot();
