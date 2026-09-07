@@ -38,7 +38,7 @@
       "--force / write / execute",
       "store listing claim"
     ],
-    "owner_unpacked_verify": "pending"
+    "owner_unpacked_verify": "agent unpacked load: id cgkhllpelkjmfamddkjpnmchjikdcbgp; base permissions storage+tabs only; detect requested nativeMessaging; host pong after NMH install; desk keys unchanged"
   },
   "provenance": {
     "plan_id": "20260903_sopify_tab",
