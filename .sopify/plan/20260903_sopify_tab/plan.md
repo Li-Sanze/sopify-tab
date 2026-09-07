@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 文档已合（#10 / 1adbacd）；实现本 PR。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 已合（#11 / 6da0acc）。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 4 实现审中。listing 顺延 Wave 5。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 4 已合 / 收口。listing 顺延 Wave 5。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -70,7 +70,7 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 1：书桌与标签。左侧栏两页、书桌四块、标签整理。权限仅 `storage`、`tabs`。无 Side Panel、无设置、无 Host 文案。
 - [x] Wave 2：设置页（连接本机 + 工作目录）；可选申请 `nativeMessaging`；`host/install-host.sh`。Host 失败不破坏书桌。本波停在 install + detect，ask 桥留到 Wave 3。
 - [x] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
-- [ ] Wave 4：换肤（内置预设 system/day/night + CSS 变量 + 启动防闪）与克制优化（空态/信息克制可砍；README 代理一句）。见 ADR-007、wave-4-brief.md。
+- [x] Wave 4：换肤（内置预设 system/day/night + CSS 变量 + 启动防闪）与克制优化（空态/信息克制可砍；README 代理一句）。见 ADR-007、wave-4-brief.md。已合 PR #11（`6da0acc`）；5.4 未做。
 - [ ] Wave 5：listing / 隐私披露验收文案（不实际上架）。实际上架操作另开方案。
 
 ## Key Decisions
@@ -114,8 +114,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 2 设置页与可选 Host（install + detect）
 - [x] Wave 3 Side Panel 只读 ask（已合入 main，PR #6）
 - [x] Wave 4 文档落仓（ADR-007 / wave-4-brief / plan / tasks / wave-board / preferences；#10 / 1adbacd）
-- [ ] Wave 4 实现（本 PR；Sanze 点验后合闸再勾）
+- [x] Wave 4 实现（PR #11 / `6da0acc`；A + C；B / 5.4 未做）
 
 ## Next
 
-Wave 4 实现本 PR（A + C；B / 5.4 未做）。listing / 隐私披露顺延 Wave 5。Sanze unpacked 点验后合实现 PR。
+Wave 4 已合（PR #11 / `6da0acc`）。listing / 隐私披露仍属 Wave 5，本处不新开。
