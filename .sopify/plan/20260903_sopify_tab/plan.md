@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 换肤方案已审计，本波先落文档。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 文档已合（#10 / 1adbacd）；实现本 PR。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 4 文档落仓中；实现另开 PR。listing 顺延 Wave 5。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 4 实现审中。listing 顺延 Wave 5。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -113,9 +113,9 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 1 扩展代码
 - [x] Wave 2 设置页与可选 Host（install + detect）
 - [x] Wave 3 Side Panel 只读 ask（已合入 main，PR #6）
-- [ ] Wave 4 文档落仓（ADR-007 / wave-4-brief / plan / tasks / wave-board / preferences）
-- [ ] Wave 4 实现（文档合入后另开 PR；本处不勾）
+- [x] Wave 4 文档落仓（ADR-007 / wave-4-brief / plan / tasks / wave-board / preferences；#10 / 1adbacd）
+- [ ] Wave 4 实现（本 PR；Sanze 点验后合闸再勾）
 
 ## Next
 
-Wave 4 文档本 PR 落仓。下一动作是实现 PR（A 换肤+防闪 + C README 代理一句；B / 5.4 可砍）。listing / 隐私披露顺延 Wave 5。Sanze unpacked 点验后合实现 PR。
+Wave 4 实现本 PR（A + C；B / 5.4 未做）。listing / 隐私披露顺延 Wave 5。Sanze unpacked 点验后合实现 PR。
