@@ -187,6 +187,16 @@ svg.i.sm { width: 14px; height: 14px; }
 }
 .brand svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .rail nav { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.rail .spacer { flex: 1; min-height: 8px; }
+.railfoot { width: 100%; }
+.chatbtn {
+  width: 100%; min-height: 56px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border-radius: var(--r-md); color: var(--ink-3); font-size: 11.5px; font-weight: 500;
+  transition: background var(--dur) var(--out), color var(--dur) var(--out);
+}
+.chatbtn:hover { background: var(--well); color: var(--ink); }
+.chatbtn svg.i { width: 20px; height: 20px; }
 .navbtn {
   width: 100%; min-height: 56px; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -436,7 +446,9 @@ html[data-sky="night"] .favicon { background: hsl(var(--h, 200) 22% 24%); color:
   }
   .brand { margin: 0 4px 0 0; width: 36px; height: 36px; flex: none; }
   .rail nav { flex-direction: row; width: auto; gap: 2px; }
-  .navbtn { min-height: 44px; flex-direction: row; padding: 0 10px; width: auto; gap: 6px; font-size: 12px; }
+  .navbtn, .chatbtn { min-height: 44px; flex-direction: row; padding: 0 10px; width: auto; gap: 6px; font-size: 12px; }
+  .railfoot { width: auto; margin-left: auto; }
+  .rail .spacer { display: none; }
   .navbtn[aria-current="page"]::before { display: none; }
   .main { padding: 22px 16px 48px; }
   .tile, .tile.add { width: calc(33.33% - 7px); }

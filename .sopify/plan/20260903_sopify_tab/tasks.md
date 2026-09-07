@@ -19,9 +19,9 @@
 
 ## 3. Wave 3 只读问答
 
-- [ ] 3.1 在 `extension/manifest.json` 补 `sidePanel`；写 `extension/background.js` `extension/sidepanel.html`。左侧栏底部出现「对话」，工具栏打开同一 Side Panel。验收：任意 https 页面点工具栏也能打开；newtab 第一屏仍不出现 Host 芯片。
-- [ ] 3.2 在 Side Panel 与 host 之间实现 `connectNative` 流式 ask：`cursor-agent-proxy --print --output-format stream-json --mode ask`，cwd 仅来自 `storage.local`。头部只陈述「经本机 Cursor CLI，只读」。验收：不传 `--force`；未连接时只有说明，没有 CLI 选择器和模型列表。
-- [ ] 3.3 实现停止 / 重试 / 新会话；关闭 Side Panel 时 disconnect 并杀掉整棵子进程树。验收：关侧栏后 `cursor-agent` 子进程不再残留（用进程树检查，不只看 port）；对话不写 `storage`。
+- [x] 3.1 在 `extension/manifest.json` 补 `sidePanel`；写 `extension/background.js` `extension/sidepanel.html`。左侧栏底部出现「对话」，工具栏打开同一 Side Panel。验收：任意 https 页面点工具栏也能打开；newtab 第一屏仍不出现 Host 芯片。
+- [x] 3.2 在 Side Panel 与 host 之间实现 `connectNative` 流式 ask：`cursor-agent-proxy --print --output-format stream-json --mode ask`，cwd 仅来自 `storage.local`。头部只陈述「经本机 Cursor CLI，只读」。验收：不传 `--force`；未连接时只有说明，没有 CLI 选择器和模型列表。
+- [x] 3.3 实现停止 / 重试 / 新会话；关闭 Side Panel 时 disconnect 并杀掉整棵子进程树。验收：关侧栏后 `cursor-agent` 子进程不再残留（用进程树检查，不只看 port）；对话不写 `storage`。
 
 ## 4. 文档
 

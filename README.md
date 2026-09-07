@@ -17,7 +17,7 @@
 4. 打开新标签页
 ```
 
-稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。默认权限只有 `storage` 与 `tabs`。
+稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。默认权限是 `storage`、`tabs` 与 `sidePanel`。`nativeMessaging` 仍是可选。
 
 ## 功能（按 Wave）
 
@@ -31,8 +31,7 @@
 已交付：设置页（连接本机、工作目录）。Host 是可选深路径，书桌不依赖。
 
 **W3 Side Panel 只读 ask**
-未交付。
-需另装 Host + Cursor ask。
+实现中。左侧栏「对话」与工具栏打开同一 Side Panel；需另装 Host（更新 host.js 后需再跑 `./host/install-host.sh`）。不是主卖点。
 
 ## 非目标
 
@@ -40,7 +39,7 @@
 
 ## 隐私
 
-默认权限只有 `storage` 与 `tabs`。常用站、待办、便签、称呼写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。无账号，无云同步。连本机 Host 时，设置页才会申请可选的 `nativeMessaging`。
+默认权限是 `storage`、`tabs` 与 `sidePanel`。常用站、待办、便签、称呼写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。当次对话不落盘。无账号，无云同步。连本机 Host 时，设置页才会申请可选的 `nativeMessaging`。
 
 ## 路线图
 
