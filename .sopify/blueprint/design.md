@@ -13,7 +13,7 @@
 
 ## 模块与消费边界
 - `newtab.*`: 书桌与标签。读 `storage.local` 和当前窗口 `tabs`。一点链接会卸掉该页，因此不承载 agent 会话，也不渲染 Host 状态。
-- 设置页: Wave 2 才出现。Host 说明与工作目录。
+- 设置页: Host 说明与工作目录。检测失败只留在本页。
 - `sidepanel.*`: Wave 3 才出现。聊天 UI 与连接说明。会话活在侧栏文档里，不写 `storage`。
 - `background.js`: Wave 3 才出现。sidePanel 行为、消息转发。
 - `host/`: 本机 native host 与 `install-host.sh`。不存放常用站、待办、便签。

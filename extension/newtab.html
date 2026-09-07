@@ -29,6 +29,10 @@
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>
           <span>标签</span>
         </button>
+        <button type="button" class="navbtn" data-view="settings">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>
+          <span>设置</span>
+        </button>
       </nav>
     </aside>
 
@@ -126,6 +130,45 @@
           <input class="field" id="tab-filter" placeholder="筛选标题或网址" autocomplete="off">
         </div>
         <div class="groups" id="groups"></div>
+      </section>
+
+      <section class="view" data-view="settings" aria-labelledby="settings-h">
+        <header class="viewhead">
+          <h1 id="settings-h">设置</h1>
+          <p>要连本机 Cursor 时再来这里。书桌不依赖这一页。</p>
+        </header>
+        <div class="settings">
+          <section class="card" aria-labelledby="s-host">
+            <div class="cardhead">
+              <h2 id="s-host"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>连接本机</h2>
+              <span class="count host-probe act" id="s-host-badge" hidden></span>
+            </div>
+            <div class="cardbody form">
+              <div class="status host-probe" id="host-status" hidden aria-live="polite"></div>
+              <ul class="checks host-probe" id="host-checks" hidden aria-label="连接结果"></ul>
+              <div class="frow">
+                <div class="inline">
+                  <button type="button" class="btn" id="host-toggle">检测 Host</button>
+                  <p class="help" id="host-help">需要时再连。没装也不影响书桌。</p>
+                </div>
+              </div>
+              <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>经本机 Cursor CLI，只读。另装 Host：在仓库跑 <code>./host/install-host.sh</code>。Host 不是本地模型，不能写盘、执行命令或传 <code>--force</code>。</span></p>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="s-cwd">
+            <div class="cardhead">
+              <h2 id="s-cwd"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/></svg>工作目录</h2>
+            </div>
+            <div class="cardbody form">
+              <div class="frow">
+                <label for="cwd">对话在这个目录里启动 Cursor CLI</label>
+                <input class="field" id="cwd" placeholder="留空，需要时再填" spellcheck="false" autocomplete="off">
+                <p class="help">默认空。不预填本机路径。只存在这一页，书桌不读。</p>
+              </div>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
   </div>

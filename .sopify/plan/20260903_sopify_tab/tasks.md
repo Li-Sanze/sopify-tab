@@ -13,9 +13,9 @@
 
 ## 2. Wave 2 可选 Host
 
-- [ ] 2.1 在左侧栏增加设置页，只放两块：连接本机、工作目录。称呼仍在书桌上改。验收：工作目录默认空，写入 `storage.local` 的 `cwd`；设置页出现前书桌行为不变。
-- [ ] 2.2 在设置 Host 卡写连接前文案（只读本机 Cursor CLI、需另装 Host、不是本地模型、不能写盘或跑 `--force`、如何跑 `install-host.sh`），并把 `nativeMessaging` 做成可选权限，用户点「检测 Host」后再 `permissions.request`。验收：未点连接时 `chrome://extensions` 看不到该权限；失败只留在设置页说明，不写回书桌、不出现「未检测到」芯片。
-- [ ] 2.3 在 `host/install-host.sh` 与 host 包装脚本写入本机 Node 绝对路径（当前机为 nvm `v20.20.2`）和 `/Users/weixin.li/.local/bin/cursor-agent-proxy`。验收：用绝对路径能拉起，不依赖 alias；不覆盖已有 Codex / Qoder host JSON；`allowed_origins` 使用稳定扩展 ID。
+- [x] 2.1 在左侧栏增加设置页，只放两块：连接本机、工作目录。称呼仍在书桌上改。验收：工作目录默认空，写入 `storage.local` 的 `cwd`；设置页出现前书桌行为不变。
+- [x] 2.2 在设置 Host 卡写连接前文案（只读本机 Cursor CLI、需另装 Host、不是本地模型、不能写盘或跑 `--force`、如何跑 `install-host.sh`），并把 `nativeMessaging` 做成可选权限，用户点「检测 Host」后再 `permissions.request`。验收：未点连接时 `chrome://extensions` 看不到该权限；失败只留在设置页说明，不写回书桌、不出现「未检测到」芯片。
+- [x] 2.3 在 `host/install-host.sh` 与 host 包装脚本写入本机 Node 绝对路径（当前机为 nvm `v20.20.2`）和 `/Users/weixin.li/.local/bin/cursor-agent-proxy`。验收：用绝对路径能拉起，不依赖 alias；不覆盖已有 Codex / Qoder host JSON；`allowed_origins` 使用稳定扩展 ID。
 
 ## 3. Wave 3 只读问答
 
@@ -25,5 +25,5 @@
 
 ## 4. 文档
 
-- [ ] 4.1 按 `knowledge_sync` 核对 `project.md`、`blueprint/background.md`、`blueprint/design.md`；`blueprint/tasks.md` 做 review。不把 Wave 拆解写进长期知识。
+- [x] 4.1 按 `knowledge_sync` 核对 `project.md`、`blueprint/background.md`、`blueprint/design.md`；`blueprint/tasks.md` 做 review。不把 Wave 拆解写进长期知识。
 - [ ] 4.2 在仓库写 listing / 隐私披露草稿（例如 `STORE.md`）：主卖点是安静新标签页工作台；聊天是可选能力，须披露可选 `nativeMessaging`、本机 Host/CLI、任意页同一侧栏入口。验收：「不卖 AI workflow」只表示不以聊天当主卖点，文案不得把该能力写成未提供。不执行实际上架。

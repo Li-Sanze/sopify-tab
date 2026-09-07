@@ -1,0 +1,49 @@
+{
+  "verdict": "pass",
+  "evidence": {
+    "wave": 2,
+    "summary": "Wave 2 settings page and optional native host install/detect. Desk remains the product. Ask/Side Panel left for Wave 3.",
+    "implemented": [
+      "left rail Settings peer to Desk/Tabs; no badge or dot",
+      "settings page two cards only: 连接本机, 工作目录",
+      "header: 要连本机 Cursor 时再来这里。书桌不依赖这一页。",
+      "probe silence until 检测 Host; no pre-click status dots / probe lists / 未检测到",
+      "nativeMessaging requested via permissions.request on click; not in base permissions",
+      "cwd in chrome.storage.local default \"\"; settings-only read/write; placeholder is empty-path copy",
+      "host failure copy stays on Settings; never clears or rewrites sites/todos/notes/name",
+      "host/install-host.sh + host/host.js: id com.sopify.tab; snapshot absolute Node and cursor-agent-proxy; no /usr/bin/env node; no version-dir snapshot; allowed_origins only cgkhllpelkjmfamddkjpnmchjikdcbgp; does not overwrite Codex/Qoder manifests",
+      "ask bridge stubbed (detect/ping only); no Claude/Codex, CLI picker, model list, --force, write/execute",
+      "manifest key unchanged; extension id stays cgkhllpelkjmfamddkjpnmchjikdcbgp",
+      "W1.5 glass/token CSS reused; prefers-reduced-motion and focus-visible kept"
+    ],
+    "acceptance": {
+      "settings_two_cards": true,
+      "permission_deferred": true,
+      "install_script_present": true,
+      "desk_regression_intact": true,
+      "probe_silence_before_click": true,
+      "cwd_default_empty": true,
+      "host_failure_does_not_touch_desk": true,
+      "no_wave3_side_panel_or_chat": true,
+      "no_desk_host_chips": true,
+      "readme_roadmap_still_w2_pending": true
+    },
+    "out_of_scope_not_shipped": [
+      "sidePanel",
+      "background.js sidePanel behavior",
+      "chat UI",
+      "cursor-agent-proxy ask stream",
+      "Claude / Codex",
+      "CLI picker / model list",
+      "--force / write / execute",
+      "store listing claim"
+    ],
+    "owner_unpacked_verify": "pending"
+  },
+  "provenance": {
+    "plan_id": "20260903_sopify_tab",
+    "receipt_id": "exec_002",
+    "host": "cursor"
+  },
+  "timestamp": "2026-09-07T02:20:00Z"
+}
