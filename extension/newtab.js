@@ -69,6 +69,18 @@
     }
   }
 
+  // Desk 「这个窗口」 list: http(s) + localhost only. Tabs page still uses groupTabs as-is.
+  function isDeskSummaryUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname;
+      if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   function portLabel(url) {
     try {
       const u = new URL(url);
@@ -219,14 +231,14 @@
   }
 
   function renderDomains() {
-    const groups = groupTabs(state.tabs);
+    const groups = groupTabs(state.tabs.filter((t) => isDeskSummaryUrl(t.url || '')));
     const max = Math.max(1, ...groups.map(([, tabs]) => tabs.length));
     $('#domains').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <div class="domain" style="--h:${hue(host)}">
         <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
         <div class="who"><b>${esc(host)}</b><span class="bar" aria-hidden="true"><i style="--w:${(tabs.length / max) * 100}%"></i></span></div>
         <span class="n" aria-label="${tabs.length} 个标签">${tabs.length}</span>
-      </div>`).join('') : `<p class="empty">这个窗口还没有标签。</p>`;
+      </div>`).join('') : `<p class="empty">这个窗口还没有网页。</p>`;
     $('#c-tabs').textContent = String(state.tabs.length);
     $('#c-tabs').setAttribute('aria-label', `${state.tabs.length} 个标签`);
     $('#c-tabs-sub').textContent = groups.length ? `${groups.length} 域名` : '';
