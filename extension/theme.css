@@ -1,0 +1,112 @@
+/* Shared skin table for newtab AND Side Panel.
+   Presets only change these variables plus root data-theme / data-sky / color-scheme.
+   Do not add a second day/night table in sidepanel.css. */
+:root {
+  --r-xl: 22px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --dur: 160ms;
+  --dur-slow: 200ms;
+  --out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rail-w: 84px;
+}
+
+/* Day tokens are the fallback if sky.js has not written data-sky yet.
+   sky.js is first in <head> and writes data-sky / data-theme / color-scheme
+   synchronously from the localStorage mirror of chrome.storage.local.themePreset. */
+:root,
+html[data-sky="day"] {
+  color-scheme: light;
+  --sky-top: #7a96b2;
+  --sky-mid: #c0ced8;
+  --sky-low: #eef2f4;
+  --ink: #182234;
+  --ink-2: #4a5568;
+  --ink-3: #6c7689;
+  --sky-ink: #12203a;
+  --sky-ink-2: rgba(18, 32, 58, 0.8);
+  --sky-ink-3: rgba(18, 32, 58, 0.58);
+  --sky-text-shadow: none;
+  --accent: #235f7d;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(35, 95, 125, 0.12);
+  --link: #235f7d;
+  --ok: #2c7a4e;
+  --warn: #9a6b12;
+  --danger: #b23b3b;
+  --dot-off: #9aa5b8;
+  --glass: rgba(253, 252, 249, 0.9);
+  --glass-edge: rgba(22, 34, 52, 0.08);
+  --struct: rgba(255, 255, 255, 0.56);
+  --struct-edge: rgba(22, 34, 52, 0.1);
+  --hover-bg: rgba(255, 255, 255, 0.6);
+  --tile-bg: rgba(255, 255, 255, 0.5);
+  --tile-bg-hi: #ffffff;
+  --field-bg: rgba(255, 255, 255, 0.72);
+  --field-bg-hi: #ffffff;
+  --line: rgba(24, 34, 52, 0.08);
+  --line-2: rgba(24, 34, 52, 0.2);
+  --well: rgba(24, 34, 52, 0.06);
+  --well-2: rgba(24, 34, 52, 0.1);
+  --toast-bg: rgba(24, 34, 52, 0.92);
+  --toast-ink: #ffffff;
+  --shadow-1: 0 1px 2px rgba(16, 30, 48, 0.04), 0 12px 28px -16px rgba(16, 30, 48, 0.18);
+  --shadow-2: 0 2px 6px rgba(16, 30, 48, 0.06), 0 18px 40px -18px rgba(16, 30, 48, 0.22);
+  --glow: radial-gradient(78% 58% at 16% -14%, rgba(255, 253, 250, 0.4) 0%, transparent 64%);
+  --mist: linear-gradient(180deg, transparent 60%, rgba(255, 255, 255, 0.2) 100%);
+}
+
+html[data-sky="night"] {
+  color-scheme: dark;
+  --sky-top: #080c14;
+  --sky-mid: #121a28;
+  --sky-low: #1e2838;
+  --ink: #e9eef6;
+  --ink-2: rgba(233, 238, 246, 0.76);
+  --ink-3: rgba(233, 238, 246, 0.56);
+  --sky-ink: #f3f6fb;
+  --sky-ink-2: rgba(243, 246, 251, 0.78);
+  --sky-ink-3: rgba(243, 246, 251, 0.6);
+  --sky-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --accent: #3b8ac0;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(96, 170, 220, 0.18);
+  --link: #8cc6ea;
+  --ok: #5fcf95;
+  --warn: #e2b458;
+  --danger: #ef7d7d;
+  --dot-off: #7a8699;
+  --glass: rgba(18, 26, 40, 0.8);
+  --glass-edge: rgba(255, 255, 255, 0.1);
+  --struct: rgba(8, 14, 24, 0.64);
+  --struct-edge: rgba(255, 255, 255, 0.1);
+  --hover-bg: rgba(255, 255, 255, 0.07);
+  --tile-bg: rgba(255, 255, 255, 0.06);
+  --tile-bg-hi: rgba(255, 255, 255, 0.12);
+  --field-bg: rgba(255, 255, 255, 0.06);
+  --field-bg-hi: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.18);
+  --well: rgba(255, 255, 255, 0.07);
+  --well-2: rgba(255, 255, 255, 0.12);
+  --toast-bg: rgba(240, 244, 250, 0.95);
+  --toast-ink: #142033;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28), 0 12px 28px -16px rgba(0, 0, 0, 0.48);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.32), 0 18px 40px -18px rgba(0, 0, 0, 0.55);
+  --glow: radial-gradient(70% 48% at 18% -12%, rgba(210, 222, 240, 0.07) 0%, transparent 66%);
+  --mist: linear-gradient(180deg, transparent 58%, rgba(48, 64, 88, 0.16) 100%);
+}
+
+.sky {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 42%, var(--sky-low) 100%);
+}
+.glow,
+.mist {
+  position: absolute; inset: 0;
+}
+.glow { background: var(--glow); }
+.mist { background: var(--mist); }

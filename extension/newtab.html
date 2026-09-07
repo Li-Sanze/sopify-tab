@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>Sopify Tab</title>
   <script src="sky.js"></script>
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="newtab.css">
   <script src="newtab.js" defer></script>
 </head>
@@ -142,9 +143,34 @@
       <section class="view" data-view="settings" aria-labelledby="settings-h">
         <header class="viewhead">
           <h1 id="settings-h">设置</h1>
-          <p>要连本机 Cursor 时再来这里。书桌不依赖这一页。</p>
+          <p>外观随时可改。要连本机 Cursor 时再看下面。书桌不依赖 Host。</p>
         </header>
         <div class="settings">
+          <section class="card" aria-labelledby="s-theme">
+            <div class="cardhead">
+              <h2 id="s-theme"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 4.5v1.5M12 18v1.5M4.5 12h1.5M18 12h1.5M6.2 6.2l1.1 1.1M16.7 16.7l1.1 1.1M6.2 17.8l1.1-1.1M16.7 7.3l1.1-1.1"/></svg>外观</h2>
+            </div>
+            <div class="cardbody form">
+              <div class="frow">
+                <div class="themeseg" role="radiogroup" aria-labelledby="s-theme">
+                  <label class="themeseg-opt">
+                    <input type="radio" name="themePreset" value="system" checked>
+                    <span>跟随系统</span>
+                  </label>
+                  <label class="themeseg-opt">
+                    <input type="radio" name="themePreset" value="day">
+                    <span>白天</span>
+                  </label>
+                  <label class="themeseg-opt">
+                    <input type="radio" name="themePreset" value="night">
+                    <span>夜晚</span>
+                  </label>
+                </div>
+                <p class="help">切了立刻生效。书桌和侧栏用同一套颜色。跟随系统时随系统日夜；白天 / 夜晚不跟系统抢。</p>
+              </div>
+            </div>
+          </section>
+
           <section class="card" aria-labelledby="s-host">
             <div class="cardhead">
               <h2 id="s-host"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>连接本机</h2>

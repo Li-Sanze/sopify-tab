@@ -7,7 +7,7 @@
 演示把常用站、待办、便签、称呼和工作目录放在页面内存里，把当前窗口标签写成 mock。真扩展必须说清这些信息存在哪。书桌在没有 Host 时也要完整可用，所以不能把书桌数据放到 native host 文件里。
 
 ## 决策
-用户写下来的书桌数据只进 `chrome.storage.local`：Wave 1 为 `sites` `todos` `notes` `name`，Wave 2 加默认空的 `cwd`。当前窗口标签用 `chrome.tabs` 现查，不落盘。当次对话只活在 Side Panel 文档里，关栏即丢。Host 在不在是运行时探测，不写成书桌记录。不落盘 `skyPref`、`cli`、`model`。
+用户写下来的书桌数据只进 `chrome.storage.local`：Wave 1 为 `sites` `todos` `notes` `name`，Wave 2 加默认空的 `cwd`，Wave 4 加 `themePreset`（`system`|`day`|`night`，默认 `system`）。当前窗口标签用 `chrome.tabs` 现查，不落盘。当次对话只活在 Side Panel 文档里，关栏即丢。Host 在不在是运行时探测，不写成书桌记录。不落盘 `skyPref`、`cli`、`model`。
 
 第一版不用 `chrome.storage.sync`，不用 IndexedDB，不把这些数据写到用户可见的本地文件。
 

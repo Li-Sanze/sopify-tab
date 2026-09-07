@@ -7,8 +7,8 @@
 
 ## 使用约定
 - 仓库名与品牌对齐：`sopify-tab` / Sopify Tab。
-- 新标签页先是书桌和标签。设置页只谈可选 Host 与工作目录。对话在 Side Panel，不进 newtab DOM。第一屏不提 Host。
-- 用户书桌数据只进 `chrome.storage.local`（`sites` `todos` `notes` `name`，Wave 2 加 `cwd`）。当前窗口标签用 `chrome.tabs` 现查。当次对话不落盘。
+- 新标签页先是书桌和标签。设置页谈可选 Host、工作目录与外观预设。对话在 Side Panel，不进 newtab DOM。第一屏不提 Host，不放主题墙。
+- 用户书桌数据只进 `chrome.storage.local`（`sites` `todos` `notes` `name`，Wave 2 加 `cwd`，Wave 4 加 `themePreset`）。当前窗口标签用 `chrome.tabs` 现查。当次对话不落盘。
 - 扩展用稳定 `key`，native host 的 `allowed_origins` 只允许本扩展。
 - `nativeMessaging` 作为可选权限，用户点连接后再申请。
 - 不接 Multica 产品。聊天自研薄层，接到本机 CLI。

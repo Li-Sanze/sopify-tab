@@ -343,6 +343,13 @@
     try { await chrome.permissions.remove({ permissions: ['nativeMessaging'] }); } catch { /* ignore */ }
   }
 
+  function renderTheme() {
+    const preset = window.SopifyTheme ? window.SopifyTheme.getPreset() : 'system';
+    $$('input[name="themePreset"]').forEach((el) => {
+      el.checked = el.value === preset;
+    });
+  }
+
   function renderHost() {
     const badge = $('#s-host-badge');
     const status = $('#host-status');
@@ -462,6 +469,7 @@
     if (v === 'settings') {
       $('#cwd').value = state.cwd;
       renderHost();
+      renderTheme();
     }
     const focusNav = opts && opts.focusNav;
     const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
@@ -640,6 +648,7 @@
     if (hasStorage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local') return;
+        if ('themePreset' in changes) renderTheme();
         if ('cwd' in changes && typeof changes.cwd.newValue === 'string') {
           state.cwd = changes.cwd.newValue;
           const input = $('#cwd');
@@ -655,6 +664,13 @@
       });
     }
 
+    $$('input[name="themePreset"]').forEach((el) => {
+      el.addEventListener('change', () => {
+        if (!el.checked) return;
+        if (window.SopifyTheme) window.SopifyTheme.setPreset(el.value);
+      });
+    });
+    document.documentElement.addEventListener('sopify-theme', renderTheme);
     $('#host-toggle').addEventListener('click', () => {
       if (hostConnected()) disconnectHost();
       else detectHost();
@@ -691,6 +707,7 @@
     $('#cwd').value = state.cwd;
     renderDomains();
     renderHost();
+    renderTheme();
     bind();
     tick();
     setInterval(tick, 1000);
