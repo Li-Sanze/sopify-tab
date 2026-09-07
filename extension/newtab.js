@@ -2,6 +2,12 @@
   'use strict';
 
   const DESK_KEYS = ['sites', 'todos', 'notes', 'name'];
+  const HOST_ID = 'com.sopify.tab';
+  const HOST_CHECKS = [
+    ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
+    ['authorized', '扩展已获授权', 'Host 的清单里允许这个扩展 ID 连接。'],
+    ['bridge', 'Native Messaging 可用', 'Chrome 能拉起 Host 并收到第一条回应。'],
+  ];
 
   const state = {
     view: 'desk',
@@ -11,6 +17,11 @@
     notes: '',
     tabs: [],
     filter: '',
+    cwd: '',
+    hostChecked: false,
+    hostBusy: false,
+    host: { installed: false, authorized: false, bridge: false },
+    hostReason: '',
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -111,6 +122,17 @@
     }
     if (!Object.keys(payload).length) return;
     if (hasStorage) await chrome.storage.local.set(payload);
+  }
+
+  async function loadCwd() {
+    if (!hasStorage) return '';
+    const data = await chrome.storage.local.get({ cwd: '' });
+    return typeof data.cwd === 'string' ? data.cwd : '';
+  }
+
+  async function saveCwd(cwd) {
+    if (!hasStorage) return;
+    await chrome.storage.local.set({ cwd: typeof cwd === 'string' ? cwd : '' });
   }
 
   async function queryWindowTabs() {
@@ -241,8 +263,138 @@
       </section>`).join('') : `<section class="card" style="grid-column: 1 / -1"><p class="empty">${q.trim() ? '没有匹配的标签。' : '这个窗口还没有标签。'}</p></section>`;
   }
 
+  function hostConnected() {
+    return state.host.installed && state.host.authorized && state.host.bridge;
+  }
+
+  function classifyHostError(message) {
+    const msg = String(message || '');
+    if (/not found/i.test(msg)) return 'not_found';
+    if (/forbidden|access/i.test(msg)) return 'forbidden';
+    if (/denied|user/i.test(msg)) return 'denied';
+    return 'failed';
+  }
+
+  function sendNativeDetect() {
+    return new Promise((resolve, reject) => {
+      if (!chrome?.runtime?.sendNativeMessage) {
+        reject(new Error('no_api'));
+        return;
+      }
+      chrome.runtime.sendNativeMessage(HOST_ID, { type: 'detect' }, (response) => {
+        const err = chrome.runtime.lastError && chrome.runtime.lastError.message;
+        if (err) reject(new Error(err));
+        else resolve(response);
+      });
+    });
+  }
+
+  async function requestNativeMessaging() {
+    if (!chrome?.permissions?.request) return { granted: false, reason: 'no_api' };
+    try {
+      const granted = await chrome.permissions.request({ permissions: ['nativeMessaging'] });
+      return { granted: Boolean(granted), reason: granted ? 'ok' : 'denied' };
+    } catch (e) {
+      return { granted: false, reason: classifyHostError(e && e.message) };
+    }
+  }
+
+  async function revokeNativeMessaging() {
+    if (!chrome?.permissions?.remove) return;
+    try { await chrome.permissions.remove({ permissions: ['nativeMessaging'] }); } catch { /* ignore */ }
+  }
+
+  function renderHost() {
+    const badge = $('#s-host-badge');
+    const status = $('#host-status');
+    const checks = $('#host-checks');
+    const toggle = $('#host-toggle');
+    const help = $('#host-help');
+    if (!badge || !status || !checks || !toggle || !help) return;
+
+    const probed = state.hostChecked;
+    const on = hostConnected();
+    $$('.host-probe').forEach((el) => { el.hidden = !probed; });
+    if (probed) {
+      status.innerHTML = `<span class="dot ${on ? 'on' : ''}" aria-hidden="true"></span><span>${on ? '已连接 · Native Messaging' : '没连上'}</span>`;
+      badge.textContent = on ? '已连接' : '没连上';
+      badge.classList.toggle('on', on);
+      badge.classList.toggle('warn', !on);
+      checks.innerHTML = HOST_CHECKS.map(([k, t, d]) => `
+        <li class="check ${state.host[k] ? 'ok' : ''}">
+          <span class="mark" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          <span><span class="sr-only">${state.host[k] ? '已满足：' : '未满足：'}</span>${t}<small>${d}</small></span>
+        </li>`).join('');
+    }
+    toggle.disabled = state.hostBusy;
+    toggle.textContent = on ? '断开' : '检测 Host';
+    toggle.className = on ? 'btn ghost' : 'btn';
+    if (state.hostBusy) help.textContent = '正在检测…';
+    else if (on) help.textContent = '已连上。断开后书桌照常。';
+    else if (probed && state.hostReason === 'denied') help.textContent = '没有授权 Native Messaging。书桌不受影响。';
+    else if (probed && state.hostReason === 'not_found') help.textContent = '没找到本机 Host。需要时在仓库跑 ./host/install-host.sh。书桌不受影响。';
+    else if (probed && state.hostReason === 'forbidden') help.textContent = 'Host 清单没有允许这个扩展。书桌不受影响。';
+    else if (probed) help.textContent = '可以再检一次，或先用书桌。';
+    else help.textContent = '需要时再连。没装也不影响书桌。';
+  }
+
+  async function detectHost() {
+    if (state.hostBusy) return;
+    state.hostBusy = true;
+    renderHost();
+    try {
+      const perm = await requestNativeMessaging();
+      if (!perm.granted) {
+        state.hostChecked = true;
+        state.host = { installed: false, authorized: false, bridge: false };
+        state.hostReason = perm.reason || 'denied';
+        return;
+      }
+      try {
+        const response = await sendNativeDetect();
+        const ok = Boolean(response && response.ok);
+        state.hostChecked = true;
+        state.host = { installed: true, authorized: true, bridge: ok };
+        state.hostReason = ok ? 'ok' : 'failed';
+        if (ok) toast('已通过 Native Messaging 连上本机 Host');
+      } catch (e) {
+        const reason = classifyHostError(e && e.message);
+        state.hostChecked = true;
+        state.host = {
+          installed: reason !== 'not_found' && reason !== 'no_api' && reason !== 'denied',
+          authorized: reason === 'failed',
+          bridge: false,
+        };
+        if (reason === 'forbidden') {
+          state.host.installed = true;
+          state.host.authorized = false;
+        }
+        state.hostReason = reason;
+      }
+    } finally {
+      state.hostBusy = false;
+      renderHost();
+    }
+  }
+
+  async function disconnectHost() {
+    if (state.hostBusy) return;
+    state.hostBusy = true;
+    renderHost();
+    try {
+      await revokeNativeMessaging();
+    } finally {
+      state.hostChecked = false;
+      state.host = { installed: false, authorized: false, bridge: false };
+      state.hostReason = '';
+      state.hostBusy = false;
+      renderHost();
+      toast('已断开本机 Host');
+    }
+  }
+
   function setView(v) {
-    if (v !== 'desk' && v !== 'tabs') return;
+    if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
     $$('.view').forEach((el) => el.classList.toggle('active', el.dataset.view === v));
     $$('.navbtn').forEach((b) => {
@@ -250,6 +402,10 @@
       else b.removeAttribute('aria-current');
     });
     if (v === 'tabs') renderGroups();
+    if (v === 'settings') {
+      $('#cwd').value = state.cwd;
+      renderHost();
+    }
     $('#main').focus({ preventScroll: true });
   }
 
@@ -416,16 +572,31 @@
     if (hasStorage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local') return;
-        const next = {
+        if ('cwd' in changes && typeof changes.cwd.newValue === 'string') {
+          state.cwd = changes.cwd.newValue;
+          const input = $('#cwd');
+          if (input && input !== document.activeElement) input.value = state.cwd;
+        }
+        if (!DESK_KEYS.some((k) => k in changes)) return;
+        applyDesk({
           sites: changes.sites ? changes.sites.newValue : state.sites,
           todos: changes.todos ? changes.todos.newValue : state.todos,
           notes: changes.notes ? changes.notes.newValue : state.notes,
           name: changes.name ? changes.name.newValue : state.name,
-        };
-        if (!DESK_KEYS.some((k) => k in changes)) return;
-        applyDesk(next);
+        });
       });
     }
+
+    $('#host-toggle').addEventListener('click', () => {
+      if (hostConnected()) disconnectHost();
+      else detectHost();
+    });
+    let cwdTimer;
+    $('#cwd').addEventListener('input', (e) => {
+      state.cwd = e.target.value;
+      clearTimeout(cwdTimer);
+      cwdTimer = setTimeout(() => { saveCwd(state.cwd); }, 240);
+    });
 
     if (hasTabs) {
       const bump = () => { refreshTabs(); };
@@ -448,7 +619,10 @@
 
   async function boot() {
     applyDesk(await loadDesk());
+    state.cwd = await loadCwd();
+    $('#cwd').value = state.cwd;
     renderDomains();
+    renderHost();
     bind();
     tick();
     setInterval(tick, 1000);

@@ -5,7 +5,7 @@
 - 核心技术: Chrome Manifest V3，Vanilla HTML / CSS / JavaScript；native host 用 Node，由 install 脚本写入绝对路径
 - 实现要点:
   - `prototype/index.html` 只提供栏、卡片、日/夜 token。演示器边界见 `plan.md` Context。
-  - Wave 1 的 newtab 只有书桌和标签。不申请 `sidePanel` 或 `nativeMessaging`。Agent 会话只活在 Wave 3 的 Side Panel 文档里。
+  - Wave 1 的 newtab 只有书桌和标签。Wave 2 加设置页；`nativeMessaging` 仍是点连接后才申请。Agent 会话只活在 Wave 3 的 Side Panel 文档里。
   - 用户书桌数据只写 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查。当次对话只在 Side Panel 内存。
   - `nativeMessaging` 可选。商店包不带 host。Host JSON 的 `allowed_origins` 只列本扩展稳定 ID。
   - Host 入口必须是可执行文件的绝对路径。本机 `cursor-agent` 是 zsh alias，真实入口是 `/Users/weixin.li/.local/bin/cursor-agent-proxy`。禁止 `/usr/bin/env node`。
@@ -27,7 +27,7 @@ flowchart TD
   PROXY --> CLI[cursor-agent --mode ask]
 ```
 
-目录约定（Wave 1 才创建产品文件）：
+目录约定：
 
 ```text
 sopify-tab/

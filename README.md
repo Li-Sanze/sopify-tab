@@ -17,7 +17,7 @@
 4. 打开新标签页
 ```
 
-稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。权限只有 `storage` 与 `tabs`。
+稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。默认权限只有 `storage` 与 `tabs`。
 
 ## 功能（按 Wave）
 
@@ -28,7 +28,7 @@
 轻量光感与玻璃质感。
 
 **W2 Host + 设置**
-未交付。
+已交付：设置页（连接本机、工作目录）。Host 是可选深路径，书桌不依赖。
 
 **W3 Side Panel 只读 ask**
 未交付。
@@ -40,13 +40,13 @@
 
 ## 隐私
 
-权限只有 `storage` 与 `tabs`。常用站、待办、便签、称呼写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。无账号，无云同步。
+默认权限只有 `storage` 与 `tabs`。常用站、待办、便签、称呼写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。无账号，无云同步。连本机 Host 时，设置页才会申请可选的 `nativeMessaging`。
 
 ## 路线图
 
 - ✅ W1 书桌 + 标签
 - ✅ W1.5 轻量光感 / 玻璃打磨
-- 🔜 W2 Host + 设置
+- ✅ W2 Host + 设置
 - 🔜 W3 Side Panel 只读 ask
 - ⏸ Chrome 网上应用店上架未定（先自己用一段时间）
 
