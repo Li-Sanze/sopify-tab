@@ -228,8 +228,7 @@ svg.i.sm { width: 14px; height: 14px; }
 }
 .greet .name:focus-visible { outline-offset: 4px; border-bottom-color: transparent; }
 .greet .name::placeholder { color: var(--sky-ink-3); }
-.dateline { margin: 6px 0 0; color: var(--sky-ink-2); font-size: 14px; display: flex; gap: 12px; flex-wrap: wrap; }
-.dateline .sep::before { content: "·"; }
+.dateline { margin: 6px 0 0; color: var(--sky-ink-2); font-size: 14px; }
 
 .viewhead { margin-bottom: 18px; color: var(--sky-ink); text-shadow: var(--sky-text-shadow); }
 .viewhead h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
@@ -349,10 +348,19 @@ html[data-sky="night"] .linkbtn { color: #8cc6ea; }
 .domain:hover { background: var(--hover-bg); }
 .favicon {
   width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+  position: relative; overflow: hidden;
   background: hsl(var(--h, 200) 22% 90%); color: hsl(var(--h, 200) 26% 32%);
   font-weight: 600; font-size: 13px;
 }
+.favicon .fav-letter { grid-area: 1 / 1; }
+.favicon img.fav {
+  grid-area: 1 / 1; width: 16px; height: 16px; object-fit: contain;
+  position: relative; z-index: 1;
+}
+.favicon:has(img.fav.ok) { background: var(--tile-bg); }
+.favicon:has(img.fav.ok) .fav-letter { visibility: hidden; }
 html[data-sky="night"] .favicon { background: hsl(var(--h, 200) 22% 24%); color: hsl(var(--h, 200) 40% 82%); }
+html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 .domain .who { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .domain .who b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar { height: 3px; border-radius: 3px; background: var(--well); overflow: hidden; }
