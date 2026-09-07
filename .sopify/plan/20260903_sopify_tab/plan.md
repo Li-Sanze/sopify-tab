@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 换肤方案已审计，本波先落文档。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 3 已合入。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 4 文档落仓中；实现另开 PR。listing 顺延 Wave 5。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -27,16 +27,16 @@ Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wav
 本方案交付：
 
 - Chrome MV3 扩展：新标签页左侧栏 + 主区。Wave 1 只有书桌、标签两页
-- 书桌：跟随系统的日/夜外观、时钟与问候称呼、手填常用站、极简待办、纯文本便签、当前窗口域名摘要
+- 书桌：时钟与问候称呼、手填常用站、极简待办、纯文本便签、当前窗口域名摘要；外观由内置预设（`system` / `day` / `night`，默认 `system`）经 CSS 变量驱动，设置页切换（ADR-007；实现在 Wave 4）
 - 标签页：当前窗口按域名分组、标题/网址筛选、关闭单条、关闭整组；localhost 端口只当标签
-- Wave 2 才出现设置页：连接本机 Host、工作目录（默认空）
+- Wave 2 才出现设置页：连接本机 Host、工作目录（默认空）。Wave 4 再加「外观」一块（`system`/`day`/`night`；切预设即生效，不做预览墙）
 - Wave 3 才出现左侧栏「对话」和工具栏入口，打开同一 Side Panel；演示第三列不进 `newtab` DOM
 - 可选 `nativeMessaging`：用户在设置里点连接后再申请
 - 本机 native host + `install-host.sh`：快照 Node 与 `cursor-agent-proxy` 绝对路径；ask 流式只接通这一条
 - 稳定扩展 `key`，host `allowed_origins` 只允许本扩展
 - 关侧栏结束 native port，并杀掉整棵子进程树
 
-不在本方案内：Chrome 网上应用店实际上架操作、CLI 选择器、模型列表、Claude / Codex 检测或问答、可写执行、微信读书、天气、音乐、番茄钟、富文本、收藏夹、历史作为第一屏、标签跳转/去重、手动日夜切换、`chrome.storage.sync`、把书桌数据写到 Host 文件、Prompt / Skill 库、Agent Pocket 入口或暗示（Agent Pocket 是独立 macOS App，另仓另方案）。
+不在本方案内：Chrome 网上应用店实际上架操作、CLI 选择器、模型列表、Claude / Codex 检测或问答、可写执行、微信读书、天气、音乐、番茄钟、富文本、收藏夹、历史作为第一屏、标签跳转/去重、主题商店、壁纸/视频底、用户自定义 CSS、WebGL 天空、NTP 内嵌聊天、扩展内代理配置 UI、`chrome.storage.sync`、把书桌数据写到 Host 文件、Prompt / Skill 库、Agent Pocket 入口或暗示（Agent Pocket 是独立 macOS App，另仓另方案）。设置页内置预设 `system`/`day`/`night` 在范围内（ADR-007）；`soft`∉W4 DoD。
 
 ## Approach
 
@@ -60,6 +60,7 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 | --- | --- | --- |
 | 常用站、待办、便签、称呼 | `chrome.storage.local` | Wave 1 |
 | 工作目录 | `chrome.storage.local`，默认空 | Wave 2 |
+| 外观预设 | `chrome.storage.local`（如 `themePreset`），默认 `system`；不进 `sync` | Wave 4 |
 | 当前窗口标签 | 不落盘。`chrome.tabs` 现查 | Wave 1 |
 | 当次对话 | Side Panel 文档内存 | Wave 3 |
 | Host 是否在 | 运行时探测，不落盘 | Wave 2 |
@@ -69,7 +70,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 1：书桌与标签。左侧栏两页、书桌四块、标签整理。权限仅 `storage`、`tabs`。无 Side Panel、无设置、无 Host 文案。
 - [x] Wave 2：设置页（连接本机 + 工作目录）；可选申请 `nativeMessaging`；`host/install-host.sh`。Host 失败不破坏书桌。本波停在 install + detect，ask 桥留到 Wave 3。
 - [x] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
-- [ ] Wave 4：listing / 隐私披露验收文案（不实际上架）。实际上架操作另开方案。
+- [ ] Wave 4：换肤（内置预设 system/day/night + CSS 变量 + 启动防闪）与克制优化（空态/信息克制可砍；README 代理一句）。见 ADR-007、wave-4-brief.md。
+- [ ] Wave 5：listing / 隐私披露验收文案（不实际上架）。实际上架操作另开方案。
 
 ## Key Decisions
 
@@ -85,6 +87,12 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - 许可证默认 MIT。
 - 用户主动进入设置或侧栏时，文案必须写清：只读本机 Cursor CLI、另装 Host、不是本地模型、不能写执行。
 - 「不卖 AI workflow」指 listing 不以聊天当主卖点，不是隐藏可选聊天。
+- ADR-007（2026-09-07 审计通过）：换肤仅内置预设 `system` | `day` | `night`（`soft`∉W4 DoD）；只走 CSS 变量 + 根节点属性；预设写入 `storage.local`，默认 `system`，不进 `sync`。
+- 即时预览 = 设置页切预设立即生效；不是缩略图 / 预览墙。书桌第一屏不放主题入口。
+- `newtab` 与 Side Panel 必须共用同一套 CSS 变量表（设置亮、侧栏暗 = 不过）。
+- 启动防闪：首屏 paint 前同步写根节点；禁止先闪系统默认再异步跳预设。
+- 零新权限；无 `chrome.proxy`、无远程主题。Wave 3 Side Panel 合同不变。
+- Wave 4 执行序：文档 PR → 实现 PR → Sanze 点验。`tasks` 5.4 可砍、不挡合闸。listing 属 Wave 5。
 
 ## Constraints / Not-in-scope
 
@@ -94,7 +102,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - 关侧栏必须杀掉整棵子进程树，不能只 disconnect port。
 - 公开品牌碰撞：sopifyapp.com、evidentloop/sopify、CWS「Scrape Sopify」。listing 不得暗示 SOP SaaS 或 Shopify 抓取。
 - 不把本项目放进 `/Users/weixin.li/code/nio/Multica`。工作目录默认空，不预填路径。
-- 不用 `chrome.storage.sync`，不把待办 / 便签 / 常用站写到磁盘文件或 Host。
+- 不用 `chrome.storage.sync`，不把待办 / 便签 / 常用站 / 外观预设写到磁盘文件或 Host。
+- 主题商店、壁纸/视频底、用户自定义 CSS、WebGL 天空仍为范围外。允许设置页内置预设，不再把「手动日夜」列为禁止项。
 
 ## Status / Progress
 
@@ -104,7 +113,9 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 1 扩展代码
 - [x] Wave 2 设置页与可选 Host（install + detect）
 - [x] Wave 3 Side Panel 只读 ask（已合入 main，PR #6）
+- [ ] Wave 4 文档落仓（ADR-007 / wave-4-brief / plan / tasks / wave-board / preferences）
+- [ ] Wave 4 实现（文档合入后另开 PR；本处不勾）
 
 ## Next
 
-Wave 3 已合入 main（PR #6）。下一波做 Wave 4 listing / 隐私披露草稿，不实际上架。
+Wave 4 文档本 PR 落仓。下一动作是实现 PR（A 换肤+防闪 + C README 代理一句；B / 5.4 可砍）。listing / 隐私披露顺延 Wave 5。Sanze unpacked 点验后合实现 PR。

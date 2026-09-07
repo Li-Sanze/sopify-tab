@@ -2,7 +2,7 @@
 
 目录: `.sopify/plan/20260903_sopify_tab/`
 
-依赖：Wave 2 依赖 Wave 1；Wave 3 依赖 Wave 2。文档任务可与对应 Wave 并行，但 finalize 前必须按 `knowledge_sync` 核对。
+依赖：Wave 2 依赖 Wave 1；Wave 3 依赖 Wave 2；Wave 4 依赖 Wave 3 已合入。Wave 4 实现 PR 须等文档 PR 合入。文档任务可与对应 Wave 并行，但 finalize 前必须按 `knowledge_sync` 核对。
 
 ## 1. Wave 1 书桌
 
@@ -26,4 +26,17 @@
 ## 4. 文档
 
 - [x] 4.1 按 `knowledge_sync` 核对 `project.md`、`blueprint/background.md`、`blueprint/design.md`；`blueprint/tasks.md` 做 review。不把 Wave 拆解写进长期知识。
-- [ ] 4.2 在仓库写 listing / 隐私披露草稿（例如 `STORE.md`）：主卖点是安静新标签页工作台；聊天是可选能力，须披露可选 `nativeMessaging`、本机 Host/CLI、任意页同一侧栏入口。验收：「不卖 AI workflow」只表示不以聊天当主卖点，文案不得把该能力写成未提供。不执行实际上架。
+
+## 5. Wave 4 换肤 + 克制优化
+
+依赖：Wave 3 已合入。本波先合文档，再开实现 PR。预设 DoD 仅 `system` | `day` | `night`（`soft`∉W4 DoD）。即时预览 = 切预设即生效，不是缩略图墙。NTP 与 Side Panel 共用同一套 CSS 变量表。
+
+- [ ] 5.1 文档闭环：`plan.md` / `tasks.md` / ADR-007 / `wave-4-brief.md` / `wave-board.md` / `preferences.md` 对齐钉死项。本任务在文档 PR 合入后算完成。验收：审序工程→UI→产品→技术总监各一句「过/改」；无 `extension/**`、`host/**`、无 README 功能改动。
+- [ ] 5.2 CSS 变量层 + `sky.js`（或等价）启动早写：预设 `system`|`day`|`night`；默认 `system`，写入 `storage.local`（如 `themePreset`），不进 `sync`；NTP 与 Side Panel 共用同一套 CSS 变量表；禁止先 paint 再异步跳预设。验收：刷新已存 `day`/`night` 无系统默认闪一下；设置亮、侧栏暗 = 不过。实现 PR。
+- [ ] 5.3 设置页「外观」一块；切预设立即生效（即时预览 ≠ 预览墙）；书桌第一屏不放主题入口；零新权限。验收：无缩略图墙、无 `chrome.proxy`、无远程主题。实现 PR。
+- [ ] 5.4 【可砍 / 不挡合闸】空态与信息克制打磨。可整项不做。不得作为 Wave 4 合闸条件。
+- [ ] 5.5 README 代理一句：扩展不提供代理配置；网络问题归本机 Host / 环境。本任务只在实现 PR 改 README；文档 PR 只记账。
+
+## 6. Wave 5 listing
+
+- [ ] 6.1 在仓库写 listing / 隐私披露草稿（例如 `STORE.md`）：主卖点是安静新标签页工作台；聊天是可选能力，须披露可选 `nativeMessaging`、本机 Host/CLI、任意页同一侧栏入口。验收：「不卖 AI workflow」只表示不以聊天当主卖点，文案不得把该能力写成未提供。不执行实际上架。
