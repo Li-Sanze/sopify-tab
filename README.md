@@ -31,7 +31,7 @@
 已交付：设置页（连接本机、工作目录）。Host 是可选深路径，书桌不依赖。
 
 **W3 Side Panel 只读 ask**
-实现中。左侧栏「对话」与工具栏打开同一 Side Panel；需另装 Host（更新 host.js 后需再跑 `./host/install-host.sh`）。不是主卖点。
+已交付：左侧栏「对话」与工具栏打开同一 Side Panel；需另装 Host（更新 host.js 后需再跑 `./host/install-host.sh`）。不是主卖点。
 
 ## 非目标
 
@@ -46,7 +46,7 @@
 - ✅ W1 书桌 + 标签
 - ✅ W1.5 轻量光感 / 玻璃打磨
 - ✅ W2 Host + 设置
-- 🔜 W3 Side Panel 只读 ask
+- ✅ W3 Side Panel 只读 ask
 - ⏸ Chrome 网上应用店上架未定（先自己用一段时间）
 
 ## 许可

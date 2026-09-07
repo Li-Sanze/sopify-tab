@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地（待合入）。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 3 实现中。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 3 已合入。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -103,8 +103,8 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] 默认不连、第一屏不提 Host
 - [x] Wave 1 扩展代码
 - [x] Wave 2 设置页与可选 Host（install + detect）
-- [x] Wave 3 Side Panel 只读 ask（实现中，等 PR）
+- [x] Wave 3 Side Panel 只读 ask（已合入 main，PR #6）
 
 ## Next
 
-Wave 3 已实现 Side Panel 与 ask 流式，等 PR 审序。下一波做 Wave 4 listing / 隐私披露草稿，不实际上架。
+Wave 3 已合入 main（PR #6）。下一波做 Wave 4 listing / 隐私披露草稿，不实际上架。
