@@ -24,3 +24,6 @@
 
 ## 影响
 Wave 1 验收以刷新后书桌数据仍在、标签列表不进 `storage` 为准。隐私披露写：用户书桌数据只存在本机当前 Chrome 配置，扩展不上传。
+
+## 修订（W6）
+ADR-008 允许 `storage.local` 落盘上游 id `hostUpstream`（`cursor` \| `claude`，默认 `cursor`，不进 `sync`）。仍不落盘模型列表、标签、对话、Host 探测结果。详见 `adr-008-multi-host-thin-adapter.md`。
