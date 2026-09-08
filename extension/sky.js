@@ -4,6 +4,7 @@
   const PRESETS = ['system', 'day', 'night'];
   const STORAGE_KEY = 'themePreset';
   const DEFAULT_PRESET = 'system';
+  const DEFAULT_MOTION = 'calm';
 
   function normalizePreset(value) {
     return PRESETS.includes(value) ? value : DEFAULT_PRESET;
@@ -25,6 +26,16 @@
     return { preset: p, sky };
   }
 
+  function resolveSkyMotion(prefersReduce) {
+    return prefersReduce ? 'still' : DEFAULT_MOTION;
+  }
+
+  function applySkyMotion(root, prefersReduce) {
+    const motion = resolveSkyMotion(prefersReduce);
+    if (root) root.dataset.skyMotion = motion;
+    return motion;
+  }
+
   function readCache() {
     try {
       return normalizePreset(localStorage.getItem(STORAGE_KEY));
@@ -43,13 +54,20 @@
     return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
+  function prefersReduceNow() {
+    return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   const api = {
     PRESETS,
     STORAGE_KEY,
     DEFAULT_PRESET,
+    DEFAULT_MOTION,
     normalizePreset,
     resolveSky,
+    resolveSkyMotion,
     applyToRoot,
+    applySkyMotion,
     getPreset() {
       return currentPreset;
     },
@@ -65,6 +83,7 @@
     currentPreset = normalizePreset(preset);
     if (typeof document === 'undefined' || !document.documentElement) return currentPreset;
     applyToRoot(document.documentElement, currentPreset, prefersDarkNow());
+    applySkyMotion(document.documentElement, prefersReduceNow());
     document.documentElement.dispatchEvent(new CustomEvent('sopify-theme', { detail: { preset: currentPreset } }));
     return currentPreset;
   }
@@ -79,7 +98,7 @@
 
   function boot() {
     // chrome.storage.local.get is async. Mirror the minimal key in localStorage
-    // so the first paint already has data-theme / data-sky / color-scheme.
+    // so the first paint already has data-theme / data-sky / data-sky-motion / color-scheme.
     currentPreset = readCache();
     apply(currentPreset);
 
@@ -87,6 +106,14 @@
     if (mq && mq.addEventListener) {
       mq.addEventListener('change', () => {
         if (currentPreset === 'system') apply('system');
+      });
+    }
+
+    const mqMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+    if (mqMotion && mqMotion.addEventListener) {
+      mqMotion.addEventListener('change', () => {
+        if (typeof document === 'undefined' || !document.documentElement) return;
+        applySkyMotion(document.documentElement, mqMotion.matches);
       });
     }
 
