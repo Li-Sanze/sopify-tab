@@ -9,7 +9,7 @@ const sky = require(path.join(EXT, 'sky.js'));
 
 const SHARED_VARS = [
   '--sky-top', '--sky-mid', '--sky-low',
-  '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars',
+  '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars', '--sky-ring',
   '--ink', '--ink-2', '--ink-3',
   '--sky-ink', '--sky-ink-2', '--sky-ink-3',
   '--accent', '--accent-ink', '--accent-soft',

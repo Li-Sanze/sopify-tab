@@ -21,7 +21,7 @@ const skySrc = read('sky.js');
 const dayBlock = themeCss.slice(themeCss.indexOf(':root,'), themeCss.indexOf('html[data-sky="night"]'));
 const nightBlock = themeCss.slice(themeCss.indexOf('html[data-sky="night"]'), themeCss.indexOf('body {'));
 
-for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars', '--glow', '--mist', '--glass-hi']) {
+for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars', '--sky-ring', '--glow', '--mist', '--glass-hi']) {
   assert.ok(dayBlock.includes(`${name}:`), `day table must define ${name}`);
   assert.ok(nightBlock.includes(`${name}:`), `night table must define ${name}`);
 }
@@ -35,8 +35,13 @@ assert.ok((nightBlock.match(/radial-gradient\((?:0\.\d+|1(?:\.\d+)?)px/g) || [])
   'night starfield is sparse CSS dots');
 assert.ok(!/@keyframes\s+twinkle/.test(themeCss), 'no twinkle spam');
 assert.ok(!/\.planet|\.moon-disk|\.cityscape|\.cyber-/.test(themeCss), 'no scenery props in the sky table');
-assert.ok(!/--sky-ring|conic-gradient|ellipse\s+at/.test(themeCss),
-  'planetary rings are pending audit — not in this push');
+assert.ok(/--sky-ring:\s*none/.test(dayBlock), 'day has no planetary ring');
+assert.ok(/ellipse\s+48%\s+9%\s+at\s+84%\s+8%/.test(nightBlock),
+  'night ring is a far-back upper-right elliptical arc');
+assert.ok(!/at\s+50%\s+50%/.test(nightBlock.match(/--sky-ring:[\s\S]*?;/) ? nightBlock.match(/--sky-ring:[\s\S]*?;/)[0] : ''),
+  'ring must not sit on the clock center');
+assert.ok(!/conic-gradient/.test(themeCss), 'no disc/conic planet body');
+assert.ok(!/@keyframes\s+sky-ring/.test(themeCss), 'ring stays static (Still-safe)');
 assert.ok(themeCss.includes('.sky::before'), 'wash lives on a CSS layer, not extra chrome');
 assert.ok(themeCss.includes('@keyframes sky-calm'), 'calm motion is a named CSS keyframe');
 assert.ok(/html\[data-sky-motion="calm"\]/.test(themeCss), 'motion is opt-in via data-sky-motion=calm');
