@@ -8,11 +8,11 @@
 
 ## 7. Wave 6 多 CLI Host
 
-- [ ] 7.1 文档闭环：`wave-6-brief.md` / `tasks-w6.md` / ADR-008 / `plan-w6-delta.md` / `preferences-w6-delta.md` / `wave-board.md`，以及 `plan.md` / `tasks.md` / `preferences.md` 轻改，对齐钉死项。本任务在文档 PR 合入后算完成。验收：审序工程→UI→产品→技术总监各一句「过/改」；全文无「待钉」；Claude argv 已写入 brief / 7.4；无 `extension/**`、`host/**`、无 README 功能改动。
+- [x] 7.1 文档闭环：`wave-6-brief.md` / `tasks-w6.md` / ADR-008 / `plan-w6-delta.md` / `preferences-w6-delta.md` / `wave-board.md`，以及 `plan.md` / `tasks.md` / `preferences.md` 轻改，对齐钉死项。本任务在文档 PR 合入后算完成。验收：审序工程→UI→产品→技术总监各一句「过/改」；全文无「待钉」；Claude argv 已写入 brief / 7.4；无 `extension/**`、`host/**`、无 README 功能改动。
 
-- [ ] 7.2 Cursor 回归（实现 PR）：默认 `hostUpstream=cursor`。spawn 仍是快照 `cursor-agent-proxy --print --output-format stream-json --mode ask`；不传 `--force` / `-f` / `--yolo`；cwd 来自 `storage.local`，可空；`ask_delta` / `stop` / 关栏杀进程树与 W3 一致。`host/test-w3-ask.js`（或等价）必须仍过。验收：切到 Claude 再切回 Cursor，Cursor 路径与改前无差；不得为接 Claude 改掉 Side Panel 消息类型。
+- [x] 7.2 Cursor 回归（实现 PR）：默认 `hostUpstream=cursor`。spawn 仍是快照 `cursor-agent-proxy --print --output-format stream-json --mode ask`；不传 `--force` / `-f` / `--yolo`；cwd 来自 `storage.local`，可空；`ask_delta` / `stop` / 关栏杀进程树与 W3 一致。`host/test-w3-ask.js`（或等价）必须仍过。验收：切到 Claude 再切回 Cursor，Cursor 路径与改前无差；不得为接 Claude 改掉 Side Panel 消息类型。
 
-- [ ] 7.3 薄配置表（实现 PR）：Host 内一张表，本波仅两行。
+- [x] 7.3 薄配置表（实现 PR）：Host 内一张表，本波仅两行。
 
   | id | 二进制 | argv | parser |
   | --- | --- | --- | --- |
@@ -21,7 +21,7 @@
 
   设置深路径写入 `storage.local.hostUpstream`（仅 `cursor` \| `claude`，默认 `cursor`，不进 `sync`）。ask 可带 `upstream`，缺省按已存 id，再缺省 `cursor`。同时只跑一行。验收：表内无第三行空壳；选择器不出现在书桌第一屏；未接线 id 不进表、不进设置、不进 README。
 
-- [ ] 7.4 Claude 只读接线（实现 PR）：Host **只**按下列 argv spawn，无「待钉」、无额外 allow、无 force 等价。
+- [x] 7.4 Claude 只读接线（实现 PR）：Host **只**按下列 argv spawn，无「待钉」、无额外 allow、无 force 等价。
 
   ```
   claude --bare -p "<prompt>" \

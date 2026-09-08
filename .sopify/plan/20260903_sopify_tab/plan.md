@@ -12,9 +12,9 @@ archive_ready: false
 # Sopify Tab 工作台与可选本机 CLI
 
 就绪状态: Ready
-依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 已合（#11 / 6da0acc）。Wave 6 多 CLI Host 另立项，本波先落文档；W5 listing 仍暂停。
+依据: 方案已收口。原型画完整界面，不按 Wave 藏入口。Wave 1 书桌、Wave 2 设置 / 可选 Host、Wave 3 Side Panel 只读 ask 已落地。Wave 4 已合（#11 / 6da0acc）。Wave 6 文档已合（#14 / 03af560）；实现本 PR。W5 listing 仍暂停。
 
-Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 6 文档落仓中；实现另开 PR。W5 listing 仍暂停。knowledge_sync: project/background/design=required，tasks=review。
+Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wave 6 实现中。W5 listing 仍暂停。knowledge_sync: project/background/design=required，tasks=review。
 
 ## Context / Why
 
@@ -43,13 +43,16 @@ Plan Snapshot: 安静新标签页工作台，聊天可选。status=planned。Wav
 Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 一点常用站就会卸掉。Host 不进 CRX。默认问答 spawn `/Users/weixin.li/.local/bin/cursor-agent-proxy`，加 `--print --output-format stream-json --mode ask`，cwd 为设置里的工作目录。不传 `--force`。W6 起 Host 可按薄表 spawn 已声明上游（默认仍是这一条）；Side Panel 合同不变。图在实现波再改，见 `plan-w6-delta.md`。
 
 ```text
-新标签页 (左侧栏：书桌 / 标签；Wave 2 起加设置)
-    └─ Wave 3：栏内「对话」/ 工具栏 ──► Side Panel
+新标签页 (左侧栏：书桌 / 标签 / 设置)
+    └─ 栏内「对话」/ 工具栏 ──► Side Panel
                                               │
                                               ▼ chrome.runtime.connectNative
-                                     native host
+                                     native host（薄表：cursor | claude）
                                               │
-                                              ▼ cursor-agent-proxy --print --output-format stream-json --mode ask
+                    ┌─────────────────────────┴─────────────────────────┐
+                    ▼                                                   ▼
+    cursor-agent-proxy --print --output-format stream-json --mode ask
+                                                         claude --bare -p …（只读）
 ```
 
 默认不连。第一屏（书桌）不出现 Host 芯片、连接灯、「未检测到」或对话按钮。「没连 Host」不是状态，只在用户主动打开设置或（Wave 3 之后）Side Panel 时写成说明。
@@ -73,7 +76,7 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 3：Side Panel、栏内对话、工具栏入口；Cursor ask 流式；停止 / 重试 / 新会话；关侧栏杀进程树。
 - [x] Wave 4：换肤（内置预设 system/day/night + CSS 变量 + 启动防闪）与克制优化（空态/信息克制可砍；README 代理一句）。见 ADR-007、wave-4-brief.md。已合 PR #11（`6da0acc`）；5.4 未做。
 - [ ] Wave 5：listing / 隐私披露验收文案（不实际上架）。**仍暂停**，不挡 W6。实际上架操作另开方案。
-- [ ] Wave 6：多 CLI Host（另立项）。同一 Side Panel 合同 + 薄配置表；默认 Cursor；首扩 Claude Code CLI 只读。见 ADR-008、wave-6-brief.md、tasks-w6.md。
+- [x] Wave 6：多 CLI Host（另立项）。同一 Side Panel 合同 + 薄配置表；默认 Cursor；首扩 Claude Code CLI 只读。见 ADR-008、wave-6-brief.md、tasks-w6.md。
 
 ## Key Decisions
 
@@ -119,9 +122,9 @@ Vanilla MV3。会话放在 Side Panel 文档里，因为 `chrome_url_overrides` 
 - [x] Wave 3 Side Panel 只读 ask（已合入 main，PR #6）
 - [x] Wave 4 文档落仓（ADR-007 / wave-4-brief / plan / tasks / wave-board / preferences；#10 / 1adbacd）
 - [x] Wave 4 实现（PR #11 / `6da0acc`；A + C；B / 5.4 未做）
-- [ ] Wave 6 文档落仓（ADR-008 / wave-6-brief / tasks-w6 / plan-w6-delta / preferences-w6-delta / wave-board）
-- [ ] Wave 6 实现（文档合入后另开 PR；本处不勾）
+- [x] Wave 6 文档落仓（ADR-008 / wave-6-brief / tasks-w6 / plan-w6-delta / preferences-w6-delta / wave-board；#14 / `03af560`）
+- [x] Wave 6 实现（Cursor 回归 + 薄配置表 + Claude 只读；README 只列已接线）
 
 ## Next
 
-W6 文档本 PR 落仓。W5 listing 仍暂停。下一动作是实现 PR（Cursor 回归 + 薄配置表 + Claude 只读）。Sanze unpacked 点验后合实现 PR。
+Sanze unpacked 点验后合实现 PR。Rick 翻 `wave-board.md`。W5 listing 仍暂停。

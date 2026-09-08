@@ -47,6 +47,6 @@
 
 完整条目在 [`tasks-w6.md`](./tasks-w6.md)。本文件只记账。默认上游仍是 Cursor；选择器仅设置深路径；不做第一屏模型墙。
 
-- [ ] 7.1 文档闭环（本 PR）：brief / ADR-008 / tasks-w6 / delta / wave-board / plan·preferences 轻改。验收：无「待钉」；Claude argv 已写入；无 `extension/**`、`host/**`、无 README 功能改动。
-- [ ] 7.2–7.4 实现 PR：Cursor 回归、薄配置表、Claude 只读 argv（见 `tasks-w6.md`）。
+- [x] 7.1 文档闭环：brief / ADR-008 / tasks-w6 / delta / wave-board / plan·preferences 轻改。文档 PR 已合（#14 / `03af560`）。
+- [x] 7.2–7.4 实现 PR：Cursor 回归、薄配置表、Claude 只读 argv（见 `tasks-w6.md`）。
 - §8 后续 Host（Codex / Grok / DeepSeek 等）不在本波。
