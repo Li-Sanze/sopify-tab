@@ -51,7 +51,7 @@ async function waitFor(fn, ms, label) {
 
 function writeCursorMock(dir) {
   const mock = path.join(dir, 'cursor-agent-proxy');
-  const src = `#!/usr/bin/env node
+  const src = `#!${process.execPath}
 const fs = require('fs');
 const { spawn } = require('child_process');
 const argv = process.argv.slice(2);
@@ -87,7 +87,7 @@ for (const ev of events) process.stdout.write(JSON.stringify(ev) + '\\n');
 
 function writeClaudeMock(dir) {
   const mock = path.join(dir, 'claude');
-  const src = `#!/usr/bin/env node
+  const src = `#!${process.execPath}
 const fs = require('fs');
 const { spawn } = require('child_process');
 const argv = process.argv.slice(2);
@@ -238,7 +238,7 @@ function testStaticUiAndReadme() {
 
   const newtab = fs.readFileSync(path.join(EXT, 'newtab.html'), 'utf8');
   const desk = newtab.split('data-view="desk"')[1].split('data-view="tabs"')[0];
-  const settings = newtab.split('data-view="settings"')[1];
+  const settings = newtab.slice(newtab.indexOf('aria-labelledby="settings-h"'));
   const rail = newtab.slice(newtab.indexOf('class="rail"'), newtab.indexOf('class="main"'));
   assert.ok(settings.includes('name="hostUpstream"'));
   assert.ok(settings.includes('value="cursor"') && settings.includes('value="claude"'));
@@ -273,7 +273,8 @@ function testStaticUiAndReadme() {
   const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
   assert.ok(/Claude/.test(readme), 'README may mention optional Claude after wiring');
   assert.ok(/默认仍是 Cursor|默认.*Cursor/.test(readme));
-  assert.ok(!/多 CLI 已全量|任意 Agent|任意本机 Agent/.test(readme));
+  assert.ok(!/多 CLI 已全量|支持任意 Agent|任意本机 Agent/.test(readme));
+  assert.ok(/非目标[\s\S]*任意 Agent/.test(readme), '任意 Agent stays a non-goal, not a ship claim');
   assert.ok(!/webhook/i.test(readme));
   assert.ok(!/Codex|Grok|DeepSeek/.test(readme));
   assert.ok(/上架未定|暂停/.test(readme));
@@ -296,7 +297,7 @@ async function testDetectBoth() {
   const proxy = writeCursorMock(dir);
   const claude = writeClaudeMock(dir);
   writePaths(dir, { cursorAgentProxy: proxy, claudeBin: claude });
-  const host = startHost(dir, { PATH: '/usr/bin:/bin' });
+  const host = startHost(dir, { PATH: `${dir}${path.delimiter}/usr/bin${path.delimiter}/bin` });
   host.send({ type: 'detect' });
   await waitFor(() => host.msgs().some((m) => m.type === 'pong'), 1500, 'detect pong');
   const pong = host.msgs().find((m) => m.type === 'pong');
