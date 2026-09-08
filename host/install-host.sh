@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Install com.sopify.tab for this machine. Snapshots absolute Node and
-# cursor-agent-proxy paths. Does not touch Codex / Qoder host manifests.
+# Install com.sopify.tab for this machine. Snapshots absolute Node,
+# cursor-agent-proxy, and optional claude paths. Does not touch Codex /
+# Qoder host manifests. Missing claude is fine — Host still installs.
 set -euo pipefail
 
 HOST_ID='com.sopify.tab'
@@ -102,6 +103,38 @@ find_proxy() {
   command -v cursor-agent-proxy 2>/dev/null || true
 }
 
+find_claude() {
+  if [ -n "${SOPIFY_CLAUDE:-}" ]; then
+    printf '%s' "$SOPIFY_CLAUDE"
+    return
+  fi
+  if [ -x "${HOME}/.local/bin/claude" ]; then
+    printf '%s' "${HOME}/.local/bin/claude"
+    return
+  fi
+  command -v claude 2>/dev/null || true
+}
+
+snapshot_claude() {
+  local raw="$1"
+  [ -n "$raw" ] || return 0
+  local abs
+  abs="$(abspath "$raw")"
+  assert_safe_path "$abs"
+  if is_version_dir "$abs"; then
+    die "拒绝快照 cursor-agent 版本目录: $abs"
+  fi
+  [ -e "$abs" ] || die "claude 不存在: $abs"
+  [ -x "$abs" ] || die "claude 不可执行: $abs"
+  local resolved
+  resolved="$(realpath_of "$abs")"
+  if is_version_dir "$resolved"; then
+    printf '%s' "$abs"
+    return
+  fi
+  printf '%s' "$abs"
+}
+
 nmh_dirs() {
   case "$(uname -s)" in
     Darwin)
@@ -196,8 +229,13 @@ PY
 
 NODE_RAW="$(find_node)"
 PROXY_RAW="$(find_proxy)"
+CLAUDE_RAW="$(find_claude)"
 NODE_ABS="$(snapshot_node "$NODE_RAW")"
 PROXY_ABS="$(snapshot_proxy "$PROXY_RAW")"
+CLAUDE_ABS=""
+if [ -n "$CLAUDE_RAW" ]; then
+  CLAUDE_ABS="$(snapshot_claude "$CLAUDE_RAW")"
+fi
 
 mkdir -p "$LIB_DIR"
 cp "$SRC_JS" "${LIB_DIR}/host.js"
@@ -218,12 +256,16 @@ fi
 if is_version_dir "$NODE_ABS" || is_version_dir "$PROXY_ABS"; then
   die "快照路径落在版本目录"
 fi
+if [ -n "$CLAUDE_ABS" ] && is_version_dir "$CLAUDE_ABS"; then
+  die "快照路径落在版本目录"
+fi
 
 BEFORE_FORBIDDEN="$(checksum_forbidden || true)"
 
-python3 - "$LIB_DIR/local-paths.json" "$NODE_ABS" "$PROXY_ABS" "$HOST_JS" "$WRAPPER" "$EXT_ID" "$HOST_ID" <<'PY'
+python3 - "$LIB_DIR/local-paths.json" "$NODE_ABS" "$PROXY_ABS" "$HOST_JS" "$WRAPPER" "$EXT_ID" "$HOST_ID" "$CLAUDE_ABS" <<'PY'
 import json, sys
 dest, node, proxy, host_js, wrapper, ext_id, host_id = sys.argv[1:8]
+claude = sys.argv[8] if len(sys.argv) > 8 else ""
 doc = {
     "node": node,
     "cursorAgentProxy": proxy,
@@ -232,6 +274,8 @@ doc = {
     "extensionId": ext_id,
     "hostId": host_id,
 }
+if claude:
+    doc["claudeBin"] = claude
 with open(dest, "w", encoding="utf-8") as f:
     json.dump(doc, f, indent=2)
     f.write("\n")
@@ -255,6 +299,11 @@ fi
 echo "已安装 ${HOST_ID}"
 echo "  node   ${NODE_ABS}"
 echo "  proxy  ${PROXY_ABS}"
+if [ -n "$CLAUDE_ABS" ]; then
+  echo "  claude ${CLAUDE_ABS}"
+else
+  echo "  claude （未找到，可选；不影响 Cursor）"
+fi
 echo "  run    ${WRAPPER}"
 echo "  origin ${ORIGIN}"
 echo "书桌不依赖这次安装。Chrome 里打开设置再点「检测 Host」。"

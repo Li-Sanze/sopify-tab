@@ -19,11 +19,12 @@ flowchart TD
   NTP[newtab 书桌与标签]
   NTP -->|用户数据| ST[(chrome.storage.local)]
   NTP -->|当前窗口标签| TABS[chrome.tabs]
-  SET[settings Wave 2+] -->|cwd / themePreset| ST
+  SET[settings Wave 2+] -->|cwd / themePreset / hostUpstream| ST
   SET -->|可选 permissions.request| NM[Chrome Native Messaging]
   SP[sidepanel Wave 3] -->|connectNative| NM
   NM --> HOST[com.sopify.tab host]
-  HOST --> PROXY[cursor-agent-proxy]
+  HOST -->|默认| PROXY[cursor-agent-proxy]
+  HOST -->|可选只读| CLAUDE[claude --bare]
   PROXY --> CLI[cursor-agent --mode ask]
 ```
 
@@ -40,7 +41,7 @@ sopify-tab/
 消费边界：
 
 - `newtab.*`：书桌和标签。读 `storage.local` 和 `tabs`。Wave 1 不持有会话，不申请 `nativeMessaging`，不渲染 Host 状态。
-- 设置页（Wave 2）：Host 说明与 `cwd`。检测失败只留在本页。Wave 4 加「外观」一块（`themePreset`）。
+  - 设置页（Wave 2）：Host 说明与 `cwd`。检测失败只留在本页。Wave 4 加「外观」一块（`themePreset`）。Wave 6 加深路径上游选择（`hostUpstream`：`cursor` \| `claude`）。
 - `sidepanel.*`（Wave 3）：当次会话 DOM。关文档即停当次运行。不把对话写入 `storage`。
 - `background.js`（Wave 3）：sidePanel 行为、消息转发。不在 service worker 里硬撑长任务，不当书桌数据库。
 - `host/`：只在用户安装后存在于本机。不存放常用站、待办、便签。
@@ -54,9 +55,10 @@ notes:  string                 Wave 1
 name:   string                 Wave 1
 cwd:    string                 Wave 2，默认 ""
 themePreset: system|day|night  Wave 4，默认 system；不进 sync
+hostUpstream: cursor|claude    Wave 6，默认 cursor；不进 sync
 ```
 
-不设 `skyPref`、`cli`、`model`。标签、Host 探测结果、对话消息不落盘。
+不设 `skyPref`、`cli`、`model`。允许落盘上游 id `hostUpstream`。标签、Host 探测结果、对话消息不落盘。
 
 ## 安全与性能
 

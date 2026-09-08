@@ -7,8 +7,15 @@ const { spawn } = require('child_process');
 const HOST_ID = 'com.sopify.tab';
 const ASK_ARGS = ['--print', '--output-format', 'stream-json', '--mode', 'ask'];
 const FORBIDDEN_FLAGS = new Set(['--force', '-f', '--yolo']);
+const CLAUDE_FORBIDDEN = new Set([
+  '--force', '-f', '--yolo',
+  '--dangerously-skip-permissions',
+  'acceptEdits',
+  'bypassPermissions',
+]);
 const MAX_IN = 10 * 1024 * 1024;
 const MAX_OUT = 800000;
+const UPSTREAM_IDS = Object.freeze(['cursor', 'claude']);
 
 let shuttingDown = false;
 let active = null;
@@ -35,14 +42,54 @@ function writeMessage(obj) {
   }
 }
 
+function isExecutable(p) {
+  if (!p || typeof p !== 'string') return '';
+  try {
+    fs.accessSync(p, fs.constants.X_OK);
+    if (fs.statSync(p).isFile()) return p;
+  } catch { /* missing / not a file */ }
+  return '';
+}
+
+function whichBin(name) {
+  const pathEnv = process.env.PATH || '';
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    const found = isExecutable(path.join(dir, name));
+    if (found) return found;
+  }
+  return '';
+}
+
+function normalizeUpstream(id) {
+  return id === 'claude' ? 'claude' : 'cursor';
+}
+
+function resolveBin(row, paths) {
+  const snap = paths && paths[row.pathKey];
+  if (row.id === 'claude') {
+    return whichBin('claude') || isExecutable(snap);
+  }
+  return isExecutable(snap);
+}
+
 function detectPayload() {
   const paths = readPaths();
+  const cursorBin = resolveBin(UPSTREAMS.cursor, paths);
+  const claudeBin = resolveBin(UPSTREAMS.claude, paths);
   return {
     type: 'pong',
     ok: true,
     host: HOST_ID,
     wave: 3,
-    proxySnapshotted: Boolean(paths.cursorAgentProxy),
+    proxySnapshotted: Boolean(cursorBin),
+    claudeSnapshotted: Boolean(isExecutable(paths.claudeBin)),
+    cursorAvailable: Boolean(cursorBin),
+    claudeAvailable: Boolean(claudeBin),
+    upstreams: {
+      cursor: { available: Boolean(cursorBin) },
+      claude: { available: Boolean(claudeBin) },
+    },
   };
 }
 
@@ -70,6 +117,19 @@ function eventKind(ev) {
     return { kind: 'error', text };
   }
   return { kind: 'none' };
+}
+
+function claudeEventKind(ev) {
+  if (!ev || typeof ev !== 'object') return { kind: 'none' };
+  if (ev.type === 'stream_event') {
+    const event = ev.event && typeof ev.event === 'object' ? ev.event : {};
+    const delta = event.delta && typeof event.delta === 'object' ? event.delta : {};
+    if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+      return { kind: 'delta', text: delta.text };
+    }
+    return { kind: 'none' };
+  }
+  return eventKind(ev);
 }
 
 function emitDelta(text) {
@@ -110,7 +170,50 @@ function feedStream(state, ev) {
   }
 }
 
-function attachParser(readable, state) {
+function feedClaudeStream(state, ev) {
+  const got = claudeEventKind(ev);
+  if (got.kind === 'delta' && got.text) {
+    state.emitted = (state.emitted || '') + got.text;
+    if (!state.segments.length) state.segments.push(state.emitted);
+    else state.segments[0] = state.emitted;
+    emitDelta(got.text);
+    return;
+  }
+  if (got.kind === 'assistant' && got.text) {
+    const prev = state.emitted || state.segments.join('') || '';
+    if (!prev) {
+      state.emitted = got.text;
+      state.segments.push(got.text);
+      emitDelta(got.text);
+      return;
+    }
+    if (got.text === prev || prev.startsWith(got.text)) return;
+    if (got.text.startsWith(prev)) {
+      const extra = got.text.slice(prev.length);
+      state.emitted = got.text;
+      if (!state.segments.length) state.segments.push(got.text);
+      else state.segments[0] = got.text;
+      emitDelta(extra);
+    }
+    return;
+  }
+  if (got.kind === 'result') {
+    if (got.error && got.text) state.stderr = state.stderr || got.text;
+    const prev = state.emitted || state.segments.join('') || '';
+    if (!prev && got.text) {
+      state.emitted = got.text;
+      state.segments.push(got.text);
+      emitDelta(got.text);
+    }
+    return;
+  }
+  if (got.kind === 'error' && got.text) {
+    state.stderr = got.text;
+  }
+}
+
+function attachParser(readable, state, feed) {
+  const onEvent = typeof feed === 'function' ? feed : feedStream;
   let buf = '';
   readable.setEncoding('utf8');
   readable.on('data', (chunk) => {
@@ -121,7 +224,7 @@ function attachParser(readable, state) {
       buf = buf.slice(idx + 1);
       if (!line) continue;
       try {
-        feedStream(state, JSON.parse(line));
+        onEvent(state, JSON.parse(line));
       } catch {
         // Non-JSON banners stay on the child's stdout; ignore.
       }
@@ -131,7 +234,7 @@ function attachParser(readable, state) {
     const tail = buf.trim();
     if (!tail) return;
     try {
-      feedStream(state, JSON.parse(tail));
+      onEvent(state, JSON.parse(tail));
     } catch {
       if (!state.segments.length) emitDelta(tail);
     }
@@ -222,6 +325,23 @@ function killActive(immediate) {
   });
 }
 
+function assertSafeArgs(args) {
+  if (!Array.isArray(args)) throw new Error('force_forbidden');
+  for (const a of args) {
+    if (FORBIDDEN_FLAGS.has(a) || CLAUDE_FORBIDDEN.has(a)) throw new Error('force_forbidden');
+  }
+  const allowedAt = args.indexOf('--allowedTools');
+  if (allowedAt !== -1) {
+    const val = String(args[allowedAt + 1] || '');
+    if (/\b(Edit|Write|Bash)\b/.test(val)) throw new Error('force_forbidden');
+  }
+  const modeAt = args.indexOf('--permission-mode');
+  if (modeAt !== -1) {
+    const mode = args[modeAt + 1];
+    if (mode === 'acceptEdits' || mode === 'bypassPermissions') throw new Error('force_forbidden');
+  }
+}
+
 function askArgs(prompt) {
   const args = ASK_ARGS.slice();
   if (prompt.startsWith('-')) args.push('--');
@@ -232,6 +352,39 @@ function askArgs(prompt) {
   return args;
 }
 
+function claudeAskArgs(prompt) {
+  const args = [
+    '--bare',
+    '-p', prompt,
+    '--permission-mode', 'dontAsk',
+    '--allowedTools', 'Read',
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--include-partial-messages',
+  ];
+  assertSafeArgs(args);
+  return args;
+}
+
+const UPSTREAMS = Object.freeze({
+  cursor: Object.freeze({
+    id: 'cursor',
+    pathKey: 'cursorAgentProxy',
+    missingError: 'proxy_not_snapshotted',
+    detectCopy: 'install snapshot cursorAgentProxy',
+    buildArgs: askArgs,
+    feed: feedStream,
+  }),
+  claude: Object.freeze({
+    id: 'claude',
+    pathKey: 'claudeBin',
+    missingError: 'claude_not_found',
+    detectCopy: 'PATH claude, then install snapshot claudeBin',
+    buildArgs: claudeAskArgs,
+    feed: feedClaudeStream,
+  }),
+});
+
 function startAsk(msg) {
   const prompt = typeof msg.prompt === 'string' ? msg.prompt : '';
   if (!prompt.trim()) {
@@ -239,16 +392,18 @@ function startAsk(msg) {
     return;
   }
   const cwd = typeof msg.cwd === 'string' ? msg.cwd.trim() : '';
+  const upstream = normalizeUpstream(msg && msg.upstream);
+  const row = UPSTREAMS[upstream];
   const paths = readPaths();
-  const proxy = paths.cursorAgentProxy;
-  if (!proxy || typeof proxy !== 'string') {
-    writeMessage({ type: 'error', ok: false, error: 'proxy_not_snapshotted' });
+  const bin = resolveBin(row, paths);
+  if (!bin) {
+    writeMessage({ type: 'error', ok: false, error: row.missingError });
     return;
   }
 
   let args;
   try {
-    args = askArgs(prompt);
+    args = row.buildArgs(prompt);
   } catch {
     writeMessage({ type: 'error', ok: false, error: 'force_forbidden' });
     return;
@@ -262,18 +417,19 @@ function startAsk(msg) {
 
   let child;
   try {
-    child = spawn(proxy, args, opts);
+    child = spawn(bin, args, opts);
   } catch (e) {
-    writeMessage({ type: 'error', ok: false, error: 'spawn_failed' });
+    const error = e && e.code === 'ENOENT' ? row.missingError : 'spawn_failed';
+    writeMessage({ type: 'error', ok: false, error });
     return;
   }
 
-  const state = { segments: [], stderr: '' };
-  const job = { child, stopped: false, state };
+  const state = { segments: [], stderr: '', emitted: '' };
+  const job = { child, stopped: false, state, upstream };
   active = job;
   writeMessage({ type: 'ask_start', ok: true });
 
-  if (child.stdout) attachParser(child.stdout, state);
+  if (child.stdout) attachParser(child.stdout, state, row.feed);
   if (child.stderr) {
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
@@ -281,9 +437,12 @@ function startAsk(msg) {
     });
   }
 
-  child.on('error', () => {
+  child.on('error', (err) => {
     if (active === job) active = null;
-    if (!job.stopped) writeMessage({ type: 'error', ok: false, error: 'spawn_failed' });
+    if (!job.stopped) {
+      const error = err && err.code === 'ENOENT' ? row.missingError : 'spawn_failed';
+      writeMessage({ type: 'error', ok: false, error });
+    }
   });
 
   child.on('exit', (code, signal) => {
@@ -343,14 +502,14 @@ function onBytes(feed, chunk) {
     if (feed.buf.length < 4 + len) break;
     const body = feed.buf.subarray(4, 4 + len).toString('utf8');
     feed.buf = feed.buf.subarray(4 + len);
-    let msg;
+    let parsed;
     try {
-      msg = JSON.parse(body);
+      parsed = JSON.parse(body);
     } catch {
       writeMessage({ type: 'error', ok: false, error: 'bad_message' });
       continue;
     }
-    Promise.resolve(handleMessage(msg)).catch(() => {
+    Promise.resolve(handleMessage(parsed)).catch(() => {
       writeMessage({ type: 'error', ok: false, error: 'bad_message' });
     });
   }
@@ -373,4 +532,20 @@ function main() {
   process.stdin.resume();
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  ASK_ARGS,
+  FORBIDDEN_FLAGS,
+  UPSTREAM_IDS,
+  UPSTREAMS,
+  normalizeUpstream,
+  askArgs,
+  claudeAskArgs,
+  resolveBin,
+  eventKind,
+  claudeEventKind,
+  detectPayload,
+};

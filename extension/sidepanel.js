@@ -8,6 +8,9 @@
     connected: false,
     reason: '',
     cwd: '',
+    upstream: 'cursor',
+    cursorAvailable: false,
+    claudeAvailable: false,
     streaming: false,
     messages: [],
   };
@@ -21,13 +24,28 @@
   const hasRuntime = typeof chrome !== 'undefined' && chrome.runtime;
   const hasStorage = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
 
-  async function loadCwd() {
-    if (!hasStorage) return '';
+  function normalizeUpstream(id) {
+    return id === 'claude' ? 'claude' : 'cursor';
+  }
+
+  function upstreamLabel() {
+    return state.upstream === 'claude' ? 'Claude' : 'Cursor';
+  }
+
+  function upstreamReady() {
+    return state.upstream === 'claude' ? state.claudeAvailable : state.cursorAvailable;
+  }
+
+  async function loadSettings() {
+    if (!hasStorage) return { cwd: '', upstream: 'cursor' };
     try {
-      const data = await chrome.storage.local.get({ cwd: '' });
-      return typeof data.cwd === 'string' ? data.cwd : '';
+      const data = await chrome.storage.local.get({ cwd: '', hostUpstream: 'cursor' });
+      return {
+        cwd: typeof data.cwd === 'string' ? data.cwd : '',
+        upstream: normalizeUpstream(data.hostUpstream),
+      };
     } catch {
-      return '';
+      return { cwd: '', upstream: 'cursor' };
     }
   }
 
@@ -62,17 +80,23 @@
     const retry = $('#session-retry');
     const stop = $('#session-stop');
     const on = state.connected;
+    const ready = on && upstreamReady();
     const busy = state.streaming;
+    const label = upstreamLabel();
 
     sub.textContent = state.cwd.trim()
-      ? `经本机 Cursor CLI，只读 · ${state.cwd.trim()}`
-      : '经本机 Cursor CLI，只读';
+      ? `经本机 ${label} CLI，只读 · ${state.cwd.trim()}`
+      : `经本机 ${label} CLI，只读`;
 
-    prompt.disabled = !on || busy;
-    send.disabled = !on || busy;
-    hint.textContent = on
-      ? (busy ? '正在回答… 可停止。' : 'Enter 发送，Shift+Enter 换行。会话只留在这一栏，关掉即丢。')
-      : '需要本机 Host。只读，不是本地模型，不能写盘或执行。';
+    prompt.disabled = !ready || busy;
+    send.disabled = !ready || busy;
+    hint.textContent = !on
+      ? '需要本机 Host。只读，不是本地模型，不能写盘或执行。'
+      : !ready
+        ? (state.upstream === 'claude'
+          ? '没找到本机 claude。到设置里看说明。书桌不受影响。'
+          : 'Host 还没有快照 cursor-agent-proxy。到设置里看说明。')
+        : (busy ? '正在回答… 可停止。' : 'Enter 发送，Shift+Enter 换行。会话只留在这一栏，关掉即丢。');
 
     neu.hidden = !on || !state.messages.length;
     retry.hidden = !on || busy || !lastUser();
@@ -88,12 +112,29 @@
             <svg class="i" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>
           </div>
           <h2>需要本机 Host</h2>
-          <p>对话走本机 Cursor CLI，只读。Host 不是本地模型，不能写盘或执行命令。</p>
+          <p>对话走本机 ${esc(label)} CLI，只读。Host 不是本地模型，不能写盘或执行命令。</p>
           <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>在仓库跑 <code>./host/install-host.sh</code>，再到设置里检测。书桌不受影响。</span></p>
           <button type="button" class="btn" id="goto-settings">去设置</button>
         </div>`;
       const go = $('#goto-settings');
       if (go) go.addEventListener('click', openSettings);
+      return;
+    }
+
+    if (!ready) {
+      body.innerHTML = `
+        <div class="emptystate">
+          <div class="ring" aria-hidden="true">
+            <svg class="i" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>
+          </div>
+          <h2>${state.upstream === 'claude' ? '没找到 Claude' : '还不能提问'}</h2>
+          <p>${state.upstream === 'claude'
+            ? '本机没有 claude。到设置里看说明。书桌不受影响。'
+            : 'Host 还没有快照 cursor-agent-proxy。到设置里看说明。书桌不受影响。'}</p>
+          <button type="button" class="btn" id="goto-settings">去设置</button>
+        </div>`;
+      const goMissing = $('#goto-settings');
+      if (goMissing) goMissing.addEventListener('click', openSettings);
       return;
     }
 
@@ -114,7 +155,7 @@
     body.setAttribute('aria-busy', String(busy));
     body.innerHTML = state.messages.map((m) => `
       <div class="msg ${esc(m.role)}${m.status === 'streaming' ? ' streaming' : ''}${m.status === 'error' ? ' error' : ''}">
-        <span class="who">${m.role === 'user' ? '你' : 'Cursor'}</span>
+        <span class="who">${m.role === 'user' ? '你' : esc(label)}</span>
         <div class="bubble">${esc(m.text || (m.status === 'streaming' ? '' : ''))}${m.status === 'stopped' ? '<span class="who"> · 已停止</span>' : ''}</div>
       </div>`).join('');
     body.scrollTop = body.scrollHeight;
@@ -144,6 +185,8 @@
     if (msg.type === 'pong') {
       state.connected = Boolean(msg.ok);
       state.reason = msg.ok ? 'ok' : 'failed';
+      state.cursorAvailable = Boolean(msg.cursorAvailable || msg.proxySnapshotted);
+      state.claudeAvailable = Boolean(msg.claudeAvailable);
       render();
       return;
     }
@@ -177,10 +220,11 @@
       const a = lastAssistant();
       const text = msg.detail || (
         msg.error === 'proxy_not_snapshotted' ? 'Host 还没有快照 cursor-agent-proxy。重新跑一次 install-host.sh。'
-          : msg.error === 'empty_prompt' ? '先写一句再发送。'
-            : msg.error === 'spawn_failed' ? '没能拉起本机 Cursor CLI。'
-              : msg.error === 'ask_failed' ? '本机 Cursor CLI 没有回答。'
-                : '本机 Host 返回了错误。'
+          : msg.error === 'claude_not_found' ? '没找到本机 claude。到设置里看说明。书桌不受影响。'
+            : msg.error === 'empty_prompt' ? '先写一句再发送。'
+              : msg.error === 'spawn_failed' ? `没能拉起本机 ${upstreamLabel()} CLI。`
+                : msg.error === 'ask_failed' ? `本机 ${upstreamLabel()} CLI 没有回答。`
+                  : '本机 Host 返回了错误。'
       );
       if (a && a.status === 'streaming') {
         a.status = 'error';
@@ -240,14 +284,22 @@
 
   async function send(text) {
     const prompt = String(text || '').trim();
-    if (!prompt || !state.connected || state.streaming || !state.port) return;
-    state.cwd = await loadCwd();
+    if (!prompt || !state.connected || !upstreamReady() || state.streaming || !state.port) return;
+    const loaded = await loadSettings();
+    state.cwd = loaded.cwd;
+    if (loaded.upstream !== state.upstream) {
+      applyUpstream(loaded.upstream);
+    }
+    if (!state.connected || !upstreamReady() || !state.port) {
+      render();
+      return;
+    }
     state.messages.push({ id: uid(), role: 'user', text: prompt, status: 'done' });
     state.messages.push({ id: uid(), role: 'assistant', text: '', status: 'streaming' });
     state.streaming = true;
     render();
     try {
-      state.port.postMessage({ type: 'ask', prompt, cwd: state.cwd });
+      state.port.postMessage({ type: 'ask', prompt, cwd: state.cwd, upstream: state.upstream });
     } catch {
       const a = lastAssistant();
       if (a) {
@@ -269,6 +321,16 @@
 
   async function newSession() {
     if (state.streaming) stop();
+    state.messages = [];
+    state.streaming = false;
+    render();
+  }
+
+  function applyUpstream(next) {
+    const id = normalizeUpstream(next);
+    if (id === state.upstream) return;
+    if (state.streaming) stop();
+    state.upstream = id;
     state.messages = [];
     state.streaming = false;
     render();
@@ -296,23 +358,31 @@
     $('#session-stop').addEventListener('click', stop);
     $('#session-retry').addEventListener('click', () => { retry(); });
     $('#session-new').addEventListener('click', () => { newSession(); });
+    const openSettingsBtn = $('#open-settings');
+    if (openSettingsBtn) openSettingsBtn.addEventListener('click', openSettings);
 
     window.addEventListener('pagehide', teardown);
     window.addEventListener('beforeunload', teardown);
 
     if (hasStorage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area !== 'local' || !('cwd' in changes)) return;
-        if (typeof changes.cwd.newValue === 'string') {
+        if (area !== 'local') return;
+        if ('cwd' in changes && typeof changes.cwd.newValue === 'string') {
           state.cwd = changes.cwd.newValue;
-          render();
         }
+        if ('hostUpstream' in changes) {
+          applyUpstream(changes.hostUpstream.newValue);
+          return;
+        }
+        if ('cwd' in changes) render();
       });
     }
   }
 
   async function boot() {
-    state.cwd = await loadCwd();
+    const loaded = await loadSettings();
+    state.cwd = loaded.cwd;
+    state.upstream = loaded.upstream;
     bind();
     render();
     await connect();

@@ -143,7 +143,7 @@
       <section class="view" data-view="settings" aria-labelledby="settings-h">
         <header class="viewhead">
           <h1 id="settings-h">设置</h1>
-          <p>外观随时可改。要连本机 Cursor 时再看下面。书桌不依赖 Host。</p>
+          <p>外观随时可改。要连本机 Host 时再看下面。书桌不依赖 Host。</p>
         </header>
         <div class="settings">
           <section class="card" aria-labelledby="s-theme">
@@ -185,7 +185,21 @@
                   <p class="help" id="host-help">需要时再连。没装也不影响书桌。</p>
                 </div>
               </div>
-              <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>经本机 Cursor CLI，只读。另装 Host：在仓库跑 <code>./host/install-host.sh</code>。Host 不是本地模型，不能写盘、执行命令或传 <code>--force</code>。</span></p>
+              <div class="frow">
+                <span id="s-upstream">上游</span>
+                <div class="themeseg" role="radiogroup" aria-labelledby="s-upstream">
+                  <label class="themeseg-opt">
+                    <input type="radio" name="hostUpstream" value="cursor" checked>
+                    <span>Cursor</span>
+                  </label>
+                  <label class="themeseg-opt">
+                    <input type="radio" name="hostUpstream" value="claude">
+                    <span>Claude</span>
+                  </label>
+                </div>
+                <p class="help" id="upstream-help">默认 Cursor。只影响本机对话，不改书桌。</p>
+              </div>
+              <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>默认经本机 Cursor CLI，只读。本机已装 Claude 时可改上游。另装 Host：在仓库跑 <code>./host/install-host.sh</code>。Host 不是本地模型，不能写盘、执行命令或传 <code>--force</code>。</span></p>
             </div>
           </section>
 
@@ -195,7 +209,7 @@
             </div>
             <div class="cardbody form">
               <div class="frow">
-                <label for="cwd">对话在这个目录里启动 Cursor CLI</label>
+                <label for="cwd">对话在这个目录里启动本机 CLI</label>
                 <input class="field" id="cwd" placeholder="留空，需要时再填" spellcheck="false" autocomplete="off">
                 <p class="help">默认空。不预填本机路径。只存在这一页，书桌不读。</p>
               </div>

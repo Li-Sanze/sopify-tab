@@ -19,10 +19,13 @@
     tabs: [],
     filter: '',
     cwd: '',
+    hostUpstream: 'cursor',
     hostChecked: false,
     hostBusy: false,
     host: { installed: false, authorized: false, bridge: false },
     hostReason: '',
+    cursorAvailable: false,
+    claudeAvailable: false,
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -146,6 +149,22 @@
   async function saveCwd(cwd) {
     if (!hasStorage) return;
     await chrome.storage.local.set({ cwd: typeof cwd === 'string' ? cwd : '' });
+  }
+
+  function normalizeUpstream(id) {
+    return id === 'claude' ? 'claude' : 'cursor';
+  }
+
+  async function loadUpstream() {
+    if (!hasStorage) return 'cursor';
+    const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
+    return normalizeUpstream(data.hostUpstream);
+  }
+
+  async function saveUpstream(id) {
+    const next = normalizeUpstream(id);
+    state.hostUpstream = next;
+    if (hasStorage) await chrome.storage.local.set({ hostUpstream: next });
   }
 
   async function queryWindowTabs() {
@@ -382,6 +401,26 @@
     else if (probed && state.hostReason === 'forbidden') help.textContent = 'Host 清单没有允许这个扩展。书桌不受影响。';
     else if (probed) help.textContent = '可以再检一次，或先用书桌。';
     else help.textContent = '需要时再连。没装也不影响书桌。';
+    renderUpstream();
+  }
+
+  function renderUpstream() {
+    $$('input[name="hostUpstream"]').forEach((el) => {
+      el.checked = el.value === state.hostUpstream;
+    });
+    const help = $('#upstream-help');
+    if (!help) return;
+    if (state.hostUpstream === 'claude') {
+      if (state.hostChecked && hostConnected() && !state.claudeAvailable) {
+        help.textContent = '没找到本机 claude。装到 PATH 后再跑一次 ./host/install-host.sh。书桌不受影响。';
+      } else {
+        help.textContent = 'Claude 只读：仅 Read，不写不执行。需要本机已装 claude。';
+      }
+    } else if (state.hostChecked && hostConnected() && !state.cursorAvailable) {
+      help.textContent = 'Host 还没有快照 cursor-agent-proxy。重新跑一次 ./host/install-host.sh。书桌不受影响。';
+    } else {
+      help.textContent = '默认 Cursor。只影响本机对话，不改书桌。';
+    }
   }
 
   async function detectHost() {
@@ -394,6 +433,8 @@
         state.hostChecked = true;
         state.host = { installed: false, authorized: false, bridge: false };
         state.hostReason = perm.reason || 'denied';
+        state.cursorAvailable = false;
+        state.claudeAvailable = false;
         return;
       }
       try {
@@ -402,6 +443,8 @@
         state.hostChecked = true;
         state.host = { installed: true, authorized: true, bridge: ok };
         state.hostReason = ok ? 'ok' : 'failed';
+        state.cursorAvailable = Boolean(response && (response.cursorAvailable || response.proxySnapshotted));
+        state.claudeAvailable = Boolean(response && response.claudeAvailable);
         if (ok) toast('已通过 Native Messaging 连上本机 Host');
       } catch (e) {
         const reason = classifyHostError(e && e.message);
@@ -416,6 +459,8 @@
           state.host.authorized = false;
         }
         state.hostReason = reason;
+        state.cursorAvailable = false;
+        state.claudeAvailable = false;
       }
     } finally {
       state.hostBusy = false;
@@ -433,6 +478,8 @@
       state.hostChecked = false;
       state.host = { installed: false, authorized: false, bridge: false };
       state.hostReason = '';
+      state.cursorAvailable = false;
+      state.claudeAvailable = false;
       state.hostBusy = false;
       renderHost();
       toast('已断开本机 Host');
@@ -469,6 +516,7 @@
     if (v === 'settings') {
       $('#cwd').value = state.cwd;
       renderHost();
+      renderUpstream();
       renderTheme();
     }
     const focusNav = opts && opts.focusNav;
@@ -654,6 +702,10 @@
           const input = $('#cwd');
           if (input && input !== document.activeElement) input.value = state.cwd;
         }
+        if ('hostUpstream' in changes) {
+          state.hostUpstream = normalizeUpstream(changes.hostUpstream.newValue);
+          renderUpstream();
+        }
         if (!DESK_KEYS.some((k) => k in changes)) return;
         applyDesk({
           sites: changes.sites ? changes.sites.newValue : state.sites,
@@ -674,6 +726,15 @@
     $('#host-toggle').addEventListener('click', () => {
       if (hostConnected()) disconnectHost();
       else detectHost();
+    });
+    $$('input[name="hostUpstream"]').forEach((el) => {
+      el.addEventListener('change', () => {
+        if (!el.checked) return;
+        saveUpstream(el.value).then(() => {
+          renderUpstream();
+          if (hostConnected()) detectHost();
+        });
+      });
     });
     let cwdTimer;
     $('#cwd').addEventListener('input', (e) => {
@@ -704,9 +765,11 @@
   async function boot() {
     applyDesk(await loadDesk());
     state.cwd = await loadCwd();
+    state.hostUpstream = await loadUpstream();
     $('#cwd').value = state.cwd;
     renderDomains();
     renderHost();
+    renderUpstream();
     renderTheme();
     bind();
     tick();
