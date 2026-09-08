@@ -21,13 +21,14 @@ const skySrc = read('sky.js');
 const dayBlock = themeCss.slice(themeCss.indexOf(':root,'), themeCss.indexOf('html[data-sky="night"]'));
 const nightBlock = themeCss.slice(themeCss.indexOf('html[data-sky="night"]'), themeCss.indexOf('body {'));
 
-for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--glow', '--mist', '--glass-hi']) {
+for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--sky-planes', '--glow', '--mist', '--glass-hi']) {
   assert.ok(dayBlock.includes(`${name}:`), `day table must define ${name}`);
   assert.ok(nightBlock.includes(`${name}:`), `night table must define ${name}`);
 }
 
 assert.ok(themeCss.includes('var(--sky-veil)'), 'sky base must stack the veil layer');
 assert.ok(themeCss.includes('var(--sky-wash)'), 'sky must paint the wash layer');
+assert.ok(themeCss.includes('var(--sky-planes)'), 'sky must paint abstract depth planes');
 assert.ok(themeCss.includes('.sky::before'), 'wash lives on a CSS layer, not extra chrome');
 assert.ok(themeCss.includes('@keyframes sky-calm'), 'calm motion is a named CSS keyframe');
 assert.ok(/html\[data-sky-motion="calm"\]/.test(themeCss), 'motion is opt-in via data-sky-motion=calm');
