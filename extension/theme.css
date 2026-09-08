@@ -26,15 +26,16 @@ html[data-sky="day"] {
   --sky-mid: #c0ced8;
   --sky-low: #eef2f4;
   --sky-veil:
-    radial-gradient(92% 62% at 96% -12%, rgba(38, 64, 94, 0.34) 0%, transparent 58%),
-    radial-gradient(70% 46% at 50% -18%, rgba(255, 252, 246, 0.28) 0%, transparent 54%),
-    linear-gradient(180deg, rgba(62, 92, 124, 0.22) 0%, transparent 34%, rgba(255, 255, 255, 0.18) 100%);
+    radial-gradient(92% 62% at 96% -12%, rgba(38, 64, 94, 0.3) 0%, transparent 58%),
+    radial-gradient(42% 32% at 16% 10%, rgba(198, 214, 226, 0.28) 0%, transparent 64%),
+    radial-gradient(70% 46% at 52% -18%, rgba(255, 252, 246, 0.26) 0%, transparent 54%),
+    linear-gradient(180deg, rgba(62, 92, 124, 0.1) 0%, transparent 32%, rgba(255, 255, 255, 0.2) 100%);
   --sky-wash:
-    radial-gradient(58% 40% at 70% 24%, rgba(255, 255, 255, 0.26) 0%, transparent 70%),
-    radial-gradient(46% 30% at 36% 46%, rgba(186, 208, 222, 0.18) 0%, transparent 66%);
+    radial-gradient(58% 40% at 72% 28%, rgba(255, 255, 255, 0.24) 0%, transparent 70%),
+    radial-gradient(46% 30% at 40% 50%, rgba(186, 208, 222, 0.16) 0%, transparent 66%);
   --sky-planes:
-    linear-gradient(118deg, transparent 38%, rgba(255, 255, 255, 0.07) 41%, rgba(255, 255, 255, 0.03) 54%, transparent 58%),
-    linear-gradient(164deg, transparent 58%, rgba(90, 118, 148, 0.08) 62%, rgba(90, 118, 148, 0.03) 72%, transparent 76%);
+    linear-gradient(112deg, transparent 48%, rgba(255, 255, 255, 0.11) 53%, rgba(255, 255, 255, 0.04) 66%, transparent 72%),
+    linear-gradient(158deg, transparent 66%, rgba(96, 124, 152, 0.1) 72%, rgba(96, 124, 152, 0.04) 82%, transparent 88%);
   --ink: #182234;
   --ink-2: #4a5568;
   --ink-3: #6c7689;
@@ -85,8 +86,8 @@ html[data-sky="night"] {
     radial-gradient(54% 36% at 64% 20%, rgba(132, 156, 210, 0.11) 0%, transparent 70%),
     radial-gradient(42% 28% at 34% 48%, rgba(14, 22, 44, 0.22) 0%, transparent 66%);
   --sky-planes:
-    linear-gradient(124deg, transparent 26%, rgba(118, 146, 210, 0.08) 34%, transparent 48%),
-    linear-gradient(156deg, transparent 54%, rgba(72, 98, 168, 0.07) 62%, transparent 74%);
+    linear-gradient(128deg, transparent 32%, rgba(130, 158, 220, 0.1) 42%, transparent 54%),
+    linear-gradient(152deg, transparent 60%, rgba(80, 108, 180, 0.08) 70%, transparent 82%);
   --ink: #e9eef6;
   --ink-2: rgba(233, 238, 246, 0.76);
   --ink-3: rgba(233, 238, 246, 0.56);

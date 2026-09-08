@@ -69,10 +69,19 @@ for (const src of [themeCss, newtabCss, panelCss, skySrc]) {
 const desk = newtabHtml.slice(newtabHtml.indexOf('data-view="desk"'), newtabHtml.indexOf('data-view="tabs"'));
 assert.ok(!/skyMotion|sky-motion|壁纸|wallpaper/i.test(desk), 'desk first screen stays quiet');
 assert.ok(!/name="skyMotion"/.test(newtabHtml), 'no motion control chrome');
+assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(desk), 'no moodboard chrome on the desk');
 
 assert.ok(newtabCss.includes('inset 0 1px 0 var(--glass-hi)'), 'desk glass uses the shared hairline token');
 assert.ok(panelCss.includes('inset 0 1px 0 var(--glass-hi)'), 'side panel uses the same glass hairline token');
+assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss) && /backdrop-filter:\s*blur\(26px\)/.test(panelCss),
+  'glass keeps one backdrop blur per surface');
 assert.ok(!/backdrop-filter:[^;]*saturate/.test(newtabCss + panelCss), 'do not restore saturate glass');
+assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.9\s*\)/.test(dayBlock), 'day card fill stays ≥ current opacity');
+assert.ok(/--glass:\s*rgba\(\s*18,\s*26,\s*40,\s*0\.8\s*\)/.test(nightBlock), 'night card fill stays ≥ current opacity');
+assert.ok(dayBlock.includes('--sky-ink: #12203a') && dayBlock.includes('--ink: #182234'),
+  'day desk ink tokens stay current');
+assert.ok(nightBlock.includes('--sky-ink: #f3f6fb') && nightBlock.includes('--ink: #e9eef6'),
+  'night desk ink tokens stay current');
 
 assert.deepStrictEqual(sky.PRESETS, ['system', 'day', 'night']);
 assert.ok(!/hostUpstream|--force|cursor-agent/.test(themeCss), 'sky files must not touch Host/Claude contracts');
