@@ -19,3 +19,6 @@ Side Panel 自研薄 UI。不嵌入 Open WebUI、LibreChat、assistant-ui、Mult
 
 ## 影响
 本方案只对接 `cursor-agent` 的 `stream-json`。不做 CLI 选择器，不检测 Claude / Codex。其它 CLI 另开方案。
+
+## 修订（W6）
+ADR-008 在同一 Side Panel 合同下另立项多 Host 薄适配。本 ADR 的「薄聊天、不嵌开源套壳」仍有效。「只对接 Cursor / 不做选择器」改为：默认 Cursor；设置深路径可选已接线上游。详见 `adr-008-multi-host-thin-adapter.md`。
