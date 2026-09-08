@@ -6,7 +6,7 @@
 
 <img src="prototype/shots/day.png" alt="白天" width="48%"> <img src="prototype/shots/night.png" alt="夜晚" width="48%">
 
-原型视觉。当前扩展交付书桌与标签。
+原型示意；扩展已含书桌、设置/Host、Side Panel ask、外观预设。
 
 ## 快速开始
 
@@ -17,15 +17,12 @@
 4. 打开新标签页
 ```
 
-稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。默认权限是 `storage`、`tabs` 与 `sidePanel`。`nativeMessaging` 仍是可选。出站流量跟随本机 Host 与运行环境（如 `HTTP_PROXY` / `HTTPS_PROXY`）；扩展本身没有代理设置，也不感知代理。
+稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`（manifest 公钥）。权限与代理见「隐私」。
 
 ## 功能（按 Wave）
 
 **W1 书桌 + 标签**
-常用站、待办、便签、这个窗口；左侧「标签」页整理当前窗口。默认跟随系统日夜。数据在本机 `chrome.storage.local`。
-
-**W1.5 轻量光感 / 玻璃**
-轻量光感与玻璃质感。
+常用站、待办、便签、这个窗口；左侧「标签」页整理当前窗口。默认跟随系统日夜，轻量光感与玻璃质感。数据在本机 `chrome.storage.local`。
 
 **W2 Host + 设置**
 已交付：设置页（连接本机、工作目录）。Host 是可选深路径，书桌不依赖。
@@ -42,7 +39,7 @@
 
 ## 隐私
 
-默认权限是 `storage`、`tabs` 与 `sidePanel`。常用站、待办、便签、称呼、外观预设写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。当次对话不落盘。无账号，无云同步。连本机 Host 时，设置页才会申请可选的 `nativeMessaging`。
+默认权限是 `storage`、`tabs` 与 `sidePanel`。常用站、待办、便签、称呼、外观预设写在本机 `chrome.storage.local`。当前窗口标签用 `chrome.tabs` 现查，不落盘。当次对话不落盘。无账号，无云同步。连本机 Host 时，设置页才会申请可选的 `nativeMessaging`。出站流量跟随本机 Host 与运行环境（如 `HTTP_PROXY` / `HTTPS_PROXY`）；扩展本身没有代理设置，也不感知代理。
 
 ## 路线图
 
