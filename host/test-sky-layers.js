@@ -35,6 +35,8 @@ assert.ok((nightBlock.match(/radial-gradient\((?:0\.\d+|1(?:\.\d+)?)px/g) || [])
   'night starfield is sparse CSS dots');
 assert.ok(!/@keyframes\s+twinkle/.test(themeCss), 'no twinkle spam');
 assert.ok(!/\.planet|\.moon-disk|\.cityscape|\.cyber-/.test(themeCss), 'no scenery props in the sky table');
+assert.ok(!/--sky-ring|conic-gradient|ellipse\s+at/.test(themeCss),
+  'planetary rings are pending audit — not in this push');
 assert.ok(themeCss.includes('.sky::before'), 'wash lives on a CSS layer, not extra chrome');
 assert.ok(themeCss.includes('@keyframes sky-calm'), 'calm motion is a named CSS keyframe');
 assert.ok(/html\[data-sky-motion="calm"\]/.test(themeCss), 'motion is opt-in via data-sky-motion=calm');

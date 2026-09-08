@@ -150,8 +150,8 @@ body {
 
 /* Layered sky: base + veil + wash + glow + mist + planes/stars.
    Depth is stacked CSS, not shaders. Wash drifts only in Calm;
-   Still / reduced-motion stay static. Night is starfield + aurora/nebula,
-   not planets, rings, city, or a moon disk. */
+   Still / reduced-motion stay static. Night is starfield + aurora/nebula
+   only. Planetary rings are held pending group audit — do not ship them. */
 .sky {
   position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
   contain: paint;
