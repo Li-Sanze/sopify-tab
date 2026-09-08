@@ -125,7 +125,7 @@ assert.ok(!/date-line[\s\S]{0,80}待办/.test(newtabJs));
 // --- README proxy one-liner ---
 const readme = fs.readFileSync(path.join(EXT, '..', 'README.md'), 'utf8');
 assert.ok(/HTTP_PROXY|HTTPS_PROXY/.test(readme), 'README must mention HTTP(S)_PROXY');
-assert.ok(/没有代理设置|不感知代理/.test(readme), 'README must say the extension is proxy-unaware');
+assert.ok(/没有代理设置|不感知代理|扩展无代理设置/.test(readme), 'README must say the extension is proxy-unaware');
 assert.ok(!/在扩展里.*代理|chrome\.proxy/.test(readme));
 
 console.log('test-w4-theme: ok');
