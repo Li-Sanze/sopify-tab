@@ -13,8 +13,62 @@
 </head>
 <body class="sidepanel">
   <div class="sky" aria-hidden="true">
+    <svg class="defs" xmlns="http://www.w3.org/2000/svg" focusable="false">
+      <defs>
+        <filter id="fluff" x="-25%" y="-30%" width="150%" height="160%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.007 0.012" numOctaves="4" seed="11" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="58" xChannelSelector="R" yChannelSelector="G"/>
+          <feGaussianBlur stdDeviation="2.2"/>
+        </filter>
+        <radialGradient id="halo">
+          <stop offset="0" stop-color="#fbf8f0" stop-opacity="0.9"/>
+          <stop offset="0.28" stop-color="#fbf8f0" stop-opacity="0.32"/>
+          <stop offset="1" stop-color="#fbf8f0" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+    </svg>
     <div class="glow"></div>
+    <div class="day">
+      <div class="air"></div>
+      <div class="cloud f2"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud f1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud m1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud n2"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p3"></i><i class="p p2"></i></div>
+      <div class="cloud n1"><i class="shade"></i><i class="base"></i><i class="p p1"></i><i class="p p4"></i><i class="p p2"></i><i class="p p3"></i></div>
+    </div>
+    <div class="night">
+      <div class="way"></div>
+      <div class="stars far"></div>
+      <div class="stars mid"></div>
+      <svg class="stars near" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <circle class="halo" cx="1042" cy="118" r="18"/><circle cx="1042" cy="118" r="1.9"/>
+        <circle class="halo" cx="386" cy="212" r="14"/><circle cx="386" cy="212" r="1.5"/>
+        <circle cx="486" cy="140" r="1.2" opacity="0.9"/>
+        <circle cx="562" cy="236" r="1" opacity="0.7"/>
+        <circle cx="512" cy="54" r="1.3" opacity="0.85"/>
+        <circle cx="640" cy="176" r="0.9" opacity="0.6"/>
+        <circle cx="742" cy="86" r="1.4" opacity="0.9"/>
+        <circle cx="866" cy="232" r="1" opacity="0.7"/>
+        <circle cx="948" cy="48" r="1.1" opacity="0.8"/>
+        <circle cx="1188" cy="196" r="1.2" opacity="0.8"/>
+        <circle cx="1286" cy="72" r="1.3" opacity="0.9"/>
+        <circle cx="1372" cy="262" r="0.9" opacity="0.6"/>
+        <circle cx="670" cy="292" r="1" opacity="0.65"/>
+        <circle cx="418" cy="330" r="1.1" opacity="0.7"/>
+        <circle cx="590" cy="304" r="1" opacity="0.6"/>
+        <circle cx="796" cy="352" r="1.2" opacity="0.7"/>
+        <circle cx="1104" cy="318" r="0.9" opacity="0.55"/>
+        <circle cx="1240" cy="404" r="1" opacity="0.6"/>
+        <circle cx="440" cy="452" r="0.9" opacity="0.5"/>
+        <circle cx="990" cy="470" r="1" opacity="0.5"/>
+        <circle cx="180" cy="520" r="0.9" opacity="0.45"/>
+        <circle cx="704" cy="548" r="0.9" opacity="0.4"/>
+        <circle cx="1350" cy="560" r="1" opacity="0.4"/>
+      </svg>
+      <div class="airglow"></div>
+    </div>
     <div class="mist"></div>
+    <div class="grain"></div>
   </div>
 
   <div class="panel" id="panel">
