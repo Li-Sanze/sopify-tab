@@ -21,7 +21,7 @@ const skySrc = read('sky.js');
 const dayBlock = themeCss.slice(themeCss.indexOf(':root,'), themeCss.indexOf('html[data-sky="night"]'));
 const nightBlock = themeCss.slice(themeCss.indexOf('html[data-sky="night"]'), themeCss.indexOf('body {'));
 
-for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--sky-planes', '--glow', '--mist', '--glass-hi']) {
+for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars', '--glow', '--mist', '--glass-hi']) {
   assert.ok(dayBlock.includes(`${name}:`), `day table must define ${name}`);
   assert.ok(nightBlock.includes(`${name}:`), `night table must define ${name}`);
 }
@@ -29,12 +29,21 @@ for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-
 assert.ok(themeCss.includes('var(--sky-veil)'), 'sky base must stack the veil layer');
 assert.ok(themeCss.includes('var(--sky-wash)'), 'sky must paint the wash layer');
 assert.ok(themeCss.includes('var(--sky-planes)'), 'sky must paint abstract depth planes');
+assert.ok(themeCss.includes('var(--sky-stars)'), 'sky must paint the CSS star layer');
+assert.ok(/--sky-stars:\s*none/.test(dayBlock), 'day has no starfield');
+assert.ok((nightBlock.match(/radial-gradient\((?:0\.\d+|1(?:\.\d+)?)px/g) || []).length >= 10,
+  'night starfield is sparse CSS dots');
+assert.ok(!/@keyframes\s+twinkle/.test(themeCss), 'no twinkle spam');
+assert.ok(!/\.planet|\.moon-disk|\.cityscape|\.cyber-/.test(themeCss), 'no scenery props in the sky table');
 assert.ok(themeCss.includes('.sky::before'), 'wash lives on a CSS layer, not extra chrome');
 assert.ok(themeCss.includes('@keyframes sky-calm'), 'calm motion is a named CSS keyframe');
 assert.ok(/html\[data-sky-motion="calm"\]/.test(themeCss), 'motion is opt-in via data-sky-motion=calm');
 assert.ok(/--sky-calm:\s*240s/.test(themeCss), 'calm drift must stay very slow');
-assert.ok(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)[\s\S]*\.sky::before[\s\S]*animation:\s*none/.test(themeCss),
+assert.ok(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)[\s\S]*animation:\s*none/.test(themeCss),
   'theme.css must disable sky motion under prefers-reduced-motion');
+assert.ok(/@keyframes sky-aurora/.test(themeCss), 'night Calm may pulse aurora slowly');
+assert.ok(/html\[data-sky="night"\]\[data-sky-motion="calm"\]/.test(themeCss),
+  'aurora pulse is night Calm only');
 
 assert.strictEqual(sky.DEFAULT_MOTION, 'calm');
 assert.strictEqual(sky.resolveSkyMotion(false), 'calm');
