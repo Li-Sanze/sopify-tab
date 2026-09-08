@@ -2,7 +2,7 @@
 
 目录: `.sopify/plan/20260903_sopify_tab/`
 
-依赖：Wave 2 依赖 Wave 1；Wave 3 依赖 Wave 2；Wave 4 依赖 Wave 3 已合入。Wave 4 实现 PR 须等文档 PR 合入。文档任务可与对应 Wave 并行，但 finalize 前必须按 `knowledge_sync` 核对。
+依赖：Wave 2 依赖 Wave 1；Wave 3 依赖 Wave 2；Wave 4 依赖 Wave 3 已合入。Wave 6 依赖 W3 合同与 W4 已合；与 W5 listing 并行不阻塞，W5 仍暂停。Wave 6 实现 PR 须等文档 PR 合入。完整 W6 任务见 `tasks-w6.md`。文档任务可与对应 Wave 并行，但 finalize 前必须按 `knowledge_sync` 核对。
 
 ## 1. Wave 1 书桌
 
@@ -39,4 +39,14 @@
 
 ## 6. Wave 5 listing
 
+**仍暂停。** 不挡 W6 文档合闸。
+
 - [ ] 6.1 在仓库写 listing / 隐私披露草稿（例如 `STORE.md`）：主卖点是安静新标签页工作台；聊天是可选能力，须披露可选 `nativeMessaging`、本机 Host/CLI、任意页同一侧栏入口。验收：「不卖 AI workflow」只表示不以聊天当主卖点，文案不得把该能力写成未提供。不执行实际上架。
+
+## 7. Wave 6 多 CLI Host（另立项）
+
+完整条目在 [`tasks-w6.md`](./tasks-w6.md)。本文件只记账。默认上游仍是 Cursor；选择器仅设置深路径；不做第一屏模型墙。
+
+- [ ] 7.1 文档闭环（本 PR）：brief / ADR-008 / tasks-w6 / delta / wave-board / plan·preferences 轻改。验收：无「待钉」；Claude argv 已写入；无 `extension/**`、`host/**`、无 README 功能改动。
+- [ ] 7.2–7.4 实现 PR：Cursor 回归、薄配置表、Claude 只读 argv（见 `tasks-w6.md`）。
+- §8 后续 Host（Codex / Grok / DeepSeek 等）不在本波。
