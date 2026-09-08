@@ -26,12 +26,12 @@ html[data-sky="day"] {
   --sky-mid: #c0ced8;
   --sky-low: #eef2f4;
   --sky-veil:
-    radial-gradient(88% 56% at 94% -10%, rgba(46, 70, 98, 0.2) 0%, transparent 60%),
-    radial-gradient(64% 40% at 22% 10%, rgba(255, 255, 252, 0.16) 0%, transparent 56%),
-    linear-gradient(180deg, rgba(90, 118, 146, 0.12) 0%, transparent 36%, rgba(255, 255, 255, 0.1) 100%);
+    radial-gradient(92% 62% at 96% -12%, rgba(38, 64, 94, 0.34) 0%, transparent 58%),
+    radial-gradient(70% 46% at 50% -18%, rgba(255, 252, 246, 0.28) 0%, transparent 54%),
+    linear-gradient(180deg, rgba(62, 92, 124, 0.22) 0%, transparent 34%, rgba(255, 255, 255, 0.18) 100%);
   --sky-wash:
-    radial-gradient(56% 38% at 68% 26%, rgba(255, 255, 255, 0.16) 0%, transparent 70%),
-    radial-gradient(42% 28% at 40% 48%, rgba(198, 214, 226, 0.12) 0%, transparent 68%);
+    radial-gradient(58% 40% at 70% 24%, rgba(255, 255, 255, 0.26) 0%, transparent 70%),
+    radial-gradient(46% 30% at 36% 46%, rgba(186, 208, 222, 0.18) 0%, transparent 66%);
   --ink: #182234;
   --ink-2: #4a5568;
   --ink-3: #6c7689;
@@ -65,8 +65,8 @@ html[data-sky="day"] {
   --toast-ink: #ffffff;
   --shadow-1: 0 1px 2px rgba(16, 30, 48, 0.04), 0 12px 28px -16px rgba(16, 30, 48, 0.18);
   --shadow-2: 0 2px 6px rgba(16, 30, 48, 0.06), 0 18px 40px -18px rgba(16, 30, 48, 0.22);
-  --glow: radial-gradient(80% 56% at 18% -16%, rgba(255, 252, 248, 0.32) 0%, rgba(255, 255, 255, 0.05) 46%, transparent 68%);
-  --mist: linear-gradient(180deg, transparent 56%, rgba(255, 255, 255, 0.14) 82%, rgba(255, 255, 255, 0.26) 100%);
+  --glow: radial-gradient(86% 58% at 48% -20%, rgba(255, 250, 244, 0.4) 0%, rgba(255, 255, 255, 0.06) 44%, transparent 68%);
+  --mist: linear-gradient(180deg, transparent 52%, rgba(255, 255, 255, 0.18) 80%, rgba(255, 255, 255, 0.34) 100%);
 }
 
 html[data-sky="night"] {
@@ -75,12 +75,12 @@ html[data-sky="night"] {
   --sky-mid: #121a28;
   --sky-low: #1e2838;
   --sky-veil:
-    radial-gradient(82% 52% at 90% -8%, rgba(0, 0, 0, 0.4) 0%, transparent 62%),
-    radial-gradient(60% 38% at 16% 8%, rgba(168, 190, 220, 0.06) 0%, transparent 58%),
-    linear-gradient(180deg, rgba(4, 8, 16, 0.26) 0%, transparent 40%, rgba(40, 58, 82, 0.16) 100%);
+    radial-gradient(88% 56% at 92% -10%, rgba(0, 0, 0, 0.55) 0%, transparent 60%),
+    radial-gradient(64% 42% at 18% 6%, rgba(164, 188, 220, 0.1) 0%, transparent 56%),
+    linear-gradient(180deg, rgba(2, 6, 14, 0.4) 0%, transparent 36%, rgba(46, 68, 98, 0.24) 100%);
   --sky-wash:
-    radial-gradient(50% 34% at 66% 22%, rgba(148, 174, 208, 0.07) 0%, transparent 70%),
-    radial-gradient(40% 26% at 38% 50%, rgba(24, 38, 58, 0.16) 0%, transparent 68%);
+    radial-gradient(54% 36% at 64% 20%, rgba(150, 176, 210, 0.12) 0%, transparent 70%),
+    radial-gradient(42% 28% at 34% 48%, rgba(16, 28, 46, 0.22) 0%, transparent 66%);
   --ink: #e9eef6;
   --ink-2: rgba(233, 238, 246, 0.76);
   --ink-3: rgba(233, 238, 246, 0.56);
@@ -114,12 +114,12 @@ html[data-sky="night"] {
   --toast-ink: #142033;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28), 0 12px 28px -16px rgba(0, 0, 0, 0.48);
   --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.32), 0 18px 40px -18px rgba(0, 0, 0, 0.55);
-  --glow: radial-gradient(72% 48% at 18% -12%, rgba(196, 214, 236, 0.09) 0%, transparent 64%);
-  --mist: linear-gradient(180deg, transparent 54%, rgba(48, 64, 88, 0.14) 80%, rgba(56, 74, 100, 0.22) 100%);
+  --glow: radial-gradient(74% 50% at 46% -16%, rgba(186, 206, 232, 0.14) 0%, transparent 64%);
+  --mist: linear-gradient(180deg, transparent 50%, rgba(48, 68, 96, 0.2) 78%, rgba(64, 88, 120, 0.3) 100%);
 }
 
-/* Anti-flash: match the mid-sky before .sky paints. Day tokens are the :root fallback. */
-html {
+/* Anti-flash on body, not html: a root fill would cover .sky (z-index: -1). */
+body {
   background-color: var(--sky-mid);
 }
 

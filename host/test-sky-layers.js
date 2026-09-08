@@ -19,7 +19,7 @@ const panelHtml = read('sidepanel.html');
 const skySrc = read('sky.js');
 
 const dayBlock = themeCss.slice(themeCss.indexOf(':root,'), themeCss.indexOf('html[data-sky="night"]'));
-const nightBlock = themeCss.slice(themeCss.indexOf('html[data-sky="night"]'), themeCss.indexOf('html {'));
+const nightBlock = themeCss.slice(themeCss.indexOf('html[data-sky="night"]'), themeCss.indexOf('body {'));
 
 for (const name of ['--sky-top', '--sky-mid', '--sky-low', '--sky-veil', '--sky-wash', '--glow', '--mist', '--glass-hi']) {
   assert.ok(dayBlock.includes(`${name}:`), `day table must define ${name}`);
@@ -75,5 +75,7 @@ assert.ok(!/backdrop-filter:[^;]*saturate/.test(newtabCss + panelCss), 'do not r
 
 assert.deepStrictEqual(sky.PRESETS, ['system', 'day', 'night']);
 assert.ok(!/hostUpstream|--force|cursor-agent/.test(themeCss), 'sky files must not touch Host/Claude contracts');
+assert.ok(!/html\s*\{\s*background-color/.test(themeCss),
+  'do not paint html background; it hides the z-index:-1 sky');
 
 console.log('test-sky-layers: ok');
