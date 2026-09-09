@@ -4,6 +4,8 @@
 
 打开新标签页，先是一张安静书桌。
 
+新标签页天空已对齐原型深度。
+
 <img src="prototype/shots/day.png" alt="白天" width="48%"> <img src="prototype/shots/night.png" alt="夜晚" width="48%">
 
 ## 快速开始
