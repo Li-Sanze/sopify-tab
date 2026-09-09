@@ -22,9 +22,9 @@
 :root,
 html[data-sky="day"] {
   color-scheme: light;
-  --sky-top: #7a96b2;
-  --sky-mid: #c0ced8;
-  --sky-low: #eef2f4;
+  --sky-top: #6a88a6;
+  --sky-mid: #a5b8c8;
+  --sky-low: #e4ebf0;
   --sky-veil:
     radial-gradient(92% 62% at 96% -12%, rgba(38, 64, 94, 0.3) 0%, transparent 58%),
     radial-gradient(42% 32% at 16% 10%, rgba(198, 214, 226, 0.28) 0%, transparent 64%),
@@ -77,9 +77,9 @@ html[data-sky="day"] {
 
 html[data-sky="night"] {
   color-scheme: dark;
-  --sky-top: #070a14;
-  --sky-mid: #121828;
-  --sky-low: #1c2438;
+  --sky-top: #03050b;
+  --sky-mid: #0a1120;
+  --sky-low: #1c2739;
   --sky-veil:
     radial-gradient(88% 56% at 92% -10%, rgba(0, 0, 4, 0.62) 0%, transparent 60%),
     linear-gradient(180deg, rgba(4, 6, 18, 0.46) 0%, transparent 36%, rgba(36, 48, 88, 0.2) 100%);
@@ -160,12 +160,16 @@ body {
   background-color: var(--sky-mid);
 }
 
-/* Layered sky: base + veil + ring + wash + glow + mist + planes/stars.
-   Depth is stacked CSS, not shaders. Wash drifts only in Calm;
-   Still / reduced-motion stay static. Night is starfield + aurora/nebula
-   plus one quiet far-back ring arc (upper-right, ring-only, no globe). */
+/* Layered sky: #17 tokens (veil / ring / wash / planes / stars / glow / mist)
+   stay as the atmosphere envelope. W7 adds the prototype CSS 3D stage
+   (perspective + translateZ) on top: day air + cumulus, night star depths
+   + silver band + horizon airglow. */
+.sky,
+.sky * {
+  pointer-events: none;
+}
 .sky {
-  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  position: fixed; inset: 0; z-index: -1; overflow: hidden;
   contain: paint;
   background:
     var(--sky-veil),
@@ -175,8 +179,13 @@ body {
 .sky::before,
 .sky::after,
 .glow,
-.mist {
+.mist,
+.grain {
   position: absolute; inset: 0;
+}
+.sky::before,
+.sky::after {
+  z-index: 0;
 }
 .sky::before {
   content: "";
@@ -186,10 +195,158 @@ body {
 .sky::after {
   content: "";
   background: var(--sky-planes);
-  pointer-events: none;
 }
-.glow { background: var(--sky-stars), var(--glow); }
-.mist { background: var(--mist); }
+.glow { z-index: 1; background: var(--sky-stars), var(--glow); }
+.mist { z-index: 3; background: var(--mist); }
+.grain {
+  z-index: 4; opacity: 0.05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+}
+.sky svg.defs { position: absolute; width: 0; height: 0; }
+
+/* Prototype perspective stage: far = smaller / softer / slower. */
+.sky .day,
+.sky .night {
+  position: absolute; inset: 0; z-index: 2;
+  perspective: 1400px; perspective-origin: 50% 36%;
+  transition: opacity 400ms var(--out);
+}
+html[data-sky="day"] .sky .night { opacity: 0; visibility: hidden; }
+html[data-sky="night"] .sky .day { opacity: 0; visibility: hidden; }
+html[data-sky="day"] .sky .day,
+html[data-sky="night"] .sky .night { visibility: visible; }
+
+/* Day: single off-canvas light (top-left), zenith opposite, horizon haze. */
+.air {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(72% 64% at 6% -10%, rgba(255, 246, 232, 0.82) 0%, rgba(255, 246, 232, 0.34) 36%, transparent 64%),
+    radial-gradient(64% 46% at 104% 6%, rgba(30, 62, 100, 0.34), transparent 70%),
+    linear-gradient(180deg, transparent 52%, rgba(255, 252, 247, 0.32) 82%, rgba(255, 250, 243, 0.7) 100%),
+    linear-gradient(180deg, transparent 22%, rgba(226, 234, 240, 0.28) 42%, rgba(226, 234, 240, 0.42) 100%);
+}
+
+/* Day: cumulus = shade + flat dark base + lit spheres; fluff filter frays edges. */
+.cloud {
+  position: absolute;
+  transform: translate3d(0, 0, var(--z, 0px));
+  filter: url(#fluff);
+  --c0: #f7f9fb; --c1: #eef3f6; --c2: #e2eaf0; --c3: #c4d3de; --c4: rgba(196, 211, 222, 0.5);
+  --sd: rgba(128, 154, 178, 0.30);
+  --sh: rgba(104, 134, 162, 0.34);
+}
+.cloud i { position: absolute; display: block; border-radius: 50%; }
+.cloud .p {
+  background:
+    radial-gradient(circle at 70% 76%, var(--sd) 0%, transparent 40%),
+    radial-gradient(circle at 36% 30%, var(--c0) 0%, var(--c1) 30%, var(--c2) 56%, var(--c3) 74%, var(--c4) 86%, transparent 94%);
+}
+.cloud .base {
+  background:
+    radial-gradient(ellipse at 50% 84%, var(--sd) 0%, transparent 56%),
+    radial-gradient(ellipse at 46% 22%, var(--c1) 0%, var(--c2) 40%, var(--c3) 70%, var(--c4) 88%, transparent 100%);
+}
+.cloud .shade { background: radial-gradient(ellipse at 50% 50%, var(--sh) 0%, transparent 72%); filter: blur(12px); }
+
+.cloud.n1 { top: -11%; left: 44%; width: 34vw; height: 12.6vw; --cd: 210s; --dx: 2.6vw; opacity: 0.9; }
+.cloud.n1 .shade { left: 8%; top: 64%; width: 86%; height: 62%; }
+.cloud.n1 .base  { left: 4%; top: 44%; width: 92%; height: 60%; }
+.cloud.n1 .p1    { left: 0; top: 26%; width: 25%; height: 79%; }
+.cloud.n1 .p2    { left: 50%; top: 2%; width: 31%; height: 98%; }
+.cloud.n1 .p3    { left: 21%; top: -22%; width: 38%; height: 120%; }
+.cloud.n1 .p4    { left: 76%; top: 30%; width: 23%; height: 73%; }
+
+.cloud.n2 { top: 90%; right: -4%; width: 34vw; height: 8.5vw; --cd: 250s; --dx: -1.8vw; opacity: 0.85; }
+.cloud.n2 .shade { left: 8%; top: 62%; width: 86%; height: 62%; }
+.cloud.n2 .base  { left: 2%; top: 40%; width: 96%; height: 64%; }
+.cloud.n2 .p1    { left: 4%; top: 8%; width: 26%; height: 104%; }
+.cloud.n2 .p2    { left: 26%; top: -22%; width: 34%; height: 136%; }
+.cloud.n2 .p3    { left: 58%; top: 10%; width: 26%; height: 104%; }
+.cloud.n2 .p4    { left: 78%; top: 30%; width: 20%; height: 80%; }
+
+.cloud.m1 { top: 8%; left: 34%; width: 20vw; height: 5.6vw; --z: -420px; --cd: 300s; --dx: 3vw;
+  --c0: #fdfeff; --c1: #f1f6f9; --c2: #dde6ed; --c3: #c6d4de; --c4: rgba(200, 213, 223, 0.46); --sd: rgba(136, 160, 182, 0.34); --sh: rgba(112, 140, 166, 0.36); }
+.cloud.m1 .shade { left: 8%; top: 62%; width: 86%; height: 60%; }
+.cloud.m1 .base  { left: 2%; top: 42%; width: 96%; height: 60%; }
+.cloud.m1 .p1    { left: 4%; top: 14%; width: 26%; height: 92%; }
+.cloud.m1 .p2    { left: 26%; top: -22%; width: 36%; height: 128%; }
+.cloud.m1 .p3    { left: 60%; top: 6%; width: 28%; height: 98%; }
+
+.cloud.f1 { top: 99%; left: 67%; width: 23vw; height: 7vw; --z: -600px; --cd: 380s; --dx: -2vw; opacity: 0.94;
+  --c0: #f8fbfd; --c1: #ecf2f6; --c2: #d9e3ea; --c3: #c4d2dc; --c4: rgba(200, 213, 222, 0.42); --sd: rgba(140, 164, 184, 0.3); --sh: rgba(120, 146, 170, 0.26); }
+.cloud.f1 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
+.cloud.f1 .base  { left: 0; top: 40%; width: 100%; height: 64%; }
+.cloud.f1 .p1    { left: 8%; top: 10%; width: 28%; height: 92%; }
+.cloud.f1 .p2    { left: 32%; top: -16%; width: 34%; height: 118%; }
+.cloud.f1 .p3    { left: 62%; top: 16%; width: 28%; height: 88%; }
+
+.cloud.f2 { top: 132%; left: 31%; width: 42vw; height: 10.6vw; --z: -1300px; --cd: 460s; --dx: 2vw; opacity: 0.88;
+  --c0: #f6f9fb; --c1: #e9eff4; --c2: #d8e1e8; --c3: #c6d3dc; --c4: rgba(204, 215, 223, 0.4); --sd: rgba(150, 172, 190, 0.26); --sh: rgba(128, 152, 174, 0.2); }
+.cloud.f2 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
+.cloud.f2 .base  { left: 0; top: 40%; width: 100%; height: 62%; }
+.cloud.f2 .p1    { left: 12%; top: 6%; width: 24%; height: 94%; }
+.cloud.f2 .p2    { left: 32%; top: -14%; width: 28%; height: 112%; }
+.cloud.f2 .p3    { left: 56%; top: 10%; width: 24%; height: 92%; }
+
+/* Night: faint silver band, far/mid/near starfields, horizon airglow. */
+.way {
+  position: absolute; left: -12%; top: -8%; width: 124%; height: 58%;
+  transform: rotate(-19deg);
+  background:
+    radial-gradient(54% 34% at 52% 50%, rgba(126, 146, 196, 0.15), transparent 70%),
+    radial-gradient(38% 12% at 56% 50%, rgba(160, 176, 220, 0.1), transparent 70%),
+    radial-gradient(30% 22% at 66% 44%, rgba(178, 160, 204, 0.07), transparent 70%);
+  filter: blur(28px);
+}
+.airglow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(76% 42% at 50% 106%, rgba(72, 100, 142, 0.5) 0%, rgba(44, 62, 94, 0.22) 46%, transparent 74%),
+    radial-gradient(40% 30% at 12% 108%, rgba(96, 116, 150, 0.16), transparent 70%);
+}
+.stars {
+  position: absolute;
+  transform: translate3d(0, 0, var(--z, 0px));
+  -webkit-mask-image:
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.55) 72%, transparent 96%),
+    radial-gradient(34% 30% at 14% 16%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.5) 60%, #000 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(180deg, #000 0%, #000 46%, rgba(0, 0, 0, 0.55) 72%, transparent 96%),
+    radial-gradient(34% 30% at 14% 16%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.5) 60%, #000 100%);
+  mask-composite: intersect;
+}
+.stars.far {
+  inset: -26%; --z: -620px; --cd: 420s; --dx: 1.2vw;
+  background-image:
+    radial-gradient(0.9px 0.9px at 41px 63px,   rgba(235, 240, 248, 0.62) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 173px 141px, rgba(235, 240, 248, 0.42) 50%, transparent 100%),
+    radial-gradient(0.8px 0.8px at 301px 39px,  rgba(235, 240, 248, 0.5) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 452px 213px, rgba(235, 240, 248, 0.36) 50%, transparent 100%),
+    radial-gradient(0.9px 0.9px at 587px 92px,  rgba(235, 240, 248, 0.58) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 688px 300px, rgba(235, 240, 248, 0.4) 50%, transparent 100%),
+    radial-gradient(0.8px 0.8px at 96px 372px,  rgba(235, 240, 248, 0.46) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 352px 458px, rgba(235, 240, 248, 0.34) 50%, transparent 100%),
+    radial-gradient(0.9px 0.9px at 760px 512px, rgba(235, 240, 248, 0.52) 50%, transparent 100%),
+    radial-gradient(0.7px 0.7px at 522px 561px, rgba(235, 240, 248, 0.38) 50%, transparent 100%);
+  background-size: 823px 611px;
+}
+.stars.mid {
+  inset: -14%; --z: -240px; --cd: 340s; --dx: 1.8vw;
+  background-image:
+    radial-gradient(1.2px 1.2px at 88px 71px,   rgba(250, 247, 240, 0.9) 50%, transparent 100%),
+    radial-gradient(1px 1px at 331px 189px,     rgba(236, 240, 248, 0.7) 50%, transparent 100%),
+    radial-gradient(1.3px 1.3px at 612px 58px,  rgba(255, 253, 246, 0.86) 50%, transparent 100%),
+    radial-gradient(1px 1px at 861px 262px,     rgba(236, 240, 248, 0.62) 50%, transparent 100%),
+    radial-gradient(1.1px 1.1px at 204px 421px, rgba(250, 247, 240, 0.72) 50%, transparent 100%),
+    radial-gradient(1px 1px at 733px 530px,     rgba(236, 240, 248, 0.6) 50%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 478px 641px, rgba(250, 247, 240, 0.7) 50%, transparent 100%);
+  background-size: 1013px 743px;
+}
+.stars.near { inset: 0; --cd: 280s; --dx: 2.4vw; width: 100%; height: 100%; }
+.stars.near circle { fill: #f7f4ec; }
+.stars.near .halo { fill: url(#halo); }
 
 html[data-sky-motion="calm"] .sky::before {
   animation: sky-calm var(--sky-calm) ease-in-out infinite alternate;
@@ -198,6 +355,10 @@ html[data-sky="night"][data-sky-motion="calm"] .sky::before {
   animation:
     sky-calm var(--sky-calm) ease-in-out infinite alternate,
     sky-aurora 280s ease-in-out infinite alternate;
+}
+html[data-sky-motion="calm"] .cloud,
+html[data-sky-motion="calm"] .stars {
+  animation: sky-drift var(--cd, 200s) ease-in-out infinite alternate;
 }
 
 @keyframes sky-calm {
@@ -208,13 +369,26 @@ html[data-sky="night"][data-sky-motion="calm"] .sky::before {
   from { opacity: 1; }
   to { opacity: 0.72; }
 }
+@keyframes sky-drift {
+  from { transform: translate3d(0, 0, var(--z, 0px)); }
+  to { transform: translate3d(var(--dx, 2vw), 0, var(--z, 0px)); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .sky::before,
   .sky::after,
   .glow,
-  .mist {
+  .mist,
+  .cloud,
+  .stars,
+  .airglow,
+  .grain {
     animation: none !important;
+  }
+  .sky::before,
+  .sky::after,
+  .glow,
+  .mist {
     transform: none;
     opacity: 1;
   }

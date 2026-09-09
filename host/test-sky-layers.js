@@ -71,15 +71,64 @@ assert.strictEqual(themeRoot.dataset.skyMotion, undefined);
 assert.ok(!/chrome\.storage\.local\.set\(\s*\{[^}]*skyMotion/.test(skySrc), 'skyMotion must not persist');
 assert.ok(!/storage\.sync/.test(skySrc));
 
+const PROTO_LAYERS = [
+  'class="day"', 'class="night"', 'class="air"',
+  'class="cloud f2"', 'class="cloud f1"', 'class="cloud m1"', 'class="cloud n2"', 'class="cloud n1"',
+  'class="way"', 'class="stars far"', 'class="stars mid"', 'class="stars near"',
+  'class="airglow"', 'class="grain"', 'id="fluff"', 'id="halo"',
+];
+
+function skyMarkup(html) {
+  const start = html.indexOf('<div class="sky"');
+  assert.ok(start !== -1, 'pages must keep the shared sky stage');
+  const grain = html.indexOf('<div class="grain"></div>', start);
+  assert.ok(grain !== -1, 'sky must include the grain layer');
+  const end = html.indexOf('</div>', grain);
+  return html.slice(start, end + 6);
+}
+
+const newtabSky = skyMarkup(newtabHtml);
+const panelSky = skyMarkup(panelHtml);
+assert.strictEqual(newtabSky, panelSky, 'NTP and Side Panel must share the same sky markup');
+
 for (const page of [newtabHtml, panelHtml]) {
   assert.ok(page.includes('class="sky"'), 'pages must keep the shared sky stage');
   assert.ok(page.includes('class="glow"') && page.includes('class="mist"'));
+  for (const marker of PROTO_LAYERS) {
+    assert.ok(page.includes(marker), `pages must include prototype layer ${marker}`);
+  }
   assert.ok(!/<canvas|<video|WebGL|webgl|THREE\b|wallpaper|particle/i.test(page));
 }
+
+assert.ok(/perspective:\s*1400px/.test(themeCss), 'day/night stages use the prototype perspective');
+assert.ok(/perspective-origin:\s*50%\s*36%/.test(themeCss), 'perspective origin matches the prototype stage');
+assert.ok(/translate3d\(0,\s*0,\s*var\(--z/.test(themeCss), 'layers use translateZ depth via --z');
+assert.ok(/\.air\s*\{/.test(themeCss) && /at 6%\s*-10%/.test(themeCss), 'day air has the top-left light');
+assert.ok(/\.cloud\b/.test(themeCss) && /filter:\s*url\(#fluff\)/.test(themeCss), 'cumulus use the fluff SVG filter');
+assert.ok(/\.stars\.far/.test(themeCss) && /\.stars\.mid/.test(themeCss) && /\.stars\.near/.test(themeCss),
+  'night has far / mid / near starfields');
+assert.ok(/\.way\s*\{/.test(themeCss) && /rotate\(-19deg\)/.test(themeCss), 'night has the faint silver galactic band');
+assert.ok(/\.airglow\s*\{/.test(themeCss) && /at 50%\s*106%/.test(themeCss), 'night has horizon airglow');
+assert.ok(/html\[data-sky-motion="calm"\] \.cloud/.test(themeCss), 'cloud drift is Calm-only');
+assert.ok(/html\[data-sky-motion="calm"\] \.stars/.test(themeCss), 'star drift is Calm-only');
+assert.ok(/@keyframes sky-drift/.test(themeCss), 'prototype depth drift is a named keyframe');
+assert.ok(/\.sky \*/.test(themeCss) && /pointer-events:\s*none/.test(themeCss),
+  'sky and SVG layers do not capture pointer events');
 
 for (const src of [themeCss, newtabCss, panelCss, skySrc]) {
   assert.ok(!/WebGL|webgl|THREE\b|<canvas|<video/i.test(src), 'CSS-only sky: no canvas/video/WebGL');
   assert.ok(!/wallpaper-store|particle-wall|requestAnimationFrame/.test(src));
+}
+
+for (const name of fs.readdirSync(EXT)) {
+  if (!/\.(js|css|html)$/.test(name)) continue;
+  const src = read(name);
+  assert.ok(!/\bimport\s+[^;]*from\s+['"][^'"]*(three|webgl|pixi|babylon|ogl)['"]/i.test(src),
+    `${name} must not import a WebGL/canvas engine`);
+  assert.ok(!/\brequire\(\s*['"][^'"]*(three|webgl|pixi|babylon|ogl)['"]\s*\)/i.test(src),
+    `${name} must not require a WebGL/canvas engine`);
+  assert.ok(!/\bgetContext\s*\(\s*['"](?:webgl|experimental-webgl|2d)['"]/i.test(src),
+    `${name} must not open a canvas/WebGL context`);
 }
 
 const desk = newtabHtml.slice(newtabHtml.indexOf('data-view="desk"'), newtabHtml.indexOf('data-view="tabs"'));
