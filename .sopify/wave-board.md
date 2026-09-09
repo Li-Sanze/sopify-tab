@@ -4,22 +4,22 @@
 
 | 项 | 当前 |
 | --- | --- |
-| Wave | W7 天空对齐原型（CSS+SVG 透视；基线 #17 保留；W5 listing 仍暂停） |
-| 状态 | 文档 PR 审中 |
+| Wave | W8 布局 + 交互（书桌优先；间距 / 玻璃 / 悬停 / 文案 / 对话入口；基线 #20 保留） |
+| 状态 | 文档待审 |
 | 执行 | 本 PR（仅 `.sopify/` 文档） |
 | 卡点 | 审序后合闸；实现 PR 等文档合入 |
 | 审序（PR 后） | 工程 → UI → 产品 → 技术总监；各一句「过/改」 |
-| 非目标 | 改模块/布局/Host / 壁纸商店 / 默认 WebGL·Canvas / 写实·粒子 |
+| 非目标 | WebGL·Canvas / 新模块·小组件墙 / Host·W6 上游 / 回滚 #20 天空 / 聊天 DOM 回 newtab |
 
 ## 所有权
-- UI：透视分层对齐原型、安静书桌优先、Still
-- 工程：只动天空 CSS+SVG；#17 基线不回滚；无默认 WebGL/Canvas
-- 产品：范围/非目标（不改模块/布局/Host，无壁纸店）
+- UI：间距与 deskhead、玻璃量级、无位移悬停、文案 ≤ 一句或 chip、不挡用
+- 工程：只动布局 / token / 文案 / `#open-chat` 显隐；不碰 W7 天空透视/DOM；无新权限/存储
+- 产品：范围/非目标（无小组件墙、无 Host/W6 改动、ADR-006 对话入口）
 - 技术总监：文档闭环、Wave 边界、合闸
 
 ## 本波拆步
-1. 文档 PR（本 PR）：`.sopify/w7-sky-align/` + wave-board 短表
-2. 实现 PR（后开）：NTP / Side Panel 天空深度对齐原型透视舞台
+1. 文档 PR（本 PR）：`.sopify/w8-layout-ix/` + wave-board 短表
+2. 实现 PR（后开）：五项 DoD；可选磁贴删除热区默认不做
 3. Sanze unpacked 点验后合实现 PR；Rick 翻 wave-board
 
-W6 已合（#15）。W4 已合（#11）。#17 天空基线保留。W5 listing 仍暂停，不挡 W7 文档合闸。
+W7 已合（#20 / `57bf3b3`）。W6 已合（#15）。W4 已合（#11）。#20 天空基线保留。W5 listing 仍暂停，不挡 W8 文档合闸。
