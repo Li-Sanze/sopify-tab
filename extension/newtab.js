@@ -228,7 +228,7 @@
         <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
-      </li>`).join('') : `<li class="empty">还没有待办。下面写一条。</li>`;
+      </li>`).join('') : `<li class="empty">还没有待办，下面写一条。</li>`;
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
     $('#c-todo').textContent = String(left);
@@ -296,7 +296,7 @@
     const list = filterTabs(state.tabs, q);
     const groups = groupTabs(list);
     const allGroups = groupTabs(state.tabs);
-    $('#tabs-sub').textContent = `本窗口 ${state.tabs.length} 个标签 · ${allGroups.length} 个域名。localhost 端口只是标签。`;
+    $('#tabs-sub').textContent = `本窗口 ${state.tabs.length} 个标签 · ${allGroups.length} 个域名，localhost 端口只是标签。`;
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
@@ -323,6 +323,14 @@
 
   function hostConnected() {
     return state.host.installed && state.host.authorized && state.host.bridge;
+  }
+
+  function renderChatEntry() {
+    const chatBtn = $('#open-chat');
+    if (!chatBtn) return;
+    const on = hostConnected();
+    chatBtn.hidden = !on;
+    chatBtn.classList.toggle('is-ready', on);
   }
 
   function classifyHostError(message) {
@@ -395,13 +403,14 @@
     toggle.textContent = on ? '断开' : '检测 Host';
     toggle.className = on ? 'btn ghost' : 'btn';
     if (state.hostBusy) help.textContent = '正在检测…';
-    else if (on) help.textContent = '已连上。断开后书桌照常。';
-    else if (probed && state.hostReason === 'denied') help.textContent = '没有授权 Native Messaging。书桌不受影响。';
-    else if (probed && state.hostReason === 'not_found') help.textContent = '没找到本机 Host。需要时在仓库跑 ./host/install-host.sh。书桌不受影响。';
-    else if (probed && state.hostReason === 'forbidden') help.textContent = 'Host 清单没有允许这个扩展。书桌不受影响。';
+    else if (on) help.textContent = '已连上，断开后书桌照常。';
+    else if (probed && state.hostReason === 'denied') help.textContent = '没有授权 Native Messaging，书桌不受影响。';
+    else if (probed && state.hostReason === 'not_found') help.textContent = '没找到本机 Host，需要时在仓库跑 ./host/install-host.sh。';
+    else if (probed && state.hostReason === 'forbidden') help.textContent = 'Host 清单没有允许这个扩展，书桌不受影响。';
     else if (probed) help.textContent = '可以再检一次，或先用书桌。';
-    else help.textContent = '需要时再连。没装也不影响书桌。';
+    else help.textContent = '需要时再连，没装也不影响书桌。';
     renderUpstream();
+    renderChatEntry();
   }
 
   function renderUpstream() {
@@ -412,14 +421,14 @@
     if (!help) return;
     if (state.hostUpstream === 'claude') {
       if (state.hostChecked && hostConnected() && !state.claudeAvailable) {
-        help.textContent = '没找到本机 claude。装到 PATH 后再跑一次 ./host/install-host.sh。书桌不受影响。';
+        help.textContent = '没找到本机 claude，装到 PATH 后再跑一次 ./host/install-host.sh。';
       } else {
-        help.textContent = 'Claude 只读：仅 Read，不写不执行。需要本机已装 claude。';
+        help.textContent = 'Claude 只读：仅 Read，不写不执行，需本机已装 claude。';
       }
     } else if (state.hostChecked && hostConnected() && !state.cursorAvailable) {
-      help.textContent = 'Host 还没有快照 cursor-agent-proxy。重新跑一次 ./host/install-host.sh。书桌不受影响。';
+      help.textContent = 'Host 还没有快照 cursor-agent-proxy，重新跑一次 ./host/install-host.sh。';
     } else {
-      help.textContent = '默认 Cursor。只影响本机对话，不改书桌。';
+      help.textContent = '默认 Cursor，只影响本机对话，不改书桌。';
     }
   }
 

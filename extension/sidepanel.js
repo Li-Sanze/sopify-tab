@@ -91,12 +91,12 @@
     prompt.disabled = !ready || busy;
     send.disabled = !ready || busy;
     hint.textContent = !on
-      ? '需要本机 Host。只读，不是本地模型，不能写盘或执行。'
+      ? '需要本机 Host：只读，不是本地模型，不能写盘或执行。'
       : !ready
         ? (state.upstream === 'claude'
-          ? '没找到本机 claude。到设置里看说明。书桌不受影响。'
-          : 'Host 还没有快照 cursor-agent-proxy。到设置里看说明。')
-        : (busy ? '正在回答… 可停止。' : 'Enter 发送，Shift+Enter 换行。会话只留在这一栏，关掉即丢。');
+          ? '没找到本机 claude，到设置里看说明。'
+          : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。')
+        : (busy ? '正在回答… 可停止。' : 'Enter 发送，Shift+Enter 换行；会话只留本栏，关掉即丢。');
 
     neu.hidden = !on || !state.messages.length;
     retry.hidden = !on || busy || !lastUser();
@@ -112,8 +112,8 @@
             <svg class="i" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>
           </div>
           <h2>需要本机 Host</h2>
-          <p>对话走本机 ${esc(label)} CLI，只读。Host 不是本地模型，不能写盘或执行命令。</p>
-          <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>在仓库跑 <code>./host/install-host.sh</code>，再到设置里检测。书桌不受影响。</span></p>
+          <p>对话走本机 ${esc(label)} CLI，只读，不是本地模型，不能写盘或执行。</p>
+          <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>在仓库跑 <code>./host/install-host.sh</code>，再到设置里检测。</span></p>
           <button type="button" class="btn" id="goto-settings">去设置</button>
         </div>`;
       const go = $('#goto-settings');
@@ -129,8 +129,8 @@
           </div>
           <h2>${state.upstream === 'claude' ? '没找到 Claude' : '还不能提问'}</h2>
           <p>${state.upstream === 'claude'
-            ? '本机没有 claude。到设置里看说明。书桌不受影响。'
-            : 'Host 还没有快照 cursor-agent-proxy。到设置里看说明。书桌不受影响。'}</p>
+            ? '本机没有 claude，到设置里看说明。'
+            : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。'}</p>
           <button type="button" class="btn" id="goto-settings">去设置</button>
         </div>`;
       const goMissing = $('#goto-settings');
@@ -147,7 +147,7 @@
           <h2>可以提问</h2>
           <p>${state.cwd.trim()
             ? `在 <code>${esc(state.cwd.trim())}</code> 里只读回答。`
-            : '工作目录还空着，需要时去设置里填。'}问点什么。</p>
+            : '工作目录还空着，需要时去设置里填。'}</p>
         </div>`;
       return;
     }
