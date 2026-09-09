@@ -141,8 +141,8 @@ assert.ok(panelCss.includes('inset 0 1px 0 var(--glass-hi)'), 'side panel uses t
 assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss) && /backdrop-filter:\s*blur\(26px\)/.test(panelCss),
   'glass keeps one backdrop blur per surface');
 assert.ok(!/backdrop-filter:[^;]*saturate/.test(newtabCss + panelCss), 'do not restore saturate glass');
-assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.9\s*\)/.test(dayBlock), 'day card fill stays ≥ current opacity');
-assert.ok(/--glass:\s*rgba\(\s*18,\s*26,\s*40,\s*0\.8\s*\)/.test(nightBlock), 'night card fill stays ≥ current opacity');
+assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.86\s*\)/.test(dayBlock), 'day card fill matches prototype glass');
+assert.ok(/--glass:\s*rgba\(\s*22,\s*31,\s*48,\s*0\.66\s*\)/.test(nightBlock), 'night card fill matches prototype glass');
 assert.ok(dayBlock.includes('--sky-ink: #12203a') && dayBlock.includes('--ink: #182234'),
   'day desk ink tokens stay current');
 assert.ok(nightBlock.includes('--sky-ink: #f3f6fb') && nightBlock.includes('--ink: #e9eef6'),
