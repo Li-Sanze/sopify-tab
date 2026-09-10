@@ -26,6 +26,7 @@
     hostReason: '',
     cursorAvailable: false,
     claudeAvailable: false,
+    codexAvailable: false,
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -152,7 +153,7 @@
   }
 
   function normalizeUpstream(id) {
-    return id === 'claude' ? 'claude' : 'cursor';
+    return id === 'claude' || id === 'codex' ? id : 'cursor';
   }
 
   async function loadUpstream() {
@@ -425,6 +426,12 @@
       } else {
         help.textContent = 'Claude 只读：仅 Read，不写不执行，需本机已装 claude。';
       }
+    } else if (state.hostUpstream === 'codex') {
+      if (state.hostChecked && hostConnected() && !state.codexAvailable) {
+        help.textContent = '没找到本机 Codex，装到 PATH 后再跑一次 ./host/install-host.sh。';
+      } else {
+        help.textContent = 'Codex 只读：仅 read-only，不写不执行，需本机已装并已登录 Codex。';
+      }
     } else if (state.hostChecked && hostConnected() && !state.cursorAvailable) {
       help.textContent = 'Host 还没有快照 cursor-agent-proxy，重新跑一次 ./host/install-host.sh。';
     } else {
@@ -444,6 +451,7 @@
         state.hostReason = perm.reason || 'denied';
         state.cursorAvailable = false;
         state.claudeAvailable = false;
+        state.codexAvailable = false;
         return;
       }
       try {
@@ -454,6 +462,7 @@
         state.hostReason = ok ? 'ok' : 'failed';
         state.cursorAvailable = Boolean(response && (response.cursorAvailable || response.proxySnapshotted));
         state.claudeAvailable = Boolean(response && response.claudeAvailable);
+        state.codexAvailable = Boolean(response && response.codexAvailable);
         if (ok) toast('已通过 Native Messaging 连上本机 Host');
       } catch (e) {
         const reason = classifyHostError(e && e.message);
@@ -470,6 +479,7 @@
         state.hostReason = reason;
         state.cursorAvailable = false;
         state.claudeAvailable = false;
+        state.codexAvailable = false;
       }
     } finally {
       state.hostBusy = false;
@@ -489,6 +499,7 @@
       state.hostReason = '';
       state.cursorAvailable = false;
       state.claudeAvailable = false;
+      state.codexAvailable = false;
       state.hostBusy = false;
       renderHost();
       toast('已断开本机 Host');

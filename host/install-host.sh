@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Install com.sopify.tab for this machine. Snapshots absolute Node,
-# cursor-agent-proxy, and optional claude paths. Does not touch Codex /
-# Qoder host manifests. Missing claude is fine — Host still installs.
+# cursor-agent-proxy, and optional claude / codex paths. Does not touch
+# Codex / Qoder host manifests. Missing claude or codex is fine — Host
+# still installs. Never snapshots the shell alias target codex-proxy.
 set -euo pipefail
 
 HOST_ID='com.sopify.tab'
@@ -135,6 +136,70 @@ snapshot_claude() {
   printf '%s' "$abs"
 }
 
+is_codex_proxy() {
+  local p="$1"
+  [ -n "$p" ] || return 1
+  if [ "$(basename "$p")" = "codex-proxy" ]; then
+    return 0
+  fi
+  if [ -e "$p" ]; then
+    local real
+    real="$(realpath_of "$p")"
+    if [ "$(basename "$real")" = "codex-proxy" ]; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+find_codex() {
+  if [ -n "${SOPIFY_CODEX:-}" ]; then
+    printf '%s' "$SOPIFY_CODEX"
+    return
+  fi
+  local cand
+  for cand in \
+    "/Applications/ChatGPT.app/Contents/Resources/codex" \
+    "${HOME}/.local/bin/codex"
+  do
+    if [ -x "$cand" ] && ! is_codex_proxy "$cand"; then
+      printf '%s' "$cand"
+      return
+    fi
+  done
+  local p
+  p="$(command -v codex 2>/dev/null || true)"
+  if [ -n "$p" ] && [ -f "$p" ] && [ -x "$p" ] && ! is_codex_proxy "$p"; then
+    printf '%s' "$p"
+  fi
+}
+
+snapshot_codex() {
+  local raw="$1"
+  [ -n "$raw" ] || return 0
+  local abs
+  abs="$(abspath "$raw")"
+  assert_safe_path "$abs"
+  if is_version_dir "$abs"; then
+    die "拒绝快照 cursor-agent 版本目录: $abs"
+  fi
+  if [ "$(basename "$abs")" = "codex-proxy" ]; then
+    die "拒绝快照 alias 目标 codex-proxy: $abs"
+  fi
+  [ -e "$abs" ] || die "codex 不存在: $abs"
+  [ -x "$abs" ] || die "codex 不可执行: $abs"
+  local resolved
+  resolved="$(realpath_of "$abs")"
+  if [ "$(basename "$resolved")" = "codex-proxy" ]; then
+    die "拒绝快照 alias 目标 codex-proxy: $resolved"
+  fi
+  if is_version_dir "$resolved"; then
+    printf '%s' "$abs"
+    return
+  fi
+  printf '%s' "$abs"
+}
+
 nmh_dirs() {
   case "$(uname -s)" in
     Darwin)
@@ -230,11 +295,16 @@ PY
 NODE_RAW="$(find_node)"
 PROXY_RAW="$(find_proxy)"
 CLAUDE_RAW="$(find_claude)"
+CODEX_RAW="$(find_codex)"
 NODE_ABS="$(snapshot_node "$NODE_RAW")"
 PROXY_ABS="$(snapshot_proxy "$PROXY_RAW")"
 CLAUDE_ABS=""
 if [ -n "$CLAUDE_RAW" ]; then
   CLAUDE_ABS="$(snapshot_claude "$CLAUDE_RAW")"
+fi
+CODEX_ABS=""
+if [ -n "$CODEX_RAW" ]; then
+  CODEX_ABS="$(snapshot_codex "$CODEX_RAW")"
 fi
 
 mkdir -p "$LIB_DIR"
@@ -259,13 +329,17 @@ fi
 if [ -n "$CLAUDE_ABS" ] && is_version_dir "$CLAUDE_ABS"; then
   die "快照路径落在版本目录"
 fi
+if [ -n "$CODEX_ABS" ] && is_version_dir "$CODEX_ABS"; then
+  die "快照路径落在版本目录"
+fi
 
 BEFORE_FORBIDDEN="$(checksum_forbidden || true)"
 
-python3 - "$LIB_DIR/local-paths.json" "$NODE_ABS" "$PROXY_ABS" "$HOST_JS" "$WRAPPER" "$EXT_ID" "$HOST_ID" "$CLAUDE_ABS" <<'PY'
+python3 - "$LIB_DIR/local-paths.json" "$NODE_ABS" "$PROXY_ABS" "$HOST_JS" "$WRAPPER" "$EXT_ID" "$HOST_ID" "$CLAUDE_ABS" "$CODEX_ABS" <<'PY'
 import json, sys
 dest, node, proxy, host_js, wrapper, ext_id, host_id = sys.argv[1:8]
 claude = sys.argv[8] if len(sys.argv) > 8 else ""
+codex = sys.argv[9] if len(sys.argv) > 9 else ""
 doc = {
     "node": node,
     "cursorAgentProxy": proxy,
@@ -276,6 +350,8 @@ doc = {
 }
 if claude:
     doc["claudeBin"] = claude
+if codex:
+    doc["codexBin"] = codex
 with open(dest, "w", encoding="utf-8") as f:
     json.dump(doc, f, indent=2)
     f.write("\n")
@@ -303,6 +379,11 @@ if [ -n "$CLAUDE_ABS" ]; then
   echo "  claude ${CLAUDE_ABS}"
 else
   echo "  claude （未找到，可选；不影响 Cursor）"
+fi
+if [ -n "$CODEX_ABS" ]; then
+  echo "  codex  ${CODEX_ABS}"
+else
+  echo "  codex  （未找到，可选；不影响 Cursor）"
 fi
 echo "  run    ${WRAPPER}"
 echo "  origin ${ORIGIN}"

@@ -163,15 +163,17 @@ async function closeHost(child) {
 }
 
 function testUnitTableAndArgv() {
-  assert.deepEqual(hostMod.UPSTREAM_IDS, ['cursor', 'claude']);
-  assert.deepEqual(Object.keys(hostMod.UPSTREAMS), ['cursor', 'claude']);
+  assert.deepEqual(hostMod.UPSTREAM_IDS, ['cursor', 'claude', 'codex']);
+  assert.deepEqual(Object.keys(hostMod.UPSTREAMS), ['cursor', 'claude', 'codex']);
   assert.equal(hostMod.UPSTREAMS.cursor.pathKey, 'cursorAgentProxy');
   assert.equal(hostMod.UPSTREAMS.claude.pathKey, 'claudeBin');
+  assert.equal(hostMod.UPSTREAMS.codex.pathKey, 'codexBin');
   assert.equal(typeof hostMod.UPSTREAMS.cursor.buildArgs, 'function');
   assert.equal(typeof hostMod.UPSTREAMS.claude.buildArgs, 'function');
+  assert.equal(typeof hostMod.UPSTREAMS.codex.buildArgs, 'function');
   assert.equal(typeof hostMod.UPSTREAMS.cursor.feed, 'function');
   assert.equal(typeof hostMod.UPSTREAMS.claude.feed, 'function');
-  assert.ok(!('codex' in hostMod.UPSTREAMS));
+  assert.equal(typeof hostMod.UPSTREAMS.codex.feed, 'function');
   assert.ok(!('grok' in hostMod.UPSTREAMS));
   assert.ok(!('deepseek' in hostMod.UPSTREAMS));
 
@@ -179,7 +181,7 @@ function testUnitTableAndArgv() {
   assert.equal(hostMod.normalizeUpstream(''), 'cursor');
   assert.equal(hostMod.normalizeUpstream('cursor'), 'cursor');
   assert.equal(hostMod.normalizeUpstream('claude'), 'claude');
-  assert.equal(hostMod.normalizeUpstream('codex'), 'cursor');
+  assert.equal(hostMod.normalizeUpstream('codex'), 'codex');
   assert.equal(hostMod.normalizeUpstream('grok'), 'cursor');
 
   assert.deepEqual(hostMod.ASK_ARGS, ['--print', '--output-format', 'stream-json', '--mode', 'ask']);
@@ -241,12 +243,13 @@ function testStaticUiAndReadme() {
   const settings = newtab.slice(newtab.indexOf('aria-labelledby="settings-h"'));
   const rail = newtab.slice(newtab.indexOf('class="rail"'), newtab.indexOf('class="main"'));
   assert.ok(settings.includes('name="hostUpstream"'));
-  assert.ok(settings.includes('value="cursor"') && settings.includes('value="claude"'));
-  assert.ok(!settings.includes('value="codex"'));
-  assert.ok(!settings.includes('Grok') && !settings.includes('DeepSeek') && !settings.includes('Codex'));
+  assert.ok(settings.includes('value="cursor"') && settings.includes('value="claude"') && settings.includes('value="codex"'));
+  assert.ok(settings.includes('Codex'));
+  assert.ok(!settings.includes('Grok') && !settings.includes('DeepSeek'));
   assert.ok(!desk.includes('hostUpstream'));
   assert.ok(!desk.includes('上游'));
   assert.ok(!desk.includes('Claude'));
+  assert.ok(!desk.includes('Codex'));
   assert.ok(!desk.includes('模型'));
   assert.ok(!rail.includes('hostUpstream'));
   assert.ok(!rail.includes('上游'));
@@ -276,7 +279,8 @@ function testStaticUiAndReadme() {
   assert.ok(!/多 CLI 已全量|支持任意 Agent|任意本机 Agent/.test(readme));
   assert.ok(/非目标[\s\S]*任意 Agent/.test(readme), '任意 Agent stays a non-goal, not a ship claim');
   assert.ok(!/webhook/i.test(readme));
-  assert.ok(!/Codex|Grok|DeepSeek/.test(readme));
+  assert.ok(/Codex/.test(readme), 'README may mention Codex after wiring');
+  assert.ok(!/Grok|DeepSeek/.test(readme));
   assert.ok(/上架未定|暂停/.test(readme));
   assert.ok(/HTTP_PROXY|HTTPS_PROXY/.test(readme));
 
@@ -297,7 +301,10 @@ async function testDetectBoth() {
   const proxy = writeCursorMock(dir);
   const claude = writeClaudeMock(dir);
   writePaths(dir, { cursorAgentProxy: proxy, claudeBin: claude });
-  const host = startHost(dir, { PATH: `${dir}${path.delimiter}/usr/bin${path.delimiter}/bin` });
+  const host = startHost(dir, {
+    PATH: `${dir}${path.delimiter}/usr/bin${path.delimiter}/bin`,
+    HOME: path.join(dir, 'empty-home'),
+  });
   host.send({ type: 'detect' });
   await waitFor(() => host.msgs().some((m) => m.type === 'pong'), 1500, 'detect pong');
   const pong = host.msgs().find((m) => m.type === 'pong');
@@ -306,7 +313,8 @@ async function testDetectBoth() {
   assert.equal(pong.wave, 3);
   assert.equal(pong.cursorAvailable, true);
   assert.equal(pong.claudeAvailable, true);
-  assert.deepEqual(Object.keys(pong.upstreams), ['cursor', 'claude']);
+  assert.equal(pong.codexAvailable, false);
+  assert.deepEqual(Object.keys(pong.upstreams), ['cursor', 'claude', 'codex']);
   await closeHost(host);
 }
 
@@ -389,8 +397,8 @@ async function testUnknownUpstreamFallsBackCursor() {
   writePaths(dir, { cursorAgentProxy: proxy });
   const argsFile = path.join(dir, 'args.json');
   const host = startHost(dir, { SOPIFY_MOCK_ARGS: argsFile, PATH: '/usr/bin:/bin' });
-  host.send({ type: 'ask', prompt: 'x', upstream: 'codex' });
-  await waitFor(() => host.msgs().some((m) => m.type === 'ask_done'), 2000, 'codex falls back');
+  host.send({ type: 'ask', prompt: 'x', upstream: 'grok' });
+  await waitFor(() => host.msgs().some((m) => m.type === 'ask_done'), 2000, 'grok falls back');
   const dumped = JSON.parse(fs.readFileSync(argsFile, 'utf8'));
   assert.equal(dumped.bin, 'cursor');
   await closeHost(host);
@@ -471,6 +479,7 @@ async function testInstallOptionalClaude() {
   const paths = JSON.parse(fs.readFileSync(path.join(lib, 'local-paths.json'), 'utf8'));
   assert.equal(paths.cursorAgentProxy, proxy);
   assert.ok(!paths.claudeBin);
+  assert.ok(!paths.codexBin);
 
   const claude = writeClaudeMock(dir);
   execFileSync('bash', [path.join(dir, 'install-host.sh')], {

@@ -11,6 +11,7 @@
     upstream: 'cursor',
     cursorAvailable: false,
     claudeAvailable: false,
+    codexAvailable: false,
     streaming: false,
     messages: [],
   };
@@ -25,15 +26,19 @@
   const hasStorage = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
 
   function normalizeUpstream(id) {
-    return id === 'claude' ? 'claude' : 'cursor';
+    return id === 'claude' || id === 'codex' ? id : 'cursor';
   }
 
   function upstreamLabel() {
-    return state.upstream === 'claude' ? 'Claude' : 'Cursor';
+    if (state.upstream === 'claude') return 'Claude';
+    if (state.upstream === 'codex') return 'Codex';
+    return 'Cursor';
   }
 
   function upstreamReady() {
-    return state.upstream === 'claude' ? state.claudeAvailable : state.cursorAvailable;
+    if (state.upstream === 'claude') return state.claudeAvailable;
+    if (state.upstream === 'codex') return state.codexAvailable;
+    return state.cursorAvailable;
   }
 
   async function loadSettings() {
@@ -95,7 +100,9 @@
       : !ready
         ? (state.upstream === 'claude'
           ? '没找到本机 claude，到设置里看说明。'
-          : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。')
+          : state.upstream === 'codex'
+            ? '没找到本机 Codex，到设置里看说明。'
+            : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。')
         : (busy ? '正在回答… 可停止。' : 'Enter 发送，Shift+Enter 换行；会话只留本栏，关掉即丢。');
 
     neu.hidden = !on || !state.messages.length;
@@ -127,10 +134,12 @@
           <div class="ring" aria-hidden="true">
             <svg class="i" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>
           </div>
-          <h2>${state.upstream === 'claude' ? '没找到 Claude' : '还不能提问'}</h2>
+          <h2>${state.upstream === 'claude' ? '没找到 Claude' : state.upstream === 'codex' ? '没找到 Codex' : '还不能提问'}</h2>
           <p>${state.upstream === 'claude'
             ? '本机没有 claude，到设置里看说明。'
-            : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。'}</p>
+            : state.upstream === 'codex'
+              ? '本机没有 Codex，到设置里看说明。'
+              : 'Host 还没有快照 cursor-agent-proxy，到设置里看说明。'}</p>
           <button type="button" class="btn" id="goto-settings">去设置</button>
         </div>`;
       const goMissing = $('#goto-settings');
@@ -187,6 +196,7 @@
       state.reason = msg.ok ? 'ok' : 'failed';
       state.cursorAvailable = Boolean(msg.cursorAvailable || msg.proxySnapshotted);
       state.claudeAvailable = Boolean(msg.claudeAvailable);
+      state.codexAvailable = Boolean(msg.codexAvailable);
       render();
       return;
     }
@@ -221,6 +231,7 @@
       const text = msg.detail || (
         msg.error === 'proxy_not_snapshotted' ? 'Host 还没有快照 cursor-agent-proxy。重新跑一次 install-host.sh。'
           : msg.error === 'claude_not_found' ? '没找到本机 claude。到设置里看说明。书桌不受影响。'
+            : msg.error === 'codex_not_found' ? '没找到本机 Codex。到设置里看说明。书桌不受影响。'
             : msg.error === 'empty_prompt' ? '先写一句再发送。'
               : msg.error === 'spawn_failed' ? `没能拉起本机 ${upstreamLabel()} CLI。`
                 : msg.error === 'ask_failed' ? `本机 ${upstreamLabel()} CLI 没有回答。`
