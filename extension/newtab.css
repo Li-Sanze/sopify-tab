@@ -28,7 +28,7 @@ svg.i.sm { width: 14px; height: 14px; }
   position: sticky; top: 0; height: 100dvh;
   display: flex; flex-direction: column; align-items: center;
   padding: 18px 10px 14px;
-  background: var(--struct); border-right: 1px solid var(--struct-edge);
+  background: var(--glass-sheen), var(--struct); border-right: 1px solid var(--struct-edge);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   color: var(--ink);
 }
@@ -62,7 +62,7 @@ svg.i.sm { width: 14px; height: 14px; }
 .navbtn[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 16px; bottom: 16px; width: 3px; border-radius: 3px; background: var(--accent); }
 .navbtn svg.i { width: 20px; height: 20px; }
 
-.main { padding: 34px 44px 64px; min-width: 0; container: desk / inline-size; }
+.main { padding: 38px 48px 72px; min-width: 0; container: desk / inline-size; }
 .view { display: none; max-width: 1240px; margin-inline: auto; }
 .view.active { display: block; animation: rise var(--dur-slow) var(--out); }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -89,10 +89,10 @@ svg.i.sm { width: 14px; height: 14px; }
 .viewhead p { margin: 6px 0 0; color: var(--sky-ink-2); font-size: 14px; }
 
 .card {
-  background: var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--r-xl);
+  background: var(--glass-sheen), var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--r-xl);
   box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
   backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
-  padding: 18px 20px 20px; display: flex; flex-direction: column; min-width: 0;
+  padding: 16px 18px 18px; display: flex; flex-direction: column; min-width: 0;
 }
 .card.group { transition: box-shadow var(--dur) var(--out); }
 .card.group:hover { box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-2); }

@@ -4,7 +4,7 @@
 
 打开新标签页，先是一张安静书桌。
 
-新标签页天空已对齐原型深度。
+雾更深，玻璃更静。
 
 <img src="prototype/shots/day.png" alt="白天" width="48%"> <img src="prototype/shots/night.png" alt="夜晚" width="48%">
 
@@ -37,7 +37,7 @@
 
 ## 路线图
 
-W1–W4、W6 已落地。商店上架（W5）暂停。
+W1–W4、W6、W9 已落地。商店上架（W5）暂停。W10 另波。
 
 ## 许可
 
