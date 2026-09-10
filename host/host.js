@@ -1,11 +1,14 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
 const HOST_ID = 'com.sopify.tab';
 const ASK_ARGS = ['--print', '--output-format', 'stream-json', '--mode', 'ask'];
+const CODEX_ASK_ARGS = ['exec', '-s', 'read-only', '--json', '--ephemeral', '--skip-git-repo-check'];
+const CODEX_APP_BIN = '/Applications/ChatGPT.app/Contents/Resources/codex';
 const FORBIDDEN_FLAGS = new Set(['--force', '-f', '--yolo']);
 const CLAUDE_FORBIDDEN = new Set([
   '--force', '-f', '--yolo',
@@ -13,9 +16,17 @@ const CLAUDE_FORBIDDEN = new Set([
   'acceptEdits',
   'bypassPermissions',
 ]);
+const CODEX_FORBIDDEN = new Set([
+  '--dangerously-bypass-approvals-and-sandbox',
+  '--dangerously-bypass-hook-trust',
+  '--ask-for-approval',
+  '--full-auto',
+  '--force', '-f', '--yolo',
+]);
+const CODEX_FORBIDDEN_SANDBOX = new Set(['workspace-write', 'danger-full-access']);
 const MAX_IN = 10 * 1024 * 1024;
 const MAX_OUT = 800000;
-const UPSTREAM_IDS = Object.freeze(['cursor', 'claude']);
+const UPSTREAM_IDS = Object.freeze(['cursor', 'claude', 'codex']);
 
 let shuttingDown = false;
 let active = null;
@@ -62,13 +73,40 @@ function whichBin(name) {
 }
 
 function normalizeUpstream(id) {
-  return id === 'claude' ? 'claude' : 'cursor';
+  return UPSTREAM_IDS.includes(id) ? id : 'cursor';
+}
+
+function isCodexProxyPath(p) {
+  if (!p || typeof p !== 'string') return true;
+  if (path.basename(p) === 'codex-proxy') return true;
+  try {
+    return path.basename(fs.realpathSync(p)) === 'codex-proxy';
+  } catch {
+    return false;
+  }
+}
+
+function acceptCodexBin(p) {
+  const exe = isExecutable(p);
+  if (!exe || isCodexProxyPath(exe)) return '';
+  return exe;
+}
+
+function resolveCodexBin(snap) {
+  const homeBin = path.join(os.homedir(), '.local', 'bin', 'codex');
+  return acceptCodexBin(CODEX_APP_BIN)
+    || acceptCodexBin(homeBin)
+    || acceptCodexBin(whichBin('codex'))
+    || acceptCodexBin(snap);
 }
 
 function resolveBin(row, paths) {
   const snap = paths && paths[row.pathKey];
   if (row.id === 'claude') {
     return whichBin('claude') || isExecutable(snap);
+  }
+  if (row.id === 'codex') {
+    return resolveCodexBin(snap);
   }
   return isExecutable(snap);
 }
@@ -77,6 +115,7 @@ function detectPayload() {
   const paths = readPaths();
   const cursorBin = resolveBin(UPSTREAMS.cursor, paths);
   const claudeBin = resolveBin(UPSTREAMS.claude, paths);
+  const codexBin = resolveBin(UPSTREAMS.codex, paths);
   return {
     type: 'pong',
     ok: true,
@@ -84,11 +123,14 @@ function detectPayload() {
     wave: 3,
     proxySnapshotted: Boolean(cursorBin),
     claudeSnapshotted: Boolean(isExecutable(paths.claudeBin)),
+    codexSnapshotted: Boolean(isExecutable(paths.codexBin)),
     cursorAvailable: Boolean(cursorBin),
     claudeAvailable: Boolean(claudeBin),
+    codexAvailable: Boolean(codexBin),
     upstreams: {
       cursor: { available: Boolean(cursorBin) },
       claude: { available: Boolean(claudeBin) },
+      codex: { available: Boolean(codexBin) },
     },
   };
 }
@@ -130,6 +172,40 @@ function claudeEventKind(ev) {
     return { kind: 'none' };
   }
   return eventKind(ev);
+}
+
+function codexItemText(item) {
+  if (!item || typeof item !== 'object') return '';
+  if (typeof item.text === 'string') return item.text;
+  if (typeof item.message === 'string') return item.message;
+  if (typeof item.content === 'string') return item.content;
+  if (Array.isArray(item.content)) return contentText(item.content);
+  if (typeof item.error === 'string') return item.error;
+  if (item.error && typeof item.error.message === 'string') return item.error.message;
+  return '';
+}
+
+function codexEventKind(ev) {
+  if (!ev || typeof ev !== 'object') return { kind: 'none' };
+  if (ev.type === 'item.completed') {
+    const item = ev.item && typeof ev.item === 'object' ? ev.item : null;
+    if (!item) return { kind: 'none' };
+    if (item.type === 'agent_message') {
+      return { kind: 'assistant', text: codexItemText(item) };
+    }
+    if (item.type === 'error') {
+      return { kind: 'error', text: codexItemText(item) };
+    }
+    return { kind: 'none' };
+  }
+  if (ev.type === 'error' || ev.type === 'turn.failed') {
+    const text = typeof ev.message === 'string' ? ev.message
+      : typeof ev.error === 'string' ? ev.error
+        : (ev.error && typeof ev.error.message === 'string') ? ev.error.message
+          : '';
+    return { kind: 'error', text };
+  }
+  return { kind: 'none' };
 }
 
 function emitDelta(text) {
@@ -205,6 +281,25 @@ function feedClaudeStream(state, ev) {
       state.segments.push(got.text);
       emitDelta(got.text);
     }
+    return;
+  }
+  if (got.kind === 'error' && got.text) {
+    state.stderr = got.text;
+  }
+}
+
+function feedCodexStream(state, ev) {
+  const got = codexEventKind(ev);
+  if (got.kind === 'assistant' && got.text) {
+    const last = state.segments[state.segments.length - 1] || '';
+    if (state.segments.length && got.text.startsWith(last)) {
+      const extra = got.text.slice(last.length);
+      state.segments[state.segments.length - 1] = got.text;
+      emitDelta(extra);
+      return;
+    }
+    state.segments.push(got.text);
+    emitDelta((state.segments.length > 1 ? '\n' : '') + got.text);
     return;
   }
   if (got.kind === 'error' && got.text) {
@@ -366,6 +461,32 @@ function claudeAskArgs(prompt) {
   return args;
 }
 
+function assertCodexArgs(args) {
+  if (!Array.isArray(args)) throw new Error('force_forbidden');
+  const flags = args.slice(0, -1);
+  assertSafeArgs(flags);
+  for (const a of flags) {
+    if (CODEX_FORBIDDEN.has(a)) throw new Error('force_forbidden');
+  }
+  for (let i = 0; i < flags.length; i += 1) {
+    if (flags[i] === '-s' && CODEX_FORBIDDEN_SANDBOX.has(flags[i + 1])) {
+      throw new Error('force_forbidden');
+    }
+    if (flags[i] === '-s' && flags[i + 1] !== 'read-only') {
+      throw new Error('force_forbidden');
+    }
+  }
+}
+
+function codexAskArgs(prompt, cwd) {
+  const args = CODEX_ASK_ARGS.slice();
+  const dir = typeof cwd === 'string' ? cwd.trim() : '';
+  if (dir) args.push('-C', dir);
+  args.push(prompt);
+  assertCodexArgs(args);
+  return args;
+}
+
 const UPSTREAMS = Object.freeze({
   cursor: Object.freeze({
     id: 'cursor',
@@ -382,6 +503,14 @@ const UPSTREAMS = Object.freeze({
     detectCopy: 'PATH claude, then install snapshot claudeBin',
     buildArgs: claudeAskArgs,
     feed: feedClaudeStream,
+  }),
+  codex: Object.freeze({
+    id: 'codex',
+    pathKey: 'codexBin',
+    missingError: 'codex_not_found',
+    detectCopy: 'ChatGPT.app / ~/.local/bin/codex / PATH codex, then install snapshot codexBin',
+    buildArgs: codexAskArgs,
+    feed: feedCodexStream,
   }),
 });
 
@@ -403,7 +532,7 @@ function startAsk(msg) {
 
   let args;
   try {
-    args = row.buildArgs(prompt);
+    args = row.buildArgs(prompt, cwd);
   } catch {
     writeMessage({ type: 'error', ok: false, error: 'force_forbidden' });
     return;
@@ -538,14 +667,23 @@ if (require.main === module) {
 
 module.exports = {
   ASK_ARGS,
+  CODEX_ASK_ARGS,
   FORBIDDEN_FLAGS,
+  CLAUDE_FORBIDDEN,
+  CODEX_FORBIDDEN,
+  CODEX_FORBIDDEN_SANDBOX,
+  CODEX_APP_BIN,
   UPSTREAM_IDS,
   UPSTREAMS,
   normalizeUpstream,
   askArgs,
   claudeAskArgs,
+  codexAskArgs,
+  acceptCodexBin,
+  isCodexProxyPath,
   resolveBin,
   eventKind,
   claudeEventKind,
+  codexEventKind,
   detectPayload,
 };
