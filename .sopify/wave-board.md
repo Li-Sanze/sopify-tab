@@ -23,3 +23,4 @@
 3. Sanze unpacked 点验后合实现 PR；Rick 翻 wave-board
 
 W8 文档已合（#21 / `93ec606`）。W7 已合（#20 / `57bf3b3`）。W6 已合（#15）。W4 已合（#11）。#20 天空基线保留。W5 listing 仍暂停，不挡 W8 实现合闸。
+W9 / W10 文档：`.sopify/w9-depth-glass/`、`.sopify/w10-codex-host/`（分波、分 PR；Codex 身份表 HARD PRE 待填）。
