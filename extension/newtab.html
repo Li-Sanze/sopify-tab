@@ -112,25 +112,31 @@
           </div>
         </header>
 
+        <section class="resume" id="resume" aria-labelledby="resume-kicker">
+          <p class="resume-kicker" id="resume-kicker">下一件事</p>
+          <div class="resume-row">
+            <div class="resume-copy">
+              <p class="resume-title" id="resume-title">还没有下一件事</p>
+              <p class="resume-meta" id="resume-meta"></p>
+            </div>
+            <button type="button" class="btn" id="resume-act">写一条</button>
+          </div>
+        </section>
+
         <div class="deskgrid">
-          <section class="card dock" aria-labelledby="h-sites">
+          <section class="card c-workset" aria-labelledby="h-tabs">
             <div class="cardhead">
-              <h2 id="h-sites"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/></svg>常用站</h2>
-              <span class="count" id="c-sites">0</span>
+              <h2 id="h-tabs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>这个窗口</h2>
+              <span class="count" id="c-tabs">0</span>
             </div>
             <div class="cardbody">
-              <div class="tiles" id="sites"></div>
-              <form class="tileform" id="site-form" hidden>
-                <label class="sr-only" for="site-name">名称</label>
-                <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
-                <label class="sr-only" for="site-url">网址</label>
-                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
-                <button type="submit" class="btn">加入</button>
-                <button type="button" class="btn ghost" id="site-cancel">取消</button>
-              </form>
+              <label class="sr-only" for="workset-filter">筛选这个窗口</label>
+              <input class="field" id="workset-filter" placeholder="筛选标题或网址" autocomplete="off">
+              <div class="workset" id="workset"></div>
             </div>
             <div class="cardfoot">
-              <button type="button" class="linkbtn" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">添加</button>
+              <span class="muted" id="c-tabs-sub"></span>
+              <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
             </div>
           </section>
 
@@ -158,25 +164,33 @@
               <span class="count" id="c-notes">0</span>
             </div>
             <div class="cardbody">
+              <button type="button" class="notes-preview" id="notes-preview">还没有便签。</button>
               <label class="sr-only" for="notes">便签内容</label>
-              <textarea class="notes" id="notes" placeholder="纯文本，只存在本机"></textarea>
+              <textarea class="notes" id="notes" hidden placeholder="还没有便签。"></textarea>
             </div>
             <div class="cardfoot">
               <span class="saved" id="notes-saved" aria-live="polite"></span>
             </div>
           </section>
 
-          <section class="card c-tabs" aria-labelledby="h-tabs">
+          <section class="card c-sites" aria-labelledby="h-sites">
             <div class="cardhead">
-              <h2 id="h-tabs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>这个窗口</h2>
-              <span class="count" id="c-tabs">0</span>
+              <h2 id="h-sites"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/></svg>常用站</h2>
+              <span class="count" id="c-sites">0</span>
             </div>
             <div class="cardbody">
-              <div class="domains" id="domains"></div>
+              <div class="tiles" id="sites"></div>
+              <form class="tileform" id="site-form" hidden>
+                <label class="sr-only" for="site-name">名称</label>
+                <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
+                <label class="sr-only" for="site-url">网址</label>
+                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn">加入</button>
+                <button type="button" class="btn ghost" id="site-cancel">取消</button>
+              </form>
             </div>
             <div class="cardfoot">
-              <span class="muted" id="c-tabs-sub"></span>
-              <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button type="button" class="linkbtn" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">添加</button>
             </div>
           </section>
         </div>

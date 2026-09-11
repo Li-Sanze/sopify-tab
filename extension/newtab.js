@@ -2,7 +2,7 @@
   'use strict';
 
   const DESK_KEYS = ['sites', 'todos', 'notes', 'name'];
-  const DESK_DOMAIN_CAP = 6;
+  const WORKSET_CAP = 5;
   const HOST_ID = 'com.sopify.tab';
   const HOST_CHECKS = [
     ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
@@ -18,6 +18,7 @@
     notes: '',
     tabs: [],
     filter: '',
+    worksetFilter: '',
     cwd: '',
     hostUpstream: 'cursor',
     hostChecked: false,
@@ -125,6 +126,55 @@
       const url = (t.url || '').toLowerCase();
       return title.includes(needle) || url.includes(needle);
     });
+  }
+
+  function noteOneLiner(notes) {
+    const line = String(notes || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+    return line || '';
+  }
+
+  function worksetTabs(list) {
+    return (list || []).filter((t) => isDeskSummaryUrl(t.url || ''));
+  }
+
+  function pickResume(todos, tabs, notes) {
+    const todo = (todos || []).find((t) => t && !t.done && String(t.text || '').trim());
+    if (todo) {
+      return {
+        kind: 'todo',
+        title: todo.text.trim(),
+        meta: '待办',
+        action: '完成',
+        todoId: todo.id,
+      };
+    }
+    const pages = worksetTabs(tabs);
+    if (pages.length) {
+      const t = pages[0];
+      const title = String(t.title || '').trim() || urlLine(t.url || '') || t.url || '未命名标签';
+      return {
+        kind: 'tab',
+        title,
+        meta: domainOf(t.url || ''),
+        action: '打开',
+        tabId: t.id,
+      };
+    }
+    const line = noteOneLiner(notes);
+    if (line) {
+      return {
+        kind: 'note',
+        title: line,
+        meta: '便签',
+        action: '接着写',
+      };
+    }
+    return {
+      kind: 'empty',
+      title: '还没有下一件事',
+      meta: '',
+      action: '写一条',
+    };
   }
 
   async function loadDesk() {
@@ -236,13 +286,62 @@
     $('#c-todo').setAttribute('aria-label', `${left} 项未完成`);
     $('#todo-done').textContent = done ? `已完成 ${done}` : '';
     $('#todo-clear').disabled = !done;
+    renderResume();
   }
 
   function renderNotes() {
-    if ($('#notes') !== document.activeElement) $('#notes').value = state.notes;
+    const preview = $('#notes-preview');
+    const ta = $('#notes');
+    const line = noteOneLiner(state.notes);
+    if (ta !== document.activeElement) ta.value = state.notes;
+    if (preview) {
+      preview.textContent = line || '还没有便签。';
+      preview.classList.toggle('is-empty', !line);
+      preview.hidden = document.activeElement === ta && !ta.hidden;
+    }
     const n = [...state.notes.replace(/\s/g, '')].length;
     $('#c-notes').textContent = String(n);
     $('#c-notes').setAttribute('aria-label', `${n} 字`);
+    renderResume();
+  }
+
+  function openNotesEditor() {
+    const preview = $('#notes-preview');
+    const ta = $('#notes');
+    if (preview) preview.hidden = true;
+    ta.hidden = false;
+    ta.value = state.notes;
+    ta.focus();
+  }
+
+  function closeNotesEditor() {
+    const preview = $('#notes-preview');
+    const ta = $('#notes');
+    ta.hidden = true;
+    if (preview) {
+      preview.hidden = false;
+      const line = noteOneLiner(state.notes);
+      preview.textContent = line || '还没有便签。';
+      preview.classList.toggle('is-empty', !line);
+    }
+  }
+
+  function renderResume() {
+    const next = pickResume(state.todos, state.tabs, state.notes);
+    const root = $('#resume');
+    const title = $('#resume-title');
+    const meta = $('#resume-meta');
+    const act = $('#resume-act');
+    if (!root || !title || !meta || !act) return;
+    root.classList.toggle('is-empty', next.kind === 'empty');
+    title.textContent = next.title;
+    meta.textContent = next.meta;
+    act.textContent = next.action;
+    act.dataset.kind = next.kind;
+    if (next.todoId) act.dataset.todoId = next.todoId;
+    else delete act.dataset.todoId;
+    if (next.tabId != null) act.dataset.tabId = String(next.tabId);
+    else delete act.dataset.tabId;
   }
 
   function faviconOf(tabs) {
@@ -266,30 +365,38 @@
     });
   }
 
-  function renderDomains() {
-    const groups = groupTabs(state.tabs.filter((t) => isDeskSummaryUrl(t.url || '')));
-    const shown = groups.slice(0, DESK_DOMAIN_CAP);
-    const max = Math.max(1, ...shown.map(([, tabs]) => tabs.length));
-    const box = $('#domains');
-    box.innerHTML = shown.length ? shown.map(([host, tabs]) => {
-      const icon = faviconOf(tabs);
+  function renderWorkset() {
+    const eligible = worksetTabs(state.tabs);
+    const filtered = filterTabs(eligible, state.worksetFilter);
+    const shown = filtered.slice(0, WORKSET_CAP);
+    const box = $('#workset');
+    if (!box) return;
+    const q = String(state.worksetFilter || '').trim();
+    box.innerHTML = shown.length ? shown.map((t) => {
+      const host = domainOf(t.url || '');
+      const icon = faviconOf([t]);
       const letter = esc(mono(host));
       const mark = icon
         ? `<img class="fav" src="${esc(icon)}" alt=""><span class="fav-letter">${letter}</span>`
         : `<span class="fav-letter">${letter}</span>`;
+      const title = t.title || t.url || '无标题';
+      const port = portLabel(t.url || '');
       return `
-      <div class="domain" style="--h:${hue(host)}">
+      <button type="button" class="workrow" data-activate-tab="${t.id}" style="--h:${hue(host)}" title="${esc(title)}">
         <span class="favicon" aria-hidden="true">${mark}</span>
-        <div class="who"><b>${esc(host)}</b><span class="bar" aria-hidden="true"><i style="--w:${(tabs.length / max) * 100}%"></i></span></div>
-        <span class="n" aria-label="${tabs.length} 个标签">${tabs.length}</span>
-      </div>`;
-    }).join('') : `<p class="empty">这个窗口还没有网页。</p>`;
+        <span class="t">
+          <span>${esc(title)}${port ? `<span class="port">${esc(port)}</span>` : ''}</span>
+          <span class="url">${esc(urlLine(t.url || ''))}</span>
+        </span>
+      </button>`;
+    }).join('') : `<p class="empty">${q ? '没有匹配的标签。' : '这个窗口还没有网页。'}</p>`;
     bindFaviconFallback(box);
-    $('#c-tabs').textContent = String(state.tabs.length);
-    $('#c-tabs').setAttribute('aria-label', `${state.tabs.length} 个标签`);
-    $('#c-tabs-sub').textContent = groups.length
-      ? (groups.length > DESK_DOMAIN_CAP ? `前 ${DESK_DOMAIN_CAP} / ${groups.length} 域名` : `${groups.length} 域名`)
-      : '';
+    $('#c-tabs').textContent = String(eligible.length);
+    $('#c-tabs').setAttribute('aria-label', `${eligible.length} 个网页`);
+    $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
+      ? `前 ${WORKSET_CAP} / ${filtered.length}`
+      : (filtered.length ? `${filtered.length} 个网页` : '');
+    renderResume();
   }
 
   function renderGroups() {
@@ -541,6 +648,11 @@
     }
     const focusNav = opts && opts.focusNav;
     const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
+    if (v === 'desk' && !focusNav) {
+      const act = $('#resume-act');
+      (act || $('#main')).focus({ preventScroll: true });
+      return;
+    }
     (nav || $('#main')).focus({ preventScroll: true });
   }
 
@@ -570,6 +682,7 @@
     renderSites();
     renderTodos();
     renderNotes();
+    renderResume();
     tick();
   }
 
@@ -579,8 +692,43 @@
     } catch {
       state.tabs = [];
     }
-    renderDomains();
+    renderWorkset();
     if (state.view === 'tabs') renderGroups();
+  }
+
+  async function activateTab(id) {
+    const n = Number(id);
+    if (!hasTabs || !Number.isFinite(n)) return;
+    try {
+      await chrome.tabs.update(n, { active: true });
+    } catch {
+      toast('标签已经关掉');
+      refreshTabs();
+    }
+  }
+
+  function runResumeAction() {
+    const act = $('#resume-act');
+    if (!act) return;
+    const kind = act.dataset.kind;
+    if (kind === 'todo' && act.dataset.todoId) {
+      const item = state.todos.find((t) => t.id === act.dataset.todoId);
+      if (!item) return;
+      item.done = true;
+      renderTodos();
+      saveDesk({ todos: state.todos });
+      return;
+    }
+    if (kind === 'tab' && act.dataset.tabId) {
+      activateTab(act.dataset.tabId);
+      return;
+    }
+    if (kind === 'note') {
+      openNotesEditor();
+      return;
+    }
+    const input = $('#todo-input');
+    if (input) input.focus();
   }
 
   async function closeTab(id) {
@@ -688,18 +836,31 @@
       toast('已清除完成项');
     });
 
+    $('#notes-preview').addEventListener('click', () => openNotesEditor());
     $('#notes').addEventListener('input', (e) => {
       state.notes = e.target.value;
       const n = [...state.notes.replace(/\s/g, '')].length;
       $('#c-notes').textContent = String(n);
       $('#c-notes').setAttribute('aria-label', `${n} 字`);
       $('#notes-saved').textContent = '保存中…';
+      renderResume();
       clearTimeout(notesTimer);
       notesTimer = setTimeout(() => {
         saveDesk({ notes: state.notes }).then(() => {
           $('#notes-saved').textContent = '已保存';
         });
       }, 400);
+    });
+    $('#notes').addEventListener('blur', () => closeNotesEditor());
+
+    $('#resume-act').addEventListener('click', () => runResumeAction());
+    $('#workset-filter').addEventListener('input', (e) => {
+      state.worksetFilter = e.target.value;
+      renderWorkset();
+    });
+    $('#workset').addEventListener('click', (e) => {
+      const row = e.target.closest('[data-activate-tab]');
+      if (row) activateTab(row.dataset.activateTab);
     });
 
     $('#tab-filter').addEventListener('input', (e) => {
@@ -787,16 +948,21 @@
     state.cwd = await loadCwd();
     state.hostUpstream = await loadUpstream();
     $('#cwd').value = state.cwd;
-    renderDomains();
+    renderWorkset();
+    renderResume();
     renderHost();
     renderUpstream();
     renderTheme();
     bind();
     tick();
     setInterval(tick, 1000);
-    await refreshTabs();
     if (state.notes) $('#notes-saved').textContent = '已保存';
     if (location.hash === '#settings') setView('settings');
+    else {
+      const act = $('#resume-act');
+      if (act) act.focus({ preventScroll: true });
+    }
+    await refreshTabs();
   }
 
   boot();

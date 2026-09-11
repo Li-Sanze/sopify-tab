@@ -117,7 +117,7 @@ assert.ok(bg.includes('openPanelOnActionClick'), 'toolbar Side Panel contract st
 
 // --- B leftovers still intact (not redesigned) ---
 const newtabJs = read('newtab.js');
-assert.ok(newtabJs.includes('const DESK_DOMAIN_CAP = 6'));
+assert.ok(newtabJs.includes('const WORKSET_CAP = 5'));
 assert.ok(newtabJs.includes('bindFaviconFallback'));
 assert.ok(newtabJs.includes('月') && newtabJs.includes('星期'));
 assert.ok(!/date-line[\s\S]{0,80}待办/.test(newtabJs));

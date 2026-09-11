@@ -119,15 +119,39 @@ svg.i.sm { width: 14px; height: 14px; }
 .cardbody { flex: 1; min-height: 0; }
 .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0 2px; margin: 0; }
 
+.resume {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 18px; padding: 18px 20px;
+  background: var(--glass-sheen), var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--r-xl);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
+  backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
+}
+.resume-kicker {
+  margin: 0; font-size: 13px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em;
+}
+.resume-row { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; }
+.resume-copy { min-width: 0; flex: 1; }
+.resume-title {
+  margin: 0; font-size: clamp(20px, 2.4cqi, 28px); font-weight: 600; letter-spacing: -0.02em;
+  line-height: 1.25; overflow-wrap: anywhere;
+}
+.resume-meta { margin: 6px 0 0; font-size: 13px; color: var(--ink-3); }
+.resume-row .btn { flex: none; min-width: 5.5em; }
+.resume.is-empty .resume-title { color: var(--ink-2); font-weight: 500; }
+
 .deskgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.card.dock { grid-column: 1 / -1; }
+.card.c-workset { grid-column: 1 / -1; }
+.card.c-sites .tiles { gap: 8px; }
+.card.c-sites .tile, .card.c-sites .tile.add { width: 76px; min-height: 72px; padding: 10px 6px 8px; }
 @container desk (max-width: 1019px) {
   .deskgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .card.c-tabs { grid-column: 1 / -1; }
+  .card.c-workset { grid-column: 1 / -1; }
 }
 @container desk (max-width: 619px) {
   .deskgrid { grid-template-columns: minmax(0, 1fr); }
   .deskhead { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .resume-row { flex-direction: column; align-items: stretch; }
+  .resume-row .btn { width: 100%; }
 }
 
 .tiles { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -184,14 +208,36 @@ svg.i.sm { width: 14px; height: 14px; }
 .todoadd { margin-top: 10px; }
 
 .notes {
-  width: 100%; min-height: 190px; height: 100%; resize: vertical;
+  width: 100%; min-height: 120px; height: 100%; resize: vertical;
   padding: 10px 12px; border: 1px solid transparent; border-radius: var(--r-md);
   background: var(--well); color: var(--ink); line-height: 1.7; font-size: 14px;
   transition: background var(--dur) var(--out), border-color var(--dur) var(--out), box-shadow var(--dur) var(--out);
 }
 .notes:hover { background: var(--field-bg); }
 .notes:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.notes[hidden] { display: none; }
+.notes-preview {
+  display: block; width: 100%; min-height: 42px; padding: 10px 12px;
+  border-radius: var(--r-md); background: var(--well); color: var(--ink);
+  text-align: left; font-size: 14px; line-height: 1.5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background var(--dur) var(--out);
+}
+.notes-preview:hover { background: var(--field-bg); }
+.notes-preview.is-empty { color: var(--ink-3); }
+.notes-preview[hidden] { display: none; }
 .saved { font-size: 12px; color: var(--ink-3); }
+
+.c-workset .field { margin-bottom: 2px; }
+.workset { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.workrow {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 10px;
+  width: 100%; min-height: 46px; padding: 4px 6px; border-radius: var(--r-md); text-align: left;
+}
+.workrow:hover { background: var(--hover-bg); }
+.workrow .t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.workrow .t span:first-child { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.workrow .t span.url { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .domains { display: flex; flex-direction: column; gap: 2px; }
 .domain {
