@@ -120,19 +120,26 @@ svg.i.sm { width: 14px; height: 14px; }
 .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0 2px; margin: 0; }
 
 .resume {
+  position: relative;
   display: flex; flex-direction: column; gap: 10px;
-  margin-bottom: 18px; padding: 18px 20px;
-  background: var(--glass-sheen), var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--r-xl);
-  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
+  margin-bottom: 20px; padding: 20px 22px 22px;
+  background: var(--glass-sheen), var(--glass-primary); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-2), var(--resume-glow);
   backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
 }
+.resume::before {
+  content: "";
+  position: absolute; left: 18px; right: 18px; top: 0; height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, var(--glass-hi) 24%, rgba(255, 255, 255, 0.28) 58%, transparent 100%);
+}
 .resume-kicker {
-  margin: 0; font-size: 13px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em;
+  margin: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em;
 }
 .resume-row { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; }
 .resume-copy { min-width: 0; flex: 1; }
 .resume-title {
-  margin: 0; font-size: clamp(20px, 2.4cqi, 28px); font-weight: 600; letter-spacing: -0.02em;
+  margin: 0; font-size: clamp(22px, 2.6cqi, 30px); font-weight: 600; letter-spacing: -0.02em;
   line-height: 1.25; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   line-clamp: 2; overflow: hidden;
@@ -142,6 +149,9 @@ svg.i.sm { width: 14px; height: 14px; }
 .resume.is-empty .resume-title { color: var(--ink-2); font-weight: 500; }
 
 .deskgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.deskgrid > .card {
+  background: var(--glass-sheen), var(--glass-secondary);
+}
 .card.c-workset { grid-column: 1 / -1; }
 .card.c-sites .tiles { gap: 8px; }
 .card.c-sites .tile, .card.c-sites .tile.add { width: 76px; min-height: 72px; padding: 10px 6px 8px; }
