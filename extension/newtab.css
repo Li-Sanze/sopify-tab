@@ -25,7 +25,7 @@ svg.i.sm { width: 14px; height: 14px; }
 }
 
 .rail {
-  position: sticky; top: 0; height: 100dvh;
+  position: sticky; top: 0; height: 100dvh; z-index: 20;
   display: flex; flex-direction: column; align-items: center;
   padding: 18px 10px 14px;
   background: var(--glass-sheen), var(--struct); border-right: 1px solid var(--struct-edge);
@@ -124,7 +124,7 @@ svg.i.sm { width: 14px; height: 14px; }
 .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0 2px; margin: 0; }
 
 .resume {
-  position: relative;
+  position: relative; z-index: 12;
   display: flex; flex-direction: column; gap: 10px;
   margin-bottom: 20px; padding: 20px 22px 22px;
   background: var(--glass-sheen), var(--glass-primary); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
@@ -157,6 +157,7 @@ svg.i.sm { width: 14px; height: 14px; }
   background: var(--glass-sheen), var(--glass-secondary);
 }
 .card.c-workset { grid-column: 1 / -1; }
+.c-workset .cardfoot { position: relative; z-index: 12; }
 .card.c-sites .tiles { gap: 8px; }
 .card.c-sites .tile, .card.c-sites .tile.add { width: 76px; min-height: 72px; padding: 10px 6px 8px; }
 @container desk (max-width: 1019px) {
@@ -391,6 +392,42 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
   transition: opacity var(--dur) var(--out), transform var(--dur) var(--out);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.fogset {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer;
+}
+.fogset input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+
+.desk-fog {
+  position: fixed; z-index: 6;
+  width: 64px; height: 64px; padding: 0; margin: 0;
+  left: 0; top: 0;
+  border: 0; background: transparent; color: inherit;
+  pointer-events: auto; touch-action: none; user-select: none;
+  -webkit-user-select: none;
+  overflow: visible;
+  filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--ink) 20%, transparent));
+}
+.desk-fog[hidden],
+.desk-fog[data-fog="hidden"] { display: none; }
+.desk-fog svg { display: block; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.desk-fog .fog-halo { fill: var(--glass-hi); opacity: 0.8; }
+.desk-fog .fog-body { opacity: 1; }
+.desk-fog .fog-stop-0 { stop-color: var(--glass-hi); stop-opacity: 1; }
+.desk-fog .fog-stop-1 { stop-color: var(--glass); stop-opacity: 0.7; }
+.desk-fog .fog-stop-2 { stop-color: var(--sky-low); stop-opacity: 0; }
+.desk-fog[data-fog="press"] { filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--ink) 20%, transparent)) brightness(0.98); }
+.desk-fog[data-edge~="right"] svg,
+.desk-fog[data-edge~="left"] svg { transform: scaleX(0.96); }
+.desk-fog[data-edge~="bottom"] svg,
+.desk-fog[data-edge~="top"] svg { transform: scaleY(0.96); }
+html[data-sky="night"] .desk-fog {
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+html[data-sky="night"] .desk-fog .fog-halo { fill: var(--glass-primary); opacity: 0.62; }
+html[data-sky="night"] .desk-fog .fog-stop-0 { stop-color: var(--sky-ink); stop-opacity: 0.42; }
+html[data-sky="night"] .desk-fog .fog-stop-1 { stop-color: var(--glass); stop-opacity: 0.5; }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }

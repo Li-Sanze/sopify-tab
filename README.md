@@ -25,14 +25,17 @@
 - **这个窗口**：当前窗口的 http(s) 和 localhost。筛选后最多显示 5 条，点一行切到那个标签。
 - **工作集**：只有点「保存这个窗口」才写入本机。最多 5 个；满了会问要不要覆盖最早的，不会悄悄丢掉。每个工作集最多 50 个网页，超过会确认后只留前 50；标题约 200 字。书桌一行「最近一份 · 恢复」；设置里列出全部，可删一条或「清空全部工作集」。恢复时打开当前窗口还没有的网址，已打开的同一网址就切过去，不关掉其它标签。关窗口不会自动存。
 - 待办、便签、常用站还在。常用站不再占满整行。
+- **桌面软团**（可选）：右下角一小团本地雾，默认显示，可拖、可藏。设置里「显示桌面软团」和「重置软团位置」。不连网、不当宠物、不记历史。
 
 ## 隐私
 
 权限：`storage`、`tabs`、`sidePanel`。无账号、无云同步、无新权限。
 
-本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，以及工作集 `worksets`。
+本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，工作集 `worksets`，以及可选桌面软团 `deskCompanion`。
 
 `worksets` 形状：`[{ id, name, savedAt, tabs:[{ title, url }] }]`。不存 favicon、不存 tabId。只收 http(s) 和 localhost。只在明确保存时写入。最多 5 个工作集；每个最多 50 个网页。可删、可清空。不用 `storage.sync`。不用 sessions / history / bookmarks。
+
+`deskCompanion` 形状：`{ enabled, x, y, motion }`。`x` / `y` 为 0–1。`motion` 为 `full` 或 `reduced`。系统 `prefers-reduced-motion: reduce` 优先于 `motion=full`。`enabled=false` 刷新后仍隐藏。不存轨迹、不存画像。
 
 当前窗口标签现查，不自动落盘。对话不落盘。连 Host 才申请 `nativeMessaging`。出站跟本机环境（如 `HTTP_PROXY`）；扩展无代理设置。
 
