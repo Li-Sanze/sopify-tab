@@ -3,6 +3,9 @@
 
   const DESK_KEYS = ['sites', 'todos', 'notes', 'name'];
   const WORKSET_CAP = 5;
+  const WORKSET_STORE_CAP = 5;
+  const WORKSET_TAB_CAP = 50;
+  const WORKSET_TITLE_MAX = 200;
   const HOST_ID = 'com.sopify.tab';
   const HOST_CHECKS = [
     ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
@@ -19,6 +22,7 @@
     tabs: [],
     filter: '',
     worksetFilter: '',
+    worksets: [],
     cwd: '',
     hostUpstream: 'cursor',
     hostChecked: false,
@@ -75,12 +79,10 @@
     }
   }
 
-  // Desk 「这个窗口」 list: http(s) + localhost only. Tabs page still uses groupTabs as-is.
+  // Desk 「这个窗口」 / workset: http: and https: only, including loopback.
   function isDeskSummaryUrl(url) {
     try {
       const u = new URL(url);
-      const host = u.hostname;
-      if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
       return u.protocol === 'http:' || u.protocol === 'https:';
     } catch {
       return false;
@@ -156,6 +158,139 @@
     };
   }
 
+  function snapshotWorksetTabs(list) {
+    const seen = new Set();
+    const out = [];
+    for (const t of list || []) {
+      const raw = t && t.url != null ? String(t.url).trim() : '';
+      if (!isDeskSummaryUrl(raw)) continue;
+      let href = '';
+      try { href = new URL(raw).href; } catch { continue; }
+      if (!href || seen.has(href)) continue;
+      seen.add(href);
+      let title = String((t && t.title) || '').trim() || href;
+      if (title.length > WORKSET_TITLE_MAX) title = title.slice(0, WORKSET_TITLE_MAX);
+      out.push({ title: title, url: href });
+    }
+    return out;
+  }
+
+  function clipSavedWorksetTabs(list) {
+    const all = snapshotWorksetTabs(list);
+    return {
+      tabs: all.slice(0, WORKSET_TAB_CAP),
+      total: all.length,
+      overflow: all.length > WORKSET_TAB_CAP,
+    };
+  }
+
+  function defaultWorksetName(now) {
+    const d = now instanceof Date ? now : new Date();
+    const p2 = function (n) { return String(n).padStart(2, '0'); };
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+
+  function normalizeWorkset(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : '';
+    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : '';
+    let savedAt = NaN;
+    if (typeof raw.savedAt === 'number' && Number.isFinite(raw.savedAt)) savedAt = raw.savedAt;
+    else if (typeof raw.savedAt === 'string' && raw.savedAt) savedAt = Date.parse(raw.savedAt);
+    if (!id || !name || !Number.isFinite(savedAt)) return null;
+    const tabs = snapshotWorksetTabs(Array.isArray(raw.tabs) ? raw.tabs : []).slice(0, WORKSET_TAB_CAP);
+    if (!tabs.length) return null;
+    return { id: id, name: name, savedAt: savedAt, tabs: tabs };
+  }
+
+  function normalizeWorksets(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    const seen = new Set();
+    for (const item of raw) {
+      const w = normalizeWorkset(item);
+      if (!w || seen.has(w.id)) continue;
+      seen.add(w.id);
+      out.push(w);
+    }
+    out.sort(function (a, b) { return b.savedAt - a.savedAt; });
+    return out.slice(0, 5);
+  }
+
+  function oldestWorkset(list) {
+    const items = Array.isArray(list) ? list : [];
+    if (!items.length) return null;
+    return items.reduce(function (a, b) { return a.savedAt <= b.savedAt ? a : b; });
+  }
+
+  function proposeSaveWorkset(existing, tabs, opts) {
+    const options = opts || {};
+    const cap = options.cap == null ? 5 : options.cap;
+    const clipped = clipSavedWorksetTabs(tabs);
+    if (!clipped.total) return { ok: false, reason: 'empty', overflow: false, totalTabs: 0 };
+    const list = normalizeWorksets(existing);
+    const savedAt = typeof options.savedAt === 'number' && Number.isFinite(options.savedAt)
+      ? options.savedAt
+      : Date.now();
+    const incoming = {
+      id: typeof options.id === 'string' && options.id.trim() ? options.id.trim() : ('w-' + savedAt),
+      name: typeof options.name === 'string' && options.name.trim() ? options.name.trim() : defaultWorksetName(new Date(savedAt)),
+      savedAt: savedAt,
+      tabs: clipped.tabs,
+    };
+    const extra = { incoming: incoming, overflow: clipped.overflow, totalTabs: clipped.total };
+    if (list.length < cap) {
+      const worksets = list.concat([incoming]);
+      worksets.sort(function (a, b) { return b.savedAt - a.savedAt; });
+      return Object.assign({ ok: true, worksets: worksets }, extra);
+    }
+    return Object.assign({
+      ok: false,
+      reason: 'full',
+      oldest: oldestWorkset(list),
+      worksets: list,
+    }, extra);
+  }
+
+  function overwriteOldestWorkset(existing, incoming) {
+    const list = normalizeWorksets(existing);
+    const oldest = oldestWorkset(list);
+    const next = oldest ? list.filter(function (w) { return w.id !== oldest.id; }) : list.slice();
+    const item = normalizeWorkset(incoming);
+    if (!item) return { ok: false, reason: 'empty', worksets: list };
+    next.push(item);
+    next.sort(function (a, b) { return b.savedAt - a.savedAt; });
+    return { ok: true, overwritten: oldest, worksets: next };
+  }
+
+  function removeWorksetById(existing, id) {
+    return normalizeWorksets(existing).filter(function (w) { return w.id !== id; });
+  }
+
+  function planRestore(savedTabs, openTabs) {
+    const byUrl = new Map();
+    for (const t of openTabs || []) {
+      let href = '';
+      try { href = new URL((t && t.url) || '').href; } catch { href = ''; }
+      if (href && !byUrl.has(href)) byUrl.set(href, t);
+    }
+    const activate = [];
+    const create = [];
+    for (const tab of snapshotWorksetTabs(savedTabs)) {
+      const existing = byUrl.get(tab.url);
+      if (existing && existing.id != null) activate.push({ id: existing.id, url: tab.url });
+      else create.push(tab.url);
+    }
+    return { activate: activate, create: create };
+  }
+
+  function formatWorksetWhen(savedAt) {
+    const d = new Date(savedAt);
+    if (Number.isNaN(d.getTime())) return '';
+    const p2 = function (n) { return String(n).padStart(2, '0'); };
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+
   async function loadDesk() {
     if (!hasStorage) return { sites: [], todos: [], notes: '', name: '' };
     return chrome.storage.local.get({ sites: [], todos: [], notes: '', name: '' });
@@ -168,6 +303,19 @@
     }
     if (!Object.keys(payload).length) return;
     if (hasStorage) await chrome.storage.local.set(payload);
+  }
+
+  async function loadWorksets() {
+    if (!hasStorage) return [];
+    const data = await chrome.storage.local.get({ worksets: [] });
+    return normalizeWorksets(data.worksets);
+  }
+
+  async function persistWorksets(list) {
+    const worksets = normalizeWorksets(list);
+    state.worksets = worksets;
+    renderSavedWorksets();
+    if (hasStorage) await chrome.storage.local.set({ worksets });
   }
 
   async function loadCwd() {
@@ -320,6 +468,36 @@
     act.dataset.kind = next.kind;
     if (next.todoId) act.dataset.todoId = next.todoId;
     else delete act.dataset.todoId;
+  }
+
+  function renderSavedWorksets() {
+    const list = Array.isArray(state.worksets) ? state.worksets : [];
+    const recentBtn = $('#workset-restore-recent');
+    if (recentBtn) {
+      recentBtn.hidden = list.length === 0;
+      if (list[0]) recentBtn.title = list[0].name;
+      else recentBtn.removeAttribute('title');
+    }
+    const countEl = $('#c-worksets');
+    if (countEl) {
+      countEl.textContent = String(list.length);
+      countEl.setAttribute('aria-label', `${list.length} 个工作集`);
+    }
+    const clearBtn = $('#worksets-clear');
+    if (clearBtn) clearBtn.disabled = !list.length;
+    const box = $('#saved-worksets');
+    if (!box) return;
+    box.innerHTML = list.length ? list.map((w) => `
+      <div class="savedset">
+        <div class="t">
+          <span>${esc(w.name)}</span>
+          <span class="url">${w.tabs.length} 个网页 · ${esc(formatWorksetWhen(w.savedAt))}</span>
+        </div>
+        <button type="button" class="linkbtn" data-restore-workset="${esc(w.id)}">恢复</button>
+        <button type="button" class="iconbtn" data-del-workset="${esc(w.id)}" aria-label="删除工作集：${esc(w.name)}">
+          <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>`).join('') : `<p class="empty">还没有保存的工作集。</p>`;
   }
 
   function faviconOf(tabs) {
@@ -623,6 +801,7 @@
       renderHost();
       renderUpstream();
       renderTheme();
+      renderSavedWorksets();
     }
     const focusNav = opts && opts.focusNav;
     const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
@@ -683,6 +862,85 @@
       toast('标签已经关掉');
       refreshTabs();
     }
+  }
+
+  async function saveThisWindow() {
+    const proposal = proposeSaveWorkset(state.worksets, state.tabs, {
+      id: uid(),
+      name: defaultWorksetName(new Date()),
+      savedAt: Date.now(),
+    });
+    if (proposal.reason === 'empty') {
+      toast('这个窗口没有可保存的网页');
+      return;
+    }
+    if (proposal.overflow) {
+      const n = proposal.totalTabs;
+      const okTabs = window.confirm('这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？');
+      if (!okTabs) {
+        toast('未保存');
+        return;
+      }
+    }
+    if (proposal.reason === 'full') {
+      const oldest = proposal.oldest;
+      const label = oldest && oldest.name ? oldest.name : '最早的一条';
+      const ok = window.confirm(`已有 ${WORKSET_STORE_CAP} 个工作集。覆盖最早的「${label}」？`);
+      if (!ok) {
+        toast('未保存');
+        return;
+      }
+      const next = overwriteOldestWorkset(state.worksets, proposal.incoming);
+      if (!next.ok) {
+        toast('未保存');
+        return;
+      }
+      await persistWorksets(next.worksets);
+      toast(`已覆盖「${label}」`);
+      return;
+    }
+    await persistWorksets(proposal.worksets);
+    const n = proposal.incoming && proposal.incoming.tabs ? proposal.incoming.tabs.length : 0;
+    toast(`已保存 ${n} 个网页`);
+  }
+
+  async function restoreWorksetById(id) {
+    const list = state.worksets || [];
+    const w = id ? list.find((x) => x.id === id) : list[0];
+    if (!w) {
+      toast('没有可恢复的工作集');
+      return;
+    }
+    let open = [];
+    try { open = await queryWindowTabs(); } catch { open = []; }
+    const plan = planRestore(w.tabs, open);
+    const createdIds = [];
+    if (hasTabs) {
+      for (const url of plan.create) {
+        try {
+          const tab = await chrome.tabs.create({ url, active: false });
+          if (tab && tab.id != null) createdIds.push(tab.id);
+        } catch { /* blocked or invalid */ }
+      }
+    }
+    const focusId = (plan.activate[0] && plan.activate[0].id) || createdIds[0];
+    if (focusId != null) await activateTab(focusId);
+    toast(`已恢复「${w.name}」`);
+  }
+
+  async function deleteWorksetById(id) {
+    if (!id) return;
+    const current = (state.worksets || []).find((w) => w.id === id);
+    await persistWorksets(removeWorksetById(state.worksets, id));
+    toast(current ? `已删除「${current.name}」` : '已删除工作集');
+  }
+
+  async function clearAllWorksets() {
+    if (!(state.worksets || []).length) return;
+    const ok = window.confirm('清空全部工作集？只影响本机已保存的窗口，不可撤销。');
+    if (!ok) return;
+    await persistWorksets([]);
+    toast('已清空工作集');
   }
 
   function runResumeAction() {
@@ -832,6 +1090,15 @@
       const row = e.target.closest('[data-activate-tab]');
       if (row) activateTab(row.dataset.activateTab);
     });
+    $('#workset-save').addEventListener('click', () => { saveThisWindow(); });
+    $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
+    $('#saved-worksets').addEventListener('click', (e) => {
+      const restore = e.target.closest('[data-restore-workset]');
+      const del = e.target.closest('[data-del-workset]');
+      if (restore) restoreWorksetById(restore.dataset.restoreWorkset);
+      else if (del) deleteWorksetById(del.dataset.delWorkset);
+    });
+    $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 
     $('#tab-filter').addEventListener('input', (e) => {
       state.filter = e.target.value;
@@ -856,6 +1123,10 @@
         if ('hostUpstream' in changes) {
           state.hostUpstream = normalizeUpstream(changes.hostUpstream.newValue);
           renderUpstream();
+        }
+        if ('worksets' in changes) {
+          state.worksets = normalizeWorksets(changes.worksets.newValue);
+          renderSavedWorksets();
         }
         if (!DESK_KEYS.some((k) => k in changes)) return;
         applyDesk({
@@ -915,10 +1186,12 @@
 
   async function boot() {
     applyDesk(await loadDesk());
+    state.worksets = await loadWorksets();
     state.cwd = await loadCwd();
     state.hostUpstream = await loadUpstream();
     $('#cwd').value = state.cwd;
     renderWorkset();
+    renderSavedWorksets();
     renderResume();
     renderHost();
     renderUpstream();
