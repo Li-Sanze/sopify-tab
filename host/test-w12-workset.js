@@ -24,7 +24,8 @@ const desk = html.slice(html.indexOf('aria-labelledby="greet-h"'), html.indexOf(
 const settings = html.slice(html.indexOf('aria-labelledby="settings-h"'));
 
 assert.ok(desk.includes('id="workset-save"') && desk.includes('保存这个窗口'), 'desk save entry');
-assert.ok(desk.includes('id="workset-restore-recent"') && desk.includes('恢复最近'), 'desk restore recent');
+assert.ok(desk.includes('id="workset-restore-recent"') && desk.includes('最近一份 · 恢复'), 'desk has one restore line');
+assert.ok(!desk.includes('id="saved-worksets"'), 'do not tile saved worksets on the desk');
 assert.ok(!desk.includes('清空全部工作集'), 'clear-all stays in settings');
 assert.ok(!/Host|CLI|--force|cursor-agent/.test(desk), 'desk still silent on Host');
 assert.ok(settings.includes('id="saved-worksets"'), 'settings lists saved worksets');
@@ -33,7 +34,10 @@ assert.ok(settings.includes('id="s-worksets"') && settings.includes('工作集')
 assert.ok(html.includes('id="resume"') && html.includes('下一件事'), 'resume strip stays first');
 
 assert.ok(js.includes('const WORKSET_STORE_CAP = 5'));
+assert.ok(js.includes('const WORKSET_TAB_CAP = 50'));
+assert.ok(js.includes('const WORKSET_TITLE_MAX = 200'));
 assert.ok(js.includes('function snapshotWorksetTabs'));
+assert.ok(js.includes('function clipSavedWorksetTabs'));
 assert.ok(js.includes('function proposeSaveWorkset'));
 assert.ok(js.includes('function overwriteOldestWorkset'));
 assert.ok(js.includes('function planRestore'));
@@ -43,7 +47,7 @@ assert.ok(js.includes('chrome.tabs.create'));
 assert.ok(js.includes('chrome.tabs.update'));
 assert.ok(!/chrome\.windows\.create/.test(js), 'restore stays in the current window');
 assert.ok(!/chrome\.storage\.sync/.test(js));
-assert.ok(!/chrome\.bookmarks|chrome\.history|topSites/.test(js));
+assert.ok(!/chrome\.bookmarks|chrome\.history|chrome\.sessions|topSites/.test(js));
 assert.ok(!/beforeunload/.test(js));
 assert.ok(!/windows\.onRemoved/.test(js));
 assert.ok(!/onRemoved[\s\S]{0,120}persistWorksets/.test(js), 'tab close must not persist worksets');
@@ -53,6 +57,10 @@ const persistCalls = [...js.matchAll(/\bpersistWorksets\s*\(/g)];
 assert.strictEqual(persistCalls.length, 5, 'define + save + overwrite + delete + clear');
 assert.ok(js.includes('function saveThisWindow') && js.includes("window.confirm"));
 assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
+assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
+assert.ok(/async function restoreWorksetById[\s\S]*toast\(`已恢复/.test(js)
+  && !/async function restoreWorksetById[\s\S]*tabs\.remove/.test(js),
+  'restore must not close other tabs');
 assert.ok(js.includes('清空全部工作集？') || js.includes('清空全部工作集'));
 
 const setKeys = [...js.matchAll(/storage\.local\.set\(\s*\{([^}]+)\}/g)].map((m) => m[1]);
@@ -73,6 +81,8 @@ assert.ok(/\.cardfoot-acts/.test(css));
 assert.ok(/下一件事/.test(readme) && /写一条/.test(readme), 'README documents W11 empty=write-one');
 assert.ok(/不拿标签或便签凑数/.test(readme) || /不拿标签/.test(readme));
 assert.ok(/保存这个窗口/.test(readme));
+assert.ok(/最近一份 · 恢复/.test(readme));
+assert.ok(/50 个网页/.test(readme));
 assert.ok(/worksets/.test(readme) && /title, url/.test(readme));
 assert.ok(/不存 favicon|不存favicon/.test(readme));
 assert.ok(/最多 5/.test(readme) && /覆盖/.test(readme));
@@ -85,7 +95,7 @@ assert.ok(!/智能聚类|AI 聚类|自动整理/.test(readme), 'no unreleased AI
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');
 assert.ok(start !== -1 && end > start, 'can extract workset helpers');
-const helpers = new Function(js.slice(start, end) + '; return { snapshotWorksetTabs, defaultWorksetName, normalizeWorkset, normalizeWorksets, oldestWorkset, proposeSaveWorkset, overwriteOldestWorkset, removeWorksetById, planRestore, isDeskSummaryUrl };')();
+const helpers = new Function(js.slice(start, end) + '; return { snapshotWorksetTabs, clipSavedWorksetTabs, defaultWorksetName, normalizeWorkset, normalizeWorksets, oldestWorkset, proposeSaveWorkset, overwriteOldestWorkset, removeWorksetById, planRestore, isDeskSummaryUrl };')();
 
 const dirty = [
   { id: 1, title: 'X', url: 'https://x.com/', favIconUrl: 'https://x.com/favicon.ico', discarded: false },
@@ -100,7 +110,26 @@ assert.strictEqual(snap.length, 2);
 assert.deepStrictEqual(Object.keys(snap[0]).sort(), ['title', 'url']);
 assert.strictEqual(snap[0].url, 'https://x.com/');
 assert.strictEqual(snap[1].url, 'http://localhost:5173/app');
-assert.ok(!snap.some((t) => 'favIconUrl' in t || 'id' in t));
+assert.ok(!snap.some((t) => 'favIconUrl' in t || 'id' in t || 'tabId' in t));
+
+const longTitle = '标'.repeat(240);
+const clippedTitle = helpers.snapshotWorksetTabs([{ title: longTitle, url: 'https://long.example/' }]);
+assert.strictEqual(clippedTitle[0].title.length, 200);
+
+const many = [];
+for (let i = 1; i <= 51; i += 1) many.push({ title: 'T' + i, url: 'https://n' + i + '.example/' });
+const clippedMany = helpers.clipSavedWorksetTabs(many);
+assert.strictEqual(clippedMany.total, 51);
+assert.strictEqual(clippedMany.overflow, true);
+assert.strictEqual(clippedMany.tabs.length, 50);
+assert.strictEqual(clippedMany.tabs[0].url, 'https://n1.example/');
+assert.strictEqual(clippedMany.tabs[49].url, 'https://n50.example/');
+
+const overflowSave = helpers.proposeSaveWorkset([], many, { id: 'w50', name: '多', savedAt: 1 });
+assert.ok(overflowSave.ok);
+assert.strictEqual(overflowSave.overflow, true);
+assert.strictEqual(overflowSave.totalTabs, 51);
+assert.strictEqual(overflowSave.incoming.tabs.length, 50);
 
 assert.ok(helpers.isDeskSummaryUrl('https://example.com/'));
 assert.ok(helpers.isDeskSummaryUrl('http://127.0.0.1:8080/'));

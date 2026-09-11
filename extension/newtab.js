@@ -4,6 +4,8 @@
   const DESK_KEYS = ['sites', 'todos', 'notes', 'name'];
   const WORKSET_CAP = 5;
   const WORKSET_STORE_CAP = 5;
+  const WORKSET_TAB_CAP = 50;
+  const WORKSET_TITLE_MAX = 200;
   const HOST_ID = 'com.sopify.tab';
   const HOST_CHECKS = [
     ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
@@ -168,10 +170,20 @@
       try { href = new URL(raw).href; } catch { continue; }
       if (!href || seen.has(href)) continue;
       seen.add(href);
-      const title = String((t && t.title) || '').trim() || href;
+      let title = String((t && t.title) || '').trim() || href;
+      if (title.length > 200) title = title.slice(0, 200);
       out.push({ title: title, url: href });
     }
     return out;
+  }
+
+  function clipSavedWorksetTabs(list) {
+    const all = snapshotWorksetTabs(list);
+    return {
+      tabs: all.slice(0, 50),
+      total: all.length,
+      overflow: all.length > 50,
+    };
   }
 
   function defaultWorksetName(now) {
@@ -188,7 +200,7 @@
     if (typeof raw.savedAt === 'number' && Number.isFinite(raw.savedAt)) savedAt = raw.savedAt;
     else if (typeof raw.savedAt === 'string' && raw.savedAt) savedAt = Date.parse(raw.savedAt);
     if (!id || !name || !Number.isFinite(savedAt)) return null;
-    const tabs = snapshotWorksetTabs(Array.isArray(raw.tabs) ? raw.tabs : []);
+    const tabs = snapshotWorksetTabs(Array.isArray(raw.tabs) ? raw.tabs : []).slice(0, 50);
     if (!tabs.length) return null;
     return { id: id, name: name, savedAt: savedAt, tabs: tabs };
   }
@@ -216,8 +228,8 @@
   function proposeSaveWorkset(existing, tabs, opts) {
     const options = opts || {};
     const cap = options.cap == null ? 5 : options.cap;
-    const snapshot = snapshotWorksetTabs(tabs);
-    if (!snapshot.length) return { ok: false, reason: 'empty' };
+    const clipped = clipSavedWorksetTabs(tabs);
+    if (!clipped.total) return { ok: false, reason: 'empty', overflow: false, totalTabs: 0 };
     const list = normalizeWorksets(existing);
     const savedAt = typeof options.savedAt === 'number' && Number.isFinite(options.savedAt)
       ? options.savedAt
@@ -226,14 +238,20 @@
       id: typeof options.id === 'string' && options.id.trim() ? options.id.trim() : ('w-' + savedAt),
       name: typeof options.name === 'string' && options.name.trim() ? options.name.trim() : defaultWorksetName(new Date(savedAt)),
       savedAt: savedAt,
-      tabs: snapshot,
+      tabs: clipped.tabs,
     };
+    const extra = { incoming: incoming, overflow: clipped.overflow, totalTabs: clipped.total };
     if (list.length < cap) {
       const worksets = list.concat([incoming]);
       worksets.sort(function (a, b) { return b.savedAt - a.savedAt; });
-      return { ok: true, incoming: incoming, worksets: worksets };
+      return Object.assign({ ok: true, worksets: worksets }, extra);
     }
-    return { ok: false, reason: 'full', oldest: oldestWorkset(list), incoming: incoming, worksets: list };
+    return Object.assign({
+      ok: false,
+      reason: 'full',
+      oldest: oldestWorkset(list),
+      worksets: list,
+    }, extra);
   }
 
   function overwriteOldestWorkset(existing, incoming) {
@@ -857,6 +875,14 @@
     if (proposal.reason === 'empty') {
       toast('这个窗口没有可保存的网页');
       return;
+    }
+    if (proposal.overflow) {
+      const n = proposal.totalTabs;
+      const okTabs = window.confirm('这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？');
+      if (!okTabs) {
+        toast('未保存');
+        return;
+      }
     }
     if (proposal.reason === 'full') {
       const oldest = proposal.oldest;
