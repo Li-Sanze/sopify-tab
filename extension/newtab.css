@@ -108,6 +108,8 @@ svg.i.sm { width: 14px; height: 14px; }
   border-top: 1px solid var(--line); font-size: 13px;
 }
 .cardfoot .linkbtn { margin-left: auto; }
+.cardfoot-acts { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.cardfoot .cardfoot-acts .linkbtn { margin-left: 0; }
 .cardfoot .muted, .cardfoot .saved { font-size: 12.5px; color: var(--ink-3); }
 .linkbtn {
   display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border-radius: var(--r-sm);
@@ -116,6 +118,8 @@ svg.i.sm { width: 14px; height: 14px; }
 }
 .linkbtn:hover { background: var(--accent-soft); }
 .linkbtn[disabled] { color: var(--ink-3); cursor: not-allowed; opacity: 0.6; }
+.linkbtn[hidden] { display: none; }
+.linkbtn.danger { color: var(--danger); }
 .cardbody { flex: 1; min-height: 0; }
 .empty { color: var(--ink-3); font-size: 13.5px; padding: 6px 0 2px; margin: 0; }
 
@@ -242,6 +246,15 @@ svg.i.sm { width: 14px; height: 14px; }
 
 .c-workset .field { margin-bottom: 2px; }
 .workset { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.savedsets { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.savedset {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px;
+  min-height: 46px; padding: 4px 2px 4px 6px; border-radius: var(--r-md);
+}
+.savedset:hover { background: var(--hover-bg); }
+.savedset .t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.savedset .t span:first-child { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.savedset .t span.url { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .workrow {
   display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 10px;
   width: 100%; min-height: 46px; padding: 4px 6px; border-radius: var(--r-md); text-align: left;

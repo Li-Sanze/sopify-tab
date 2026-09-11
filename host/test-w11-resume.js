@@ -7,6 +7,7 @@ const assert = require('assert');
 const EXT = path.join(__dirname, '..', 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
+  'worksets',
 ];
 
 function read(name) {
@@ -63,8 +64,9 @@ for (const chunk of setKeys) {
       `unexpected storage key in set(): ${name}`);
   }
 }
-assert.ok(!/storage\.local\.set\(\s*\{[^}]*(resume|workset|anchor|nextAction)/.test(js),
-  'no new resume/workset storage keys');
+assert.ok(!/storage\.local\.set\(\s*\{[^}]*(resume|anchor|nextAction)/.test(js),
+  'no resume/anchor storage keys');
+assert.ok(!/storage\.sync/.test(js));
 
 assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
 assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);

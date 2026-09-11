@@ -136,7 +136,11 @@
             </div>
             <div class="cardfoot">
               <span class="muted" id="c-tabs-sub"></span>
-              <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <div class="cardfoot-acts">
+                <button type="button" class="linkbtn" id="workset-save">保存这个窗口</button>
+                <button type="button" class="linkbtn" id="workset-restore-recent" hidden>恢复最近</button>
+                <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              </div>
             </div>
           </section>
 
@@ -236,6 +240,20 @@
                 </div>
                 <p class="help">立刻生效，书桌和侧栏同一套；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
               </div>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="s-worksets">
+            <div class="cardhead">
+              <h2 id="s-worksets"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>工作集</h2>
+              <span class="count" id="c-worksets">0</span>
+            </div>
+            <div class="cardbody">
+              <p class="help">只有点「保存这个窗口」才写入本机，最多 5 个。关窗口不会自动存。</p>
+              <div class="savedsets" id="saved-worksets"></div>
+            </div>
+            <div class="cardfoot">
+              <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部工作集</button>
             </div>
           </section>
 
