@@ -133,7 +133,21 @@ assert.strictEqual(overflowSave.incoming.tabs.length, 50);
 
 assert.ok(helpers.isDeskSummaryUrl('https://example.com/'));
 assert.ok(helpers.isDeskSummaryUrl('http://127.0.0.1:8080/'));
+assert.ok(helpers.isDeskSummaryUrl('http://localhost:5173/'));
+assert.ok(helpers.isDeskSummaryUrl('https://[::1]/'));
 assert.ok(!helpers.isDeskSummaryUrl('chrome://newtab'));
+assert.ok(!helpers.isDeskSummaryUrl('ftp://localhost/'));
+assert.ok(!helpers.isDeskSummaryUrl('ws://127.0.0.1:8080/'));
+assert.ok(!helpers.isDeskSummaryUrl('wss://[::1]/'));
+assert.ok(!helpers.isDeskSummaryUrl('file://localhost/tmp'));
+assert.deepStrictEqual(
+  helpers.snapshotWorksetTabs([
+    { title: 'ftp', url: 'ftp://localhost/pub' },
+    { title: 'ws', url: 'ws://127.0.0.1:9' },
+    { title: 'ok', url: 'http://localhost:5173/' },
+  ]).map((t) => t.url),
+  ['http://localhost:5173/'],
+);
 
 assert.strictEqual(helpers.proposeSaveWorkset([], dirty).reason, undefined);
 assert.strictEqual(helpers.proposeSaveWorkset([], [{ url: 'chrome://newtab' }]).reason, 'empty');

@@ -79,12 +79,10 @@
     }
   }
 
-  // Desk 「这个窗口」 list: http(s) + localhost only. Tabs page still uses groupTabs as-is.
+  // Desk 「这个窗口」 / workset: http: and https: only, including loopback.
   function isDeskSummaryUrl(url) {
     try {
       const u = new URL(url);
-      const host = u.hostname;
-      if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
       return u.protocol === 'http:' || u.protocol === 'https:';
     } catch {
       return false;
