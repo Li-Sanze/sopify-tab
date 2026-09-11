@@ -406,20 +406,28 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
   border: 0; background: transparent; color: inherit;
   pointer-events: auto; touch-action: none; user-select: none;
   -webkit-user-select: none;
-  will-change: transform;
+  overflow: visible;
+  filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--ink) 20%, transparent));
 }
 .desk-fog[hidden],
 .desk-fog[data-fog="hidden"] { display: none; }
 .desk-fog svg { display: block; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.desk-fog .fog-halo { opacity: 0.85; }
-.desk-fog .fog-body { opacity: 0.95; }
-.desk-fog[data-fog="press"] { filter: brightness(0.98); }
+.desk-fog .fog-halo { fill: var(--glass-hi); opacity: 0.8; }
+.desk-fog .fog-body { opacity: 1; }
+.desk-fog .fog-stop-0 { stop-color: var(--glass-hi); stop-opacity: 1; }
+.desk-fog .fog-stop-1 { stop-color: var(--glass); stop-opacity: 0.7; }
+.desk-fog .fog-stop-2 { stop-color: var(--sky-low); stop-opacity: 0; }
+.desk-fog[data-fog="press"] { filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--ink) 20%, transparent)) brightness(0.98); }
 .desk-fog[data-edge~="right"] svg,
 .desk-fog[data-edge~="left"] svg { transform: scaleX(0.96); }
 .desk-fog[data-edge~="bottom"] svg,
 .desk-fog[data-edge~="top"] svg { transform: scaleY(0.96); }
-html[data-sky="night"] .desk-fog .fog-halo { opacity: 0.7; }
-html[data-sky="night"] .desk-fog .fog-body { opacity: 0.88; }
+html[data-sky="night"] .desk-fog {
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+html[data-sky="night"] .desk-fog .fog-halo { fill: var(--glass-primary); opacity: 0.62; }
+html[data-sky="night"] .desk-fog .fog-stop-0 { stop-color: var(--sky-ink); stop-opacity: 0.42; }
+html[data-sky="night"] .desk-fog .fog-stop-1 { stop-color: var(--glass); stop-opacity: 0.5; }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
