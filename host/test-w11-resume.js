@@ -7,7 +7,7 @@ const assert = require('assert');
 const EXT = path.join(__dirname, '..', 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
-  'worksets',
+  'worksets', 'deskCompanion',
 ];
 
 function read(name) {

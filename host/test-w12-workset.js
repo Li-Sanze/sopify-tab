@@ -8,7 +8,7 @@ const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
-  'worksets',
+  'worksets', 'deskCompanion',
 ];
 
 function read(name) {
