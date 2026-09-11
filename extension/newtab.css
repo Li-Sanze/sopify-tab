@@ -121,7 +121,6 @@ svg.i.sm { width: 14px; height: 14px; }
 
 .resume {
   position: relative;
-  isolation: isolate;
   display: flex; flex-direction: column; gap: 10px;
   margin-bottom: 20px; padding: 20px 22px 22px;
   background: var(--glass-sheen), var(--glass); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
