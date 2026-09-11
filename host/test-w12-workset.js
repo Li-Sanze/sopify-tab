@@ -58,9 +58,9 @@ assert.strictEqual(persistCalls.length, 5, 'define + save + overwrite + delete +
 assert.ok(js.includes('function saveThisWindow') && js.includes("window.confirm"));
 assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
 assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
-assert.ok(/async function restoreWorksetById[\s\S]*toast\(`已恢复/.test(js)
-  && !/async function restoreWorksetById[\s\S]*tabs\.remove/.test(js),
-  'restore must not close other tabs');
+const restoreFn = js.slice(js.indexOf('async function restoreWorksetById'), js.indexOf('async function deleteWorksetById'));
+assert.ok(restoreFn.includes('chrome.tabs.create') && restoreFn.includes('activateTab'));
+assert.ok(!/tabs\.remove/.test(restoreFn), 'restore must not close other tabs');
 assert.ok(js.includes('清空全部工作集？') || js.includes('清空全部工作集'));
 
 const setKeys = [...js.matchAll(/storage\.local\.set\(\s*\{([^}]+)\}/g)].map((m) => m[1]);
