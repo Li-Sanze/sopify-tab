@@ -36,6 +36,8 @@ assert.ok(html.includes('id="resume"') && html.includes('下一件事'), 'resume
 assert.ok(js.includes('const WORKSET_STORE_CAP = 5'));
 assert.ok(js.includes('const WORKSET_TAB_CAP = 50'));
 assert.ok(js.includes('const WORKSET_TITLE_MAX = 200'));
+assert.ok(js.includes('slice(0, WORKSET_TAB_CAP)'), 'clip/normalize use WORKSET_TAB_CAP');
+assert.ok(js.includes('slice(0, WORKSET_TITLE_MAX)'), 'title clip uses WORKSET_TITLE_MAX');
 assert.ok(js.includes('function snapshotWorksetTabs'));
 assert.ok(js.includes('function clipSavedWorksetTabs'));
 assert.ok(js.includes('function proposeSaveWorkset'));
@@ -95,7 +97,11 @@ assert.ok(!/智能聚类|AI 聚类|自动整理/.test(readme), 'no unreleased AI
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');
 assert.ok(start !== -1 && end > start, 'can extract workset helpers');
-const helpers = new Function(js.slice(start, end) + '; return { snapshotWorksetTabs, clipSavedWorksetTabs, defaultWorksetName, normalizeWorkset, normalizeWorksets, oldestWorkset, proposeSaveWorkset, overwriteOldestWorkset, removeWorksetById, planRestore, isDeskSummaryUrl };')();
+const helpers = new Function(
+  'const WORKSET_TAB_CAP = 50; const WORKSET_TITLE_MAX = 200; ' +
+  js.slice(start, end) +
+  '; return { snapshotWorksetTabs, clipSavedWorksetTabs, defaultWorksetName, normalizeWorkset, normalizeWorksets, oldestWorkset, proposeSaveWorkset, overwriteOldestWorkset, removeWorksetById, planRestore, isDeskSummaryUrl };'
+)();
 
 const dirty = [
   { id: 1, title: 'X', url: 'https://x.com/', favIconUrl: 'https://x.com/favicon.ico', discarded: false },

@@ -169,7 +169,7 @@
       if (!href || seen.has(href)) continue;
       seen.add(href);
       let title = String((t && t.title) || '').trim() || href;
-      if (title.length > 200) title = title.slice(0, 200);
+      if (title.length > WORKSET_TITLE_MAX) title = title.slice(0, WORKSET_TITLE_MAX);
       out.push({ title: title, url: href });
     }
     return out;
@@ -178,9 +178,9 @@
   function clipSavedWorksetTabs(list) {
     const all = snapshotWorksetTabs(list);
     return {
-      tabs: all.slice(0, 50),
+      tabs: all.slice(0, WORKSET_TAB_CAP),
       total: all.length,
-      overflow: all.length > 50,
+      overflow: all.length > WORKSET_TAB_CAP,
     };
   }
 
@@ -198,7 +198,7 @@
     if (typeof raw.savedAt === 'number' && Number.isFinite(raw.savedAt)) savedAt = raw.savedAt;
     else if (typeof raw.savedAt === 'string' && raw.savedAt) savedAt = Date.parse(raw.savedAt);
     if (!id || !name || !Number.isFinite(savedAt)) return null;
-    const tabs = snapshotWorksetTabs(Array.isArray(raw.tabs) ? raw.tabs : []).slice(0, 50);
+    const tabs = snapshotWorksetTabs(Array.isArray(raw.tabs) ? raw.tabs : []).slice(0, WORKSET_TAB_CAP);
     if (!tabs.length) return null;
     return { id: id, name: name, savedAt: savedAt, tabs: tabs };
   }
