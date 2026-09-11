@@ -22,22 +22,20 @@
 :root,
 html[data-sky="day"] {
   color-scheme: light;
-  --sky-top: #4a6a88;
-  --sky-mid: #87a0b4;
-  --sky-low: #cfdce6;
+  --sky-top: #61839f;
+  --sky-mid: #9fb4c4;
+  --sky-low: #e2ebf0;
   --sky-veil:
-    radial-gradient(92% 62% at 96% -12%, rgba(28, 52, 82, 0.34) 0%, transparent 58%),
-    radial-gradient(42% 32% at 16% 10%, rgba(198, 214, 226, 0.28) 0%, transparent 64%),
-    radial-gradient(70% 46% at 52% -18%, rgba(255, 252, 246, 0.26) 0%, transparent 54%),
-    linear-gradient(180deg, rgba(48, 76, 108, 0.12) 0%, transparent 30%, rgba(226, 236, 242, 0.2) 100%);
+    radial-gradient(92% 62% at 96% -12%, rgba(32, 56, 86, 0.3) 0%, transparent 58%),
+    radial-gradient(42% 32% at 16% 10%, rgba(198, 214, 226, 0.3) 0%, transparent 64%),
+    radial-gradient(70% 46% at 52% -18%, rgba(255, 252, 246, 0.28) 0%, transparent 54%),
+    linear-gradient(180deg, rgba(56, 84, 116, 0.1) 0%, transparent 30%, rgba(236, 242, 246, 0.2) 100%);
   --sky-wash:
-    radial-gradient(58% 40% at 72% 28%, rgba(255, 255, 255, 0.22) 0%, transparent 70%),
-    radial-gradient(46% 30% at 40% 50%, rgba(168, 196, 214, 0.16) 0%, transparent 66%),
-    radial-gradient(36% 28% at 18% 18%, rgba(255, 244, 228, 0.2) 0%, transparent 68%);
+    radial-gradient(58% 40% at 72% 28%, rgba(255, 255, 255, 0.26) 0%, transparent 70%),
+    radial-gradient(46% 30% at 40% 50%, rgba(176, 200, 216, 0.16) 0%, transparent 66%);
   --sky-planes:
-    linear-gradient(112deg, transparent 44%, rgba(255, 255, 255, 0.16) 51%, rgba(255, 255, 255, 0.05) 64%, transparent 74%),
-    linear-gradient(158deg, transparent 58%, rgba(82, 112, 142, 0.14) 70%, rgba(82, 112, 142, 0.05) 84%, transparent 92%),
-    linear-gradient(18deg, transparent 62%, rgba(255, 255, 255, 0.08) 78%, transparent 92%);
+    linear-gradient(112deg, transparent 46%, rgba(255, 255, 255, 0.14) 52%, rgba(255, 255, 255, 0.05) 66%, transparent 74%),
+    linear-gradient(158deg, transparent 62%, rgba(88, 116, 144, 0.13) 70%, rgba(88, 116, 144, 0.05) 82%, transparent 90%);
   --ink: #182234;
   --ink-2: #4a5568;
   --ink-3: #6c7689;
@@ -56,12 +54,11 @@ html[data-sky="day"] {
   --glass: rgba(253, 252, 249, 0.86);
   --glass-edge: rgba(22, 34, 52, 0.055);
   --glass-hi: rgba(255, 255, 255, 0.95);
-  --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.4) 0%, transparent 44%);
-  --glass-recess: rgba(253, 252, 249, 0.56);
-  --resume-edge: rgba(35, 95, 125, 0.22);
-  --resume-glow:
-    0 14px 40px -16px rgba(18, 40, 64, 0.38),
-    0 0 0 1px rgba(255, 255, 255, 0.45);
+  --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.36) 0%, transparent 42%);
+  --glass-primary: rgba(255, 254, 252, 0.92);
+  --glass-secondary: rgba(253, 252, 249, 0.7);
+  --resume-edge: rgba(35, 95, 125, 0.12);
+  --resume-glow: 0 10px 32px -18px rgba(18, 40, 64, 0.22);
   --struct: rgba(255, 255, 255, 0.5);
   --struct-edge: rgba(22, 34, 52, 0.08);
   --hover-bg: rgba(255, 255, 255, 0.56);
@@ -77,19 +74,8 @@ html[data-sky="day"] {
   --toast-ink: #ffffff;
   --shadow-1: 0 1px 2px rgba(15, 30, 50, 0.05), 0 18px 40px -18px rgba(15, 30, 50, 0.22);
   --shadow-2: 0 2px 6px rgba(15, 30, 50, 0.08), 0 24px 60px -20px rgba(15, 30, 50, 0.4);
-  --glow: radial-gradient(86% 58% at 48% -20%, rgba(255, 248, 238, 0.38) 0%, rgba(255, 255, 255, 0.06) 44%, transparent 68%);
-  --mist: linear-gradient(180deg, transparent 60%, rgba(190, 210, 224, 0.1) 84%, rgba(206, 222, 232, 0.16) 100%);
-  --sky-motes:
-    radial-gradient(1px 1px at 14% 16%, rgba(255, 248, 236, 0.42), transparent),
-    radial-gradient(0.8px 0.8px at 27% 31%, rgba(255, 252, 246, 0.28), transparent),
-    radial-gradient(1.1px 1.1px at 41% 11%, rgba(255, 246, 230, 0.34), transparent),
-    radial-gradient(0.7px 0.7px at 58% 24%, rgba(255, 255, 255, 0.22), transparent),
-    radial-gradient(0.9px 0.9px at 73% 8%, rgba(255, 248, 236, 0.3), transparent),
-    radial-gradient(0.8px 0.8px at 86% 22%, rgba(255, 252, 246, 0.2), transparent),
-    radial-gradient(1px 1px at 19% 48%, rgba(255, 246, 230, 0.18), transparent),
-    radial-gradient(0.7px 0.7px at 63% 42%, rgba(255, 255, 255, 0.16), transparent);
-  --sky-motes-opacity: 0.42;
-  --sky-motes-blend: soft-light;
+  --glow: radial-gradient(86% 58% at 48% -20%, rgba(255, 250, 244, 0.4) 0%, rgba(255, 255, 255, 0.07) 44%, transparent 68%);
+  --mist: linear-gradient(180deg, transparent 52%, rgba(214, 226, 236, 0.16) 80%, rgba(226, 236, 242, 0.28) 100%);
   --sky-stars: none;
   --sky-ring: none;
 }
@@ -97,18 +83,18 @@ html[data-sky="day"] {
 html[data-sky="night"] {
   color-scheme: dark;
   --sky-top: #01030c;
-  --sky-mid: #071122;
-  --sky-low: #1a2b4c;
+  --sky-mid: #071020;
+  --sky-low: #162640;
   --sky-veil:
-    radial-gradient(88% 56% at 92% -10%, rgba(0, 1, 10, 0.72) 0%, transparent 60%),
-    linear-gradient(180deg, rgba(1, 4, 16, 0.56) 0%, transparent 36%, rgba(40, 58, 122, 0.3) 100%);
+    radial-gradient(88% 56% at 92% -10%, rgba(0, 1, 10, 0.7) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(1, 4, 16, 0.54) 0%, transparent 36%, rgba(36, 52, 110, 0.28) 100%);
   --sky-wash:
-    radial-gradient(68% 34% at 70% 16%, rgba(86, 128, 210, 0.24) 0%, transparent 70%),
-    radial-gradient(46% 26% at 38% 32%, rgba(88, 72, 168, 0.14) 0%, transparent 68%),
-    radial-gradient(52% 22% at 82% 40%, rgba(56, 120, 168, 0.12) 0%, transparent 72%);
+    radial-gradient(68% 34% at 70% 16%, rgba(86, 128, 210, 0.18) 0%, transparent 70%),
+    radial-gradient(46% 26% at 38% 32%, rgba(88, 72, 168, 0.1) 0%, transparent 68%),
+    radial-gradient(52% 22% at 82% 40%, rgba(56, 120, 168, 0.08) 0%, transparent 72%);
   --sky-planes:
-    linear-gradient(118deg, transparent 16%, rgba(78, 118, 196, 0.2) 34%, rgba(72, 64, 150, 0.08) 48%, transparent 62%),
-    linear-gradient(154deg, transparent 48%, rgba(56, 120, 168, 0.12) 66%, transparent 84%);
+    linear-gradient(118deg, transparent 16%, rgba(78, 118, 196, 0.14) 34%, rgba(72, 64, 150, 0.06) 48%, transparent 62%),
+    linear-gradient(154deg, transparent 50%, rgba(56, 120, 168, 0.08) 66%, transparent 82%);
   --sky-stars:
     radial-gradient(1.1px 1.1px at 38% 9%, rgba(236, 242, 252, 0.46), transparent),
     radial-gradient(0.9px 0.9px at 47% 16%, rgba(236, 242, 252, 0.28), transparent),
@@ -144,12 +130,11 @@ html[data-sky="night"] {
   --glass: rgba(22, 31, 48, 0.66);
   --glass-edge: rgba(255, 255, 255, 0.08);
   --glass-hi: rgba(255, 255, 255, 0.08);
-  --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.1) 0%, transparent 42%);
-  --glass-recess: rgba(22, 31, 48, 0.42);
-  --resume-edge: rgba(150, 204, 236, 0.28);
-  --resume-glow:
-    0 18px 52px -16px rgba(0, 0, 0, 0.62),
-    0 0 40px -10px rgba(86, 140, 210, 0.22);
+  --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.08) 0%, transparent 40%);
+  --glass-primary: rgba(28, 38, 58, 0.74);
+  --glass-secondary: rgba(22, 31, 48, 0.5);
+  --resume-edge: rgba(140, 198, 234, 0.14);
+  --resume-glow: 0 14px 40px -18px rgba(0, 0, 0, 0.5);
   --struct: rgba(8, 14, 26, 0.56);
   --struct-edge: rgba(255, 255, 255, 0.08);
   --hover-bg: rgba(255, 255, 255, 0.07);
@@ -166,18 +151,9 @@ html[data-sky="night"] {
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 36px -16px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 28px 70px -20px rgba(0, 0, 0, 0.7);
   --glow:
-    radial-gradient(70% 48% at 58% -18%, rgba(130, 158, 230, 0.2) 0%, transparent 64%),
-    radial-gradient(42% 30% at 18% 92%, rgba(56, 82, 168, 0.18) 0%, transparent 72%);
-  --mist: linear-gradient(180deg, transparent 42%, rgba(24, 38, 88, 0.32) 76%, rgba(32, 50, 118, 0.46) 100%);
-  --sky-motes:
-    radial-gradient(1px 1px at 18% 12%, rgba(226, 234, 248, 0.34), transparent),
-    radial-gradient(0.8px 0.8px at 34% 28%, rgba(210, 220, 240, 0.2), transparent),
-    radial-gradient(1.1px 1.1px at 62% 9%, rgba(236, 242, 252, 0.28), transparent),
-    radial-gradient(0.7px 0.7px at 78% 21%, rgba(210, 220, 240, 0.16), transparent),
-    radial-gradient(0.9px 0.9px at 88% 36%, rgba(226, 234, 248, 0.18), transparent),
-    radial-gradient(0.8px 0.8px at 46% 40%, rgba(200, 214, 236, 0.12), transparent);
-  --sky-motes-opacity: 0.34;
-  --sky-motes-blend: screen;
+    radial-gradient(70% 48% at 58% -18%, rgba(130, 158, 230, 0.14) 0%, transparent 64%),
+    radial-gradient(42% 30% at 18% 92%, rgba(56, 82, 168, 0.12) 0%, transparent 72%);
+  --mist: linear-gradient(180deg, transparent 42%, rgba(24, 38, 88, 0.34) 76%, rgba(30, 46, 108, 0.44) 100%);
   --sky-ring:
     radial-gradient(ellipse 56% 11% at 86% 7%,
       transparent 68%,
@@ -201,8 +177,8 @@ body {
    (perspective + translateZ) on top: day air + cumulus, night star depths
    + silver band + horizon airglow. W9 deepens that same stage toward
    moodboard SoT (MB-① / MB-③; MB-② night vibe): farther --z, thicker
-   fog, quieter glass. Visual C keeps that lineage — cinematic air / motes /
-   glass hierarchy — still CSS + SVG only. No new render stack. */
+   fog, quieter glass. Visual C is one notch of token depth + primary /
+   secondary glass. No new render stack. No scan noise over 下一件事. */
 .sky,
 .sky * {
   pointer-events: none;
@@ -236,46 +212,11 @@ body {
   background: var(--sky-planes);
 }
 .glow { z-index: 1; background: var(--sky-stars), var(--glow); }
-.glow::after {
-  content: "";
-  position: absolute; inset: 0;
-  background-image: var(--sky-motes);
-  background-size: 720px 540px;
-  opacity: var(--sky-motes-opacity, 0.3);
-  mix-blend-mode: var(--sky-motes-blend, soft-light);
-  -webkit-mask-image:
-    radial-gradient(46% 38% at 16% 10%, #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 78%),
-    linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, 0.35) 68%, transparent 92%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    radial-gradient(46% 38% at 16% 10%, #000 0%, rgba(0, 0, 0, 0.45) 46%, transparent 78%),
-    linear-gradient(180deg, #000 0%, #000 42%, rgba(0, 0, 0, 0.35) 68%, transparent 92%);
-  mask-composite: intersect;
-}
 .mist { z-index: 3; background: var(--mist); }
-.mist::after {
-  content: "";
-  position: absolute; left: -12%; right: -12%; bottom: -10%; height: 44%;
-  background:
-    radial-gradient(ellipse 78% 58% at 50% 100%, rgba(36, 64, 96, 0.1) 0%, transparent 72%);
-  filter: blur(16px);
-}
-html[data-sky="night"] .mist::after {
-  background:
-    radial-gradient(ellipse 78% 58% at 50% 100%, rgba(48, 72, 140, 0.22) 0%, transparent 72%);
-}
 .grain {
-  z-index: 4; opacity: 0.06; mix-blend-mode: overlay;
+  z-index: 4; opacity: 0.05; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   background-size: 160px 160px;
-}
-.grain::after {
-  content: "";
-  position: absolute; inset: 0;
-  opacity: 0.4;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><filter id='n2'><feTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n2)'/></svg>");
-  background-size: 80px 80px;
 }
 .sky svg.defs { position: absolute; width: 0; height: 0; }
 
@@ -293,61 +234,16 @@ html[data-sky="night"] .sky .day { opacity: 0; visibility: hidden; }
 html[data-sky="day"] .sky .day,
 html[data-sky="night"] .sky .night { visibility: visible; }
 
-/* Abstract horizon shelves (MB-③ geometry). Not a ring, grid, or skyline. */
-.sky .day::after,
-.sky .night::after {
-  content: "";
-  position: absolute;
-  left: -8%; right: -8%; bottom: 4%;
-  height: 34%;
-  pointer-events: none;
-  background-repeat: no-repeat;
-  background-position: 50% 100%;
-  background-size: 118% 100%;
-  transform: translate3d(0, 0, -720px);
-  opacity: 0.38;
-}
-.sky .day::after {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'><ellipse cx='600' cy='250' rx='520' ry='42' fill='none' stroke='rgb(255,255,255)' stroke-opacity='0.3' stroke-width='1.2'/><ellipse cx='600' cy='198' rx='360' ry='24' fill='none' stroke='rgb(118,148,176)' stroke-opacity='0.22' stroke-width='1'/></svg>");
-}
-.sky .night::after {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'><ellipse cx='600' cy='250' rx='520' ry='42' fill='none' stroke='rgb(168,190,230)' stroke-opacity='0.2' stroke-width='1.2'/><ellipse cx='600' cy='198' rx='360' ry='24' fill='none' stroke='rgb(120,150,210)' stroke-opacity='0.12' stroke-width='1'/></svg>");
-}
-
 /* Day: single off-canvas light (top-left), zenith opposite, horizon haze.
    Mid-depth fog slab: far clouds sit behind it, near clouds stay clear. */
 .air {
   position: absolute; inset: 0;
   transform: translate3d(0, 0, -140px);
-  transform-style: preserve-3d;
   background:
     radial-gradient(72% 64% at 6% -10%, rgba(255, 246, 232, 0.82) 0%, rgba(255, 246, 232, 0.34) 36%, transparent 64%),
-    radial-gradient(64% 46% at 104% 6%, rgba(30, 62, 100, 0.4), transparent 70%),
-    linear-gradient(180deg, transparent 60%, rgba(232, 242, 248, 0.14) 86%, rgba(220, 232, 240, 0.24) 100%),
-    linear-gradient(180deg, transparent 34%, rgba(186, 206, 220, 0.12) 58%, rgba(168, 192, 210, 0.2) 100%);
-}
-.air::before,
-.air::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-.air::before {
-  inset: -18% 8% 28% -18%;
-  transform: translate3d(0, 0, 48px) rotate(16deg);
-  background: linear-gradient(108deg,
-    transparent 34%,
-    rgba(255, 246, 232, 0.2) 46%,
-    rgba(255, 250, 240, 0.1) 54%,
-    transparent 70%);
-  filter: blur(22px);
-  opacity: 0.78;
-}
-.air::after {
-  inset: 38% -8% -6%;
-  transform: translate3d(0, 0, -420px);
-  background: linear-gradient(180deg, transparent 0%, rgba(176, 198, 216, 0.14) 42%, rgba(198, 214, 226, 0.2) 100%);
-  filter: blur(10px);
+    radial-gradient(64% 46% at 104% 6%, rgba(30, 62, 100, 0.38), transparent 70%),
+    linear-gradient(180deg, transparent 52%, rgba(255, 252, 247, 0.3) 82%, rgba(255, 250, 243, 0.58) 100%),
+    linear-gradient(180deg, transparent 28%, rgba(226, 234, 240, 0.18) 52%, rgba(204, 218, 230, 0.36) 100%);
 }
 
 /* Day: cumulus = shade + flat dark base + lit spheres; fluff filter frays edges. */
@@ -396,7 +292,7 @@ html[data-sky="night"] .sky .night { visibility: visible; }
 .cloud.m1 .p2    { left: 26%; top: -22%; width: 36%; height: 128%; }
 .cloud.m1 .p3    { left: 60%; top: 6%; width: 28%; height: 98%; }
 
-.cloud.f1 { top: 104%; left: 67%; width: 23vw; height: 7vw; --z: -980px; --cd: 380s; --dx: -2vw; opacity: 0.62;
+.cloud.f1 { top: 104%; left: 67%; width: 23vw; height: 7vw; --z: -920px; --cd: 380s; --dx: -2vw; opacity: 0.64;
   filter: url(#fluff) blur(0.7px);
   --c0: #eef3f6; --c1: #dce5ec; --c2: #c9d5de; --c3: #b4c4d0; --c4: rgba(180, 196, 208, 0.36); --sd: rgba(140, 164, 184, 0.24); --sh: rgba(120, 146, 170, 0.2); }
 .cloud.f1 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
@@ -405,7 +301,7 @@ html[data-sky="night"] .sky .night { visibility: visible; }
 .cloud.f1 .p2    { left: 32%; top: -16%; width: 34%; height: 118%; }
 .cloud.f1 .p3    { left: 62%; top: 16%; width: 28%; height: 88%; }
 
-.cloud.f2 { top: 138%; left: 31%; width: 42vw; height: 10.6vw; --z: -1880px; --cd: 460s; --dx: 2vw; opacity: 0.48;
+.cloud.f2 { top: 138%; left: 31%; width: 42vw; height: 10.6vw; --z: -1800px; --cd: 460s; --dx: 2vw; opacity: 0.52;
   filter: url(#fluff) blur(1.5px);
   --c0: #e4ebf0; --c1: #d0dae2; --c2: #becad3; --c3: #a9b8c4; --c4: rgba(176, 190, 202, 0.32); --sd: rgba(150, 172, 190, 0.2); --sh: rgba(128, 152, 174, 0.16); }
 .cloud.f2 .shade { left: 10%; top: 60%; width: 80%; height: 60%; }
@@ -419,17 +315,17 @@ html[data-sky="night"] .sky .night { visibility: visible; }
   position: absolute; left: -12%; top: -8%; width: 124%; height: 58%;
   transform: translate3d(0, 0, -520px) rotate(-19deg);
   background:
-    radial-gradient(54% 34% at 52% 50%, rgba(110, 140, 210, 0.2), transparent 70%),
-    radial-gradient(38% 12% at 56% 50%, rgba(150, 170, 230, 0.13), transparent 70%),
-    radial-gradient(30% 22% at 66% 44%, rgba(160, 150, 210, 0.09), transparent 70%);
+    radial-gradient(54% 34% at 52% 50%, rgba(110, 140, 210, 0.15), transparent 70%),
+    radial-gradient(38% 12% at 56% 50%, rgba(150, 170, 230, 0.09), transparent 70%),
+    radial-gradient(30% 22% at 66% 44%, rgba(160, 150, 210, 0.06), transparent 70%);
   filter: blur(32px);
 }
 .airglow {
   position: absolute; inset: 0;
   transform: translate3d(0, 0, -220px);
   background:
-    radial-gradient(76% 42% at 50% 106%, rgba(56, 82, 148, 0.62) 0%, rgba(36, 52, 110, 0.3) 46%, transparent 74%),
-    radial-gradient(40% 30% at 12% 108%, rgba(80, 108, 168, 0.22), transparent 70%);
+    radial-gradient(76% 42% at 50% 106%, rgba(56, 82, 148, 0.54) 0%, rgba(36, 52, 110, 0.26) 46%, transparent 74%),
+    radial-gradient(40% 30% at 12% 108%, rgba(80, 108, 168, 0.16), transparent 70%);
 }
 .stars {
   position: absolute;
@@ -444,7 +340,7 @@ html[data-sky="night"] .sky .night { visibility: visible; }
   mask-composite: intersect;
 }
 .stars.far {
-  inset: -26%; --z: -980px; --cd: 420s; --dx: 1.2vw;
+  inset: -26%; --z: -880px; --cd: 420s; --dx: 1.2vw;
   background-image:
     radial-gradient(0.9px 0.9px at 41px 63px,   rgba(235, 240, 248, 0.62) 50%, transparent 100%),
     radial-gradient(0.7px 0.7px at 173px 141px, rgba(235, 240, 248, 0.42) 50%, transparent 100%),
@@ -486,12 +382,6 @@ html[data-sky-motion="calm"] .cloud,
 html[data-sky-motion="calm"] .stars {
   animation: sky-drift var(--cd, 200s) ease-in-out infinite alternate;
 }
-html[data-sky-motion="calm"] .air::before {
-  animation: sky-shaft 200s ease-in-out infinite alternate;
-}
-html[data-sky-motion="calm"] .glow::after {
-  animation: sky-motes 280s ease-in-out infinite alternate;
-}
 
 @keyframes sky-calm {
   from { transform: translate3d(0, 0, 0) scale(1); }
@@ -505,29 +395,16 @@ html[data-sky-motion="calm"] .glow::after {
   from { transform: translate3d(0, 0, var(--z, 0px)); }
   to { transform: translate3d(var(--dx, 2vw), 0, var(--z, 0px)); }
 }
-@keyframes sky-shaft {
-  from { opacity: 0.58; }
-  to { opacity: 0.92; }
-}
-@keyframes sky-motes {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(1.4%, -0.7%, 0); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .sky::before,
   .sky::after,
   .glow,
-  .glow::after,
   .mist,
-  .mist::after,
   .cloud,
   .stars,
   .airglow,
-  .air::before,
-  .air::after,
-  .grain,
-  .grain::after {
+  .grain {
     animation: none !important;
   }
   .sky::before,
@@ -537,5 +414,4 @@ html[data-sky-motion="calm"] .glow::after {
     transform: none;
     opacity: 1;
   }
-  .air::before { opacity: 0.78; }
 }

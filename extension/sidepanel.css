@@ -110,7 +110,7 @@ body.sidepanel {
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: var(--well);
+  background: var(--glass-secondary);
   color: var(--ink-2);
 }
 
@@ -141,7 +141,7 @@ body.sidepanel {
 }
 .msg.assistant .bubble,
 .msg.bot .bubble {
-  background: var(--well);
+  background: var(--glass-secondary);
   border-bottom-left-radius: 5px;
 }
 .msg.error .bubble { color: var(--ink-2); }

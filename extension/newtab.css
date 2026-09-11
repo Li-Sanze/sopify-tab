@@ -123,7 +123,7 @@ svg.i.sm { width: 14px; height: 14px; }
   position: relative;
   display: flex; flex-direction: column; gap: 10px;
   margin-bottom: 20px; padding: 20px 22px 22px;
-  background: var(--glass-sheen), var(--glass); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
+  background: var(--glass-sheen), var(--glass-primary); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
   box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-2), var(--resume-glow);
   backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
 }
@@ -150,7 +150,7 @@ svg.i.sm { width: 14px; height: 14px; }
 
 .deskgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .deskgrid > .card {
-  background: var(--glass-sheen), var(--glass-recess);
+  background: var(--glass-sheen), var(--glass-secondary);
 }
 .card.c-workset { grid-column: 1 / -1; }
 .card.c-sites .tiles { gap: 8px; }
