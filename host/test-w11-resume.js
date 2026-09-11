@@ -42,8 +42,12 @@ assert.ok(html.includes('id="open-chat"') && html.includes('hidden'), 'chat stay
 assert.ok(js.includes("const DESK_KEYS = ['sites', 'todos', 'notes', 'name']"));
 assert.ok(js.includes('const WORKSET_CAP = 5'));
 assert.ok(js.includes('function pickResume'));
-assert.ok(js.includes("kind: 'todo'") && js.includes("kind: 'tab'") && js.includes("kind: 'note'"));
+assert.ok(js.includes("kind: 'todo'") && js.includes("kind: 'empty'"));
+assert.ok(!/kind:\s*'tab'/.test(js) && !/kind:\s*'note'/.test(js), 'resume has no tab/note fallback kinds');
+assert.ok(!/接着写/.test(js) && !/action:\s*'打开'/.test(js), 'resume no longer opens a tab or note');
 assert.ok(js.includes("title: '还没有下一件事'"));
+assert.ok(js.includes("action: '写一条'"));
+assert.ok(js.includes("$('#todo-input')"), 'empty resume focuses the todo field');
 assert.ok(js.includes('chrome.tabs.update'));
 assert.ok(!/permissions\.request/.test(js) || /permissions\.request\(\s*\{\s*permissions:\s*\['nativeMessaging'\]\s*\}/.test(js),
   'no new optional permissions on the desk path');
@@ -68,6 +72,7 @@ assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
 assert.ok(/\.resume\s*\{/.test(css), 'resume strip is styled');
 assert.ok(/\.card\.c-workset\s*\{\s*grid-column:\s*1\s*\/\s*-1/.test(css), 'workset is secondary full-row');
 assert.ok(!/\.card\.dock\s*\{\s*grid-column/.test(css), 'dock full-width rule is gone');
+assert.ok(/\.resume-title[\s\S]*-webkit-line-clamp:\s*2/.test(css), 'resume title clamps to 2 lines');
 assert.ok(/\.notes-preview/.test(css) && /text-overflow:\s*ellipsis/.test(css), 'notes preview is one line');
 assert.ok(/@container desk \(max-width: 1019px\)/.test(css));
 assert.ok(/@container desk \(max-width: 619px\)/.test(css));
@@ -97,16 +102,16 @@ const extra = [
   { id: 14, title: 'Sixth', url: 'https://sixth.example.com' },
 ];
 
-assert.deepStrictEqual(helpers.pickResume([done, todo], extra, '便签一行'), {
+assert.deepStrictEqual(helpers.pickResume([done, todo]), {
   kind: 'todo', title: '写完书桌锚', meta: '待办', action: '完成', todoId: 'a',
 });
-assert.strictEqual(helpers.pickResume([], extra, '便签一行').kind, 'tab');
-assert.strictEqual(helpers.pickResume([], extra, '便签一行').action, '打开');
-assert.strictEqual(helpers.pickResume([], extra, '便签一行').tabId, 9);
-assert.deepStrictEqual(helpers.pickResume([], [], '  \n接着改 PR\n'), {
-  kind: 'note', title: '接着改 PR', meta: '便签', action: '接着写',
+assert.deepStrictEqual(helpers.pickResume([done], extra, '便签一行'), {
+  kind: 'empty', title: '还没有下一件事', meta: '', action: '写一条',
+}, 'tabs and notes must not fill an empty resume');
+assert.deepStrictEqual(helpers.pickResume([]), {
+  kind: 'empty', title: '还没有下一件事', meta: '', action: '写一条',
 });
-assert.deepStrictEqual(helpers.pickResume([], [], ''), {
+assert.deepStrictEqual(helpers.pickResume([{ id: 'z', text: '   ', done: false }]), {
   kind: 'empty', title: '还没有下一件事', meta: '', action: '写一条',
 });
 

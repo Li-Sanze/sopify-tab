@@ -137,7 +137,7 @@
     return (list || []).filter((t) => isDeskSummaryUrl(t.url || ''));
   }
 
-  function pickResume(todos, tabs, notes) {
+  function pickResume(todos) {
     const todo = (todos || []).find((t) => t && !t.done && String(t.text || '').trim());
     if (todo) {
       return {
@@ -146,27 +146,6 @@
         meta: '待办',
         action: '完成',
         todoId: todo.id,
-      };
-    }
-    const pages = worksetTabs(tabs);
-    if (pages.length) {
-      const t = pages[0];
-      const title = String(t.title || '').trim() || urlLine(t.url || '') || t.url || '未命名标签';
-      return {
-        kind: 'tab',
-        title,
-        meta: domainOf(t.url || ''),
-        action: '打开',
-        tabId: t.id,
-      };
-    }
-    const line = noteOneLiner(notes);
-    if (line) {
-      return {
-        kind: 'note',
-        title: line,
-        meta: '便签',
-        action: '接着写',
       };
     }
     return {
@@ -327,7 +306,7 @@
   }
 
   function renderResume() {
-    const next = pickResume(state.todos, state.tabs, state.notes);
+    const next = pickResume(state.todos);
     const root = $('#resume');
     const title = $('#resume-title');
     const meta = $('#resume-meta');
@@ -335,13 +314,12 @@
     if (!root || !title || !meta || !act) return;
     root.classList.toggle('is-empty', next.kind === 'empty');
     title.textContent = next.title;
+    title.title = next.kind === 'todo' ? next.title : '';
     meta.textContent = next.meta;
     act.textContent = next.action;
     act.dataset.kind = next.kind;
     if (next.todoId) act.dataset.todoId = next.todoId;
     else delete act.dataset.todoId;
-    if (next.tabId != null) act.dataset.tabId = String(next.tabId);
-    else delete act.dataset.tabId;
   }
 
   function faviconOf(tabs) {
@@ -717,14 +695,6 @@
       item.done = true;
       renderTodos();
       saveDesk({ todos: state.todos });
-      return;
-    }
-    if (kind === 'tab' && act.dataset.tabId) {
-      activateTab(act.dataset.tabId);
-      return;
-    }
-    if (kind === 'note') {
-      openNotesEditor();
       return;
     }
     const input = $('#todo-input');

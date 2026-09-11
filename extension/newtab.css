@@ -134,6 +134,8 @@ svg.i.sm { width: 14px; height: 14px; }
 .resume-title {
   margin: 0; font-size: clamp(20px, 2.4cqi, 28px); font-weight: 600; letter-spacing: -0.02em;
   line-height: 1.25; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  line-clamp: 2; overflow: hidden;
 }
 .resume-meta { margin: 6px 0 0; font-size: 13px; color: var(--ink-3); }
 .resume-row .btn { flex: none; min-width: 5.5em; }
