@@ -303,12 +303,21 @@ export class DeskScene {
     this.requestRender();
   }
 
+  _setLoop(state) {
+    if (this.canvas) this.canvas.dataset.desk3dLoop = state;
+    const mount = this.canvas && this.canvas.closest('#desk-3d-mount');
+    if (mount) mount.dataset.desk3dLoop = state;
+  }
+
   requestRender() {
     if (!this.enabled || !this.webglOk || this._disposed) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     this._needsFrame = true;
     this._bumpIdle();
-    if (!this._raf) this._raf = requestAnimationFrame(() => this._frame());
+    if (!this._raf) {
+      this._setLoop('live');
+      this._raf = requestAnimationFrame(() => this._frame());
+    }
   }
 
   _bumpIdle() {
@@ -324,13 +333,21 @@ export class DeskScene {
       cancelAnimationFrame(this._raf);
       this._raf = 0;
     }
+    this._setLoop('idle');
   }
 
   _frame() {
     this._raf = 0;
-    if (!this._needsFrame || !this.renderer || !this.scene || !this.camera) return;
-    if (!this.enabled || document.visibilityState === 'hidden') return;
+    if (!this._needsFrame || !this.renderer || !this.scene || !this.camera) {
+      this._setLoop('idle');
+      return;
+    }
+    if (!this.enabled || document.visibilityState === 'hidden') {
+      this._setLoop('idle');
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
+    this._setLoop('idle');
   }
 
   _eventToNDC(e) {

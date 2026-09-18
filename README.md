@@ -10,6 +10,8 @@
 
 ## 快速开始
 
+日常机可以这样装：
+
 ```text
 1. chrome://extensions
 2. 打开「开发者模式」
@@ -17,7 +19,24 @@
 4. 打开新标签页
 ```
 
-稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。权限见「隐私」。
+**干净配置（Rick 手测 / 验收）**：不要用日常 Chrome。新建空用户目录，只装这一份扩展：
+
+```text
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
+
+# Linux
+google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
+
+# Windows
+"%ProgramFiles%\Google\Chrome\Application\chrome.exe" ^
+  --user-data-dir="%USERPROFILE%\sopify-tab-clean-profile" --no-first-run
+```
+
+然后在该窗口：`chrome://extensions` → 开发者模式 → 加载已解压的扩展程序 → 本仓库 `extension/`（绝对路径）。关掉这个配置里其它新标签页扩展。打开**新标签页**（不要沿用旧 NTP）。
+
+稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。权限见「隐私」。本 PR 只开 Draft，不合并；Rick 督手测，专项独立审计，Sanze 确认后才能合。
 
 ## 书桌
 

@@ -53,6 +53,7 @@ assert.ok(scene.includes('shadowMap.enabled = false'));
 assert.ok(!/window\.addEventListener/.test(scene));
 assert.ok(scene.includes('ResizeObserver'));
 assert.ok(scene.includes('requestAnimationFrame'));
+assert.ok(scene.includes('_setLoop') && scene.includes('desk3dLoop'));
 assert.ok(!/chrome\.(storage|tabs)/.test(scene));
 
 const embed = read('extension/desk-3d/embed.js');
