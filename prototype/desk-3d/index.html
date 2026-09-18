@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sopify Desk 3D — 参考原型</title>
+  <link rel="stylesheet" href="../../extension/desk-3d/desk-3d.css" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#next-thing">跳到下一件事</a>
+
+  <div id="app">
+    <header class="topbar" role="banner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Sopify 工作桌</h1>
+          <p class="subtitle">固定视角微缩桌景 · 参考原型（主交付在 newtab）</p>
+        </div>
+      </div>
+    </header>
+
+    <section id="desk-3d-mount" class="desk-stage" aria-label="工作桌舞台"></section>
+
+    <section id="next-thing" class="next-thing" aria-labelledby="next-thing-title">
+      <div class="next-thing-head">
+        <h2 id="next-thing-title">下一件事</h2>
+        <span class="badge">始终可见 · 不经 3D</span>
+      </div>
+      <ul id="desk3d-todo-list" class="desk3d-todo-list"></ul>
+    </section>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

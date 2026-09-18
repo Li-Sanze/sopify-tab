@@ -1,0 +1,446 @@
+/* desk-3d stage — additive on the NTP. Tokens come from theme.css. */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:root {
+  --next-h: 148px;
+  --resume-bottom: 220px;
+  --desk3d-wood: #f4efe6;
+  --desk3d-wood-edge: #d9d0c2;
+  --desk3d-folder: #6b9bd1;
+  --desk3d-folder-2: #7aaf9a;
+  --desk3d-note-a: #fff3a3;
+  --desk3d-note-b: #ffd6e0;
+}
+
+.desk-stage {
+  --desk3d-ink: var(--ink);
+  --desk3d-muted: var(--ink-3);
+  position: relative;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px 14px;
+  border-radius: var(--r-xl);
+  background: var(--glass-sheen), var(--glass-secondary);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
+  backdrop-filter: blur(26px);
+  -webkit-backdrop-filter: blur(26px);
+}
+
+.desk-stage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.desk-stage-kicker {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.desk-stage-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.desk-stage-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.desk-stage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 196px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.desk3d-board {
+  position: relative;
+  min-height: 220px;
+  aspect-ratio: 16 / 9;
+  max-height: min(42vh, 420px);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--sky-mid) 80%, #dfe7ef) 0%, var(--desk3d-wood) 100%);
+  border: 1px solid var(--line);
+}
+
+.desk3d-view,
+.desk3d-fallback {
+  position: absolute;
+  inset: 0;
+}
+
+.desk3d-view {
+  z-index: 1;
+}
+
+#desk3d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.desk-stage[data-desk3d-mode="on"] .desk3d-fallback {
+  display: none !important;
+}
+
+.desk-stage[data-desk3d-mode="dom"] .desk3d-view {
+  visibility: hidden;
+}
+
+.desk3d-fallback {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
+.desk3d-fallback[hidden] {
+  display: none !important;
+}
+
+.desk3d-fallback-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--desk3d-muted);
+}
+
+.desk3d-fallback-surface {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-content: center;
+  padding: 16px;
+  background: var(--desk3d-wood);
+  border-radius: 10px;
+  border: 1px solid var(--desk3d-wood-edge);
+}
+
+.desk3d-chip {
+  border: 0;
+  border-radius: 8px;
+  padding: 14px 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.desk3d-chip.folder {
+  background: var(--desk3d-folder);
+  color: #fff;
+}
+
+.desk3d-chip.folder.research {
+  background: var(--desk3d-folder-2);
+}
+
+.desk3d-chip.note {
+  background: var(--desk3d-note-a);
+  color: #2a3340;
+}
+
+.desk3d-chip.note.n2 {
+  background: var(--desk3d-note-b);
+}
+
+.desk3d-banner {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff8e6;
+  border: 1px solid #e8d9a8;
+  font-size: 12.5px;
+  color: #6a5a2a;
+}
+
+.desk3d-banner[hidden] {
+  display: none !important;
+}
+
+.desk3d-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.desk3d-rail-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.desk3d-hint {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.desk3d-rail-btn {
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.desk3d-rail-btn:hover,
+.desk3d-rail-btn:focus-visible {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.desk3d-rail-btn.note {
+  background: color-mix(in srgb, var(--field-bg) 70%, #fff8d8);
+}
+
+.desk3d-panel {
+  border: none;
+  border-radius: var(--r-xl);
+  padding: 0;
+  max-width: min(420px, calc(100vw - 2rem));
+  width: 100%;
+  max-height: min(50vh, calc(100vh - var(--resume-bottom, var(--next-h)) - 24px));
+  background: var(--glass-sheen), var(--glass);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  margin: 0;
+  top: max(12px, calc(var(--resume-bottom, 180px) + 12px));
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+.desk3d-panel::backdrop {
+  background: rgba(42, 51, 64, 0.18);
+}
+
+.desk3d-panel-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  margin: 0;
+}
+
+.desk3d-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.desk3d-panel-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.desk3d-icon-close {
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-3);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.desk3d-icon-close:hover,
+.desk3d-icon-close:focus-visible {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.desk3d-panel-body {
+  padding: 14px;
+  overflow: auto;
+}
+
+.desk3d-demo-tag {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6a5a2a;
+  background: #fff8e6;
+  border: 1px solid #e8d9a8;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+#desk3d-workset-name {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.desk3d-page-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.desk3d-page-list li {
+  padding: 8px 10px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+  background: var(--field-bg);
+}
+
+.desk3d-page-list li:last-child {
+  border-bottom: none;
+}
+
+.desk3d-page-list .url {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.desk3d-primary {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--r-md);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.desk3d-status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ok);
+}
+
+.desk3d-status[hidden] {
+  display: none !important;
+}
+
+#desk3d-note-editor {
+  width: 100%;
+  resize: vertical;
+  min-height: 140px;
+  font: inherit;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: 10px;
+  background: var(--field-bg);
+  color: var(--ink);
+}
+
+#desk3d-note-editor:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.desk3d-save-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.desk3d-todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.desk3d-todo-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--field-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13.5px;
+}
+
+.desk3d-todo-list li.done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.desk3d-done-btn {
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ok);
+  cursor: pointer;
+}
+
+@container desk (max-width: 619px) {
+  .desk-stage-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk3d-board {
+    max-height: min(36vh, 320px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-stage,
+  .desk3d-chip,
+  .desk3d-rail-btn,
+  .desk3d-panel {
+    transition: none;
+  }
+}

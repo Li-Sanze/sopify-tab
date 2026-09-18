@@ -8,6 +8,7 @@
   <script src="sky.js"></script>
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="newtab.css">
+  <link rel="stylesheet" href="desk-3d/desk-3d.css">
   <script src="newtab.js" defer></script>
   <script src="desk-companion.js" defer></script>
 </head>
@@ -123,6 +124,8 @@
             <button type="button" class="btn" id="resume-act">写一条</button>
           </div>
         </section>
+
+        <section id="desk-3d-mount" class="desk-stage" aria-label="工作桌舞台"></section>
 
         <div class="deskgrid">
           <section class="card c-workset" aria-labelledby="h-tabs">
@@ -339,5 +342,6 @@
       <ellipse class="fog-body" cx="32" cy="32" rx="21" ry="15" fill="url(#desk-fog-grad)" filter="url(#desk-fog-blur)"/>
     </svg>
   </button>
+  <script type="module" src="desk-3d/boot.js"></script>
 </body>
 </html>

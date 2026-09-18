@@ -152,6 +152,13 @@ svg.i.sm { width: 14px; height: 14px; }
 .resume-row .btn { flex: none; min-width: 5.5em; }
 .resume.is-empty .resume-title { color: var(--ink-2); font-weight: 500; }
 
+#desk-3d-mount {
+  position: relative;
+  z-index: 8;
+  min-height: 220px;
+  margin-bottom: 20px;
+}
+
 .deskgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .deskgrid > .card {
   background: var(--glass-sheen), var(--glass-secondary);

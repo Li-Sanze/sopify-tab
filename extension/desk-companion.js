@@ -29,6 +29,7 @@
     '#cwd',
     '#notes',
     '#notes-preview',
+    '#desk-3d-mount',
     '.navbtn',
     '#open-chat',
     '[data-close-tab]',
