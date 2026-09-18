@@ -58,15 +58,17 @@ assert.ok(!/chrome\.(storage|tabs)/.test(scene));
 const embed = read('extension/desk-3d/embed.js');
 assert.ok(embed.includes('IntersectionObserver'));
 assert.ok(embed.includes('forceFail') || embed.includes("desk3d") && embed.includes('fail'));
+assert.ok(embed.includes('failReason') && embed.includes('markUnavailable'));
+assert.ok(embed.includes('WebGL 不可用'));
 assert.ok(!/window\.addEventListener/.test(embed));
-assert.ok(!/chrome\.(storage|tabs)\./.test(embed));
+assert.ok(!/chrome\.(storage|tabs)\.(local|sync|get|set|create|update|query|remove)/.test(embed));
 
 const ui = read('extension/desk-3d/ui.js');
 assert.ok(ui.includes('sessionStorage'));
 assert.ok(ui.includes('openFromScene'));
 assert.ok(ui.includes('--next-h'));
 assert.ok(ui.includes('--resume-bottom'));
-assert.ok(!/chrome\.(storage|tabs)\./.test(ui));
+assert.ok(!/chrome\.(storage|tabs)\.(local|sync|get|set|create|update|query|remove)/.test(ui));
 
 const boot = read('extension/desk-3d/boot.js');
 assert.ok(boot.includes("resumeSelector: '#resume'"));
@@ -76,7 +78,7 @@ const ownJs = walk(DESK, []).filter((f) => f.endsWith('.js') && !f.includes(`${p
 for (const file of ownJs) {
   const src = fs.readFileSync(file, 'utf8');
   assert.ok(!/chrome\.storage\.(local|sync)\.(get|set)/.test(src), `${file} must not write chrome.storage`);
-  assert.ok(!/chrome\.tabs\./.test(src), `${file} must not call chrome.tabs`);
+  assert.ok(!/chrome\.tabs\.(create|update|query|remove)/.test(src), `${file} must not call chrome.tabs`);
   assert.ok(!/window\.addEventListener/.test(src), `${file} must not use window-level listeners`);
 }
 

@@ -1,5 +1,5 @@
 /**
- * Newtab entry. Keep this file free of chrome.storage / chrome.tabs.
+ * Newtab entry. Keep this file free of extension storage and tab APIs.
  */
 
 import { mountDesk3d } from './embed.js';

@@ -84,9 +84,32 @@ export function mountDesk3d(mount, opts) {
   let inited = false;
   let visible = false;
   let want3d = readWant3d();
-  toggle.checked = want3d;
+  /** @type {string} */
+  let failReason = '';
+  toggle.checked = want3d && !failReason;
+
+  function markUnavailable(reason) {
+    failReason = reason;
+    want3d = false;
+    toggle.checked = false;
+    writeWant3d(false);
+    mount.dataset.desk3dMode = 'dom';
+    if (scene) {
+      scene.dispose();
+      scene = null;
+    }
+    inited = false;
+    ui.showFallback(reason);
+  }
 
   function applyMode() {
+    if (failReason) {
+      mount.dataset.desk3dMode = 'dom';
+      if (scene) scene.setEnabled(false);
+      ui.showFallback(failReason);
+      return;
+    }
+
     if (!want3d) {
       mount.dataset.desk3dMode = 'dom';
       if (scene) scene.setEnabled(false);
@@ -103,23 +126,19 @@ export function mountDesk3d(mount, opts) {
     }
 
     if (!inited) {
+      if (forceFail) {
+        markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+        return;
+      }
       const canvas = ensureCanvas(view);
       scene = new DeskScene(canvas, {
         reducedMotion,
         onPick: (id, kind) => ui.openFromScene(id, kind),
       });
-      const ok = !forceFail && scene.init();
+      const ok = scene.init();
       inited = true;
       if (!ok) {
-        want3d = false;
-        toggle.checked = false;
-        writeWant3d(false);
-        mount.dataset.desk3dMode = 'dom';
-        if (scene) {
-          scene.dispose();
-          scene = null;
-        }
-        ui.showFallback('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+        markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
         return;
       }
     }
@@ -135,8 +154,13 @@ export function mountDesk3d(mount, opts) {
   toggle.addEventListener('change', () => {
     want3d = toggle.checked;
     writeWant3d(want3d);
+    if (want3d) failReason = '';
     applyMode();
   });
+
+  if (forceFail) {
+    markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+  }
 
   const box = mount.getBoundingClientRect();
   const vh = window.innerHeight || document.documentElement.clientHeight || 0;

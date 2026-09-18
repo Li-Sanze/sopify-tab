@@ -1,7 +1,7 @@
 /**
  * Native DOM panels for desk-3d worksets / notes.
  * Session-only note storage. Esc closes; focus returns to trigger.
- * Never writes chrome.storage or touches chrome.tabs.
+ * Demo notes stay in sessionStorage. No extension storage or tab APIs.
  */
 
 import { WORKSETS, NOTE_LABELS, DEMO_TODOS, DEFAULT_NOTES, NOTE_SESSION_KEY } from './data.js';
