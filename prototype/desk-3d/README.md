@@ -21,10 +21,10 @@ python3 -m http.server 8765
 
 ## 如何验证
 
-1. **有 3D**：舞台显示微缩桌；单击文件夹 / 便签打开 DOM 面板。侧栏按钮走同一处理函数。
+1. **有 3D**（默认开）：舞台显示微缩桌。没有注入 host 时桌面是空的，只有一张空便签入口。
 2. **无 3D**：取消「有 3D」→ 静态 DOM 桌面，同一套入口。
 3. **下一件事**：底部始终可见；打开面板时不得盖住它（`--next-h` / `--resume-bottom`）。
 4. **停渲**：空闲停 RAF；无暂停按钮；无 window 级唤醒。`prefers-reduced-motion` 时减少抗锯齿与悬停抬起。
 5. **失败**：`?desk3d=fail` 应落到静态 DOM 并出横幅。
 
-本原型**没有**：自由漫游、真实标签恢复、`chrome.storage`、Host 改动。
+本原型**没有**：自由漫游、演示工作集种子、`sessionStorage` 假数据、真实标签恢复、`chrome.storage`、Host 改动。主路径的真实工作集 / 便签在 `extension/newtab.html`。

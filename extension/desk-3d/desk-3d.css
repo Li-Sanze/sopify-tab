@@ -162,8 +162,20 @@
   color: #fff;
 }
 
-.desk3d-chip.folder.research {
+.desk3d-chip.folder.tone-1 {
   background: var(--desk3d-folder-2);
+}
+
+.desk3d-chip.folder.tone-2 {
+  background: #c48a4a;
+}
+
+.desk3d-chip.folder.tone-3 {
+  background: #8a7cc4;
+}
+
+.desk3d-chip.folder.tone-4 {
+  background: #d46b6b;
 }
 
 .desk3d-chip.note {
@@ -171,8 +183,15 @@
   color: #2a3340;
 }
 
-.desk3d-chip.note.n2 {
-  background: var(--desk3d-note-b);
+.desk3d-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--desk3d-muted);
+  line-height: 1.45;
+}
+
+.desk3d-fallback-surface .desk3d-empty {
+  grid-column: 1 / -1;
 }
 
 .desk3d-banner {
@@ -302,14 +321,10 @@
   overflow: auto;
 }
 
-.desk3d-demo-tag {
-  margin: 0 0 10px;
-  font-size: 12px;
-  color: #6a5a2a;
-  background: #fff8e6;
-  border: 1px solid #e8d9a8;
-  border-radius: 8px;
-  padding: 6px 8px;
+#desk3d-rail-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 #desk3d-workset-name {

@@ -1,31 +1,12 @@
 /**
  * Embed desk-3d into a mount node (newtab stage or standalone prototype).
  * Lazy-inits WebGL only when 「有 3D」 is on and the stage is visible.
+ * Real desk data arrives only via callbacks from newtab.js.
  */
 
 import { DeskScene } from './scene.js';
 import { DeskUI } from './ui.js';
 import { stageInnerHTML, panelsInnerHTML } from './markup.js';
-import { TOGGLE_SESSION_KEY } from './data.js';
-
-function readWant3d() {
-  try {
-    const raw = sessionStorage.getItem(TOGGLE_SESSION_KEY);
-    if (raw === '0') return false;
-    if (raw === '1') return true;
-  } catch {
-    /* ignore */
-  }
-  return true;
-}
-
-function writeWant3d(on) {
-  try {
-    sessionStorage.setItem(TOGGLE_SESSION_KEY, on ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-}
 
 function ensureCanvas(view) {
   let canvas = view.querySelector('#desk3d-canvas');
@@ -62,19 +43,36 @@ function forceFailRequested(opts) {
 
 /**
  * @param {HTMLElement} mount
- * @param {{ resumeSelector?: string, forceFail?: boolean }} [opts]
+ * @param {{
+ *   resumeSelector?: string,
+ *   forceFail?: boolean,
+ *   defaultWant3d?: boolean,
+ *   getWorksets?: Function,
+ *   getNote?: Function,
+ *   saveNote?: Function,
+ *   restoreWorkset?: Function,
+ *   subscribe?: (fn: Function) => (Function|void),
+ * }} [opts]
  */
 export function mountDesk3d(mount, opts) {
   const options = opts || {};
   const resumeSelector = options.resumeSelector || '#resume';
   const reducedMotion = prefersReducedMotion();
   const forceFail = forceFailRequested(options);
+  const defaultWant3d = options.defaultWant3d !== false;
 
   mount.innerHTML = stageInnerHTML();
   mount.dataset.desk3dMode = 'dom';
   ensurePanels();
 
-  const ui = new DeskUI({ resumeSelector, root: mount });
+  const ui = new DeskUI({
+    resumeSelector,
+    root: mount,
+    getWorksets: options.getWorksets,
+    getNote: options.getNote,
+    saveNote: options.saveNote,
+    restoreWorkset: options.restoreWorkset,
+  });
   const toggle = mount.querySelector('#desk3d-toggle');
   const view = mount.querySelector('#desk3d-view');
   if (!toggle || !view) return { ui, scene: null };
@@ -83,16 +81,33 @@ export function mountDesk3d(mount, opts) {
   let scene = null;
   let inited = false;
   let visible = false;
-  let want3d = readWant3d();
+  let want3d = defaultWant3d;
   /** @type {string} */
   let failReason = '';
   toggle.checked = want3d && !failReason;
+
+  function catalogForScene() {
+    const data = ui.readCatalog();
+    return {
+      worksets: data.worksets.map((w) => ({ id: w.id, name: w.name })),
+      noteLabel: data.noteLabel,
+    };
+  }
+
+  function syncScene() {
+    const catalog = ui.syncFromHost();
+    if (scene) {
+      scene.setCatalog({
+        worksets: catalog.worksets.map((w) => ({ id: w.id, name: w.name })),
+        noteLabel: catalog.noteLabel,
+      });
+    }
+  }
 
   function markUnavailable(reason) {
     failReason = reason;
     want3d = false;
     toggle.checked = false;
-    writeWant3d(false);
     mount.dataset.desk3dMode = 'dom';
     if (scene) {
       scene.dispose();
@@ -134,6 +149,7 @@ export function mountDesk3d(mount, opts) {
       scene = new DeskScene(canvas, {
         reducedMotion,
         onPick: (id, kind) => ui.openFromScene(id, kind),
+        catalog: catalogForScene(),
       });
       const ok = scene.init();
       inited = true;
@@ -153,7 +169,6 @@ export function mountDesk3d(mount, opts) {
 
   toggle.addEventListener('change', () => {
     want3d = toggle.checked;
-    writeWant3d(want3d);
     if (want3d) failReason = '';
     applyMode();
   });
@@ -184,15 +199,21 @@ export function mountDesk3d(mount, opts) {
     applyMode();
   });
 
+  if (typeof options.subscribe === 'function') {
+    options.subscribe(() => { syncScene(); });
+  }
+
   console.info('[sopify-desk-3d] mounted', {
     want3d,
     reducedMotion,
     lazy: true,
+    dogfood: true,
   });
 
   return {
     ui,
     get scene() { return scene; },
     applyMode,
+    syncScene,
   };
 }

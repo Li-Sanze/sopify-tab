@@ -1,10 +1,14 @@
 /**
  * Standalone reference page. Primary product path is extension/newtab.html.
+ * No demo workset / note seed — honest empty unless a host injects data.
  */
 
 import { mountDesk3d } from '../../extension/desk-3d/embed.js';
 
 const mount = document.getElementById('desk-3d-mount');
 if (mount) {
-  mountDesk3d(mount, { resumeSelector: '#next-thing' });
+  mountDesk3d(mount, {
+    resumeSelector: '#next-thing',
+    defaultWant3d: true,
+  });
 }
