@@ -34,6 +34,8 @@
     codexAvailable: false,
   };
 
+  const desk3dSubs = [];
+
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
@@ -316,6 +318,7 @@
     state.worksets = worksets;
     renderSavedWorksets();
     if (hasStorage) await chrome.storage.local.set({ worksets });
+    notifyDesk3d();
   }
 
   async function loadCwd() {
@@ -841,6 +844,7 @@
     renderNotes();
     renderResume();
     tick();
+    notifyDesk3d();
   }
 
   async function refreshTabs() {
@@ -1127,6 +1131,7 @@
         if ('worksets' in changes) {
           state.worksets = normalizeWorksets(changes.worksets.newValue);
           renderSavedWorksets();
+          notifyDesk3d();
         }
         if (!DESK_KEYS.some((k) => k in changes)) return;
         applyDesk({
@@ -1197,6 +1202,7 @@
     renderUpstream();
     renderTheme();
     bind();
+    notifyDesk3d();
     tick();
     setInterval(tick, 1000);
     if (state.notes) $('#notes-saved').textContent = '已保存';
@@ -1208,5 +1214,53 @@
     await refreshTabs();
   }
 
+  function notifyDesk3d() {
+    for (let i = 0; i < desk3dSubs.length; i += 1) {
+      try { desk3dSubs[i](); } catch { /* ignore */ }
+    }
+  }
+
+  function cloneDesk3dWorksets() {
+    return (state.worksets || []).map((w) => ({
+      id: w.id,
+      name: w.name,
+      savedAt: w.savedAt,
+      tabs: (w.tabs || []).map((t) => ({ title: t.title, url: t.url })),
+    }));
+  }
+
+  function saveDeskNoteFrom3d(text) {
+    state.notes = typeof text === 'string' ? text : '';
+    const ta = $('#notes');
+    if (ta && ta !== document.activeElement) ta.value = state.notes;
+    renderNotes();
+    const saved = $('#notes-saved');
+    if (saved) saved.textContent = '保存中…';
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(() => {
+      saveDesk({ notes: state.notes }).then(() => {
+        if (saved) saved.textContent = '已保存';
+      });
+    }, 400);
+  }
+
+  const desk3dHost = {
+    defaultWant3d: true,
+    getWorksets: function () { return cloneDesk3dWorksets(); },
+    getNote: function () { return typeof state.notes === 'string' ? state.notes : ''; },
+    saveNote: function (text) { saveDeskNoteFrom3d(text); },
+    restoreWorkset: function (id) { return restoreWorksetById(id); },
+    subscribe: function (fn) {
+      if (typeof fn !== 'function') return function () {};
+      desk3dSubs.push(fn);
+      return function () {
+        const i = desk3dSubs.indexOf(fn);
+        if (i >= 0) desk3dSubs.splice(i, 1);
+      };
+    },
+  };
+  if (typeof window !== 'undefined') window.SopifyDesk3d = desk3dHost;
+
   boot();
 })();
+

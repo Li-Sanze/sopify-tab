@@ -5,6 +5,7 @@
  */
 
 import * as THREE from './vendor/three/three.module.js';
+import { FOLDER_COLORS, FOLDER_SLOTS, NOTE_ID, NOTE_SLOT } from './data.js';
 
 const IDLE_MS = 2500;
 const MAX_PIXEL_RATIO = 1.5;
@@ -14,12 +15,13 @@ const MAX_PIXEL_RATIO = 1.5;
 export class DeskScene {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ onPick: (id: string, kind: string) => void, reducedMotion: boolean }} opts
+   * @param {{ onPick: (id: string, kind: string) => void, reducedMotion: boolean, catalog?: object }} opts
    */
   constructor(canvas, opts) {
     this.canvas = canvas;
     this.onPick = opts.onPick;
     this.reducedMotion = opts.reducedMotion;
+    this._catalog = opts.catalog || { worksets: [], noteLabel: '便签' };
     this.enabled = true;
     this.webglOk = false;
     this._raf = 0;
@@ -137,27 +139,64 @@ export class DeskScene {
       this.scene.add(leg);
     }
 
-    this._addFolder('focus', '专注工作集', -0.55, 0.55, 0x5b8fd4);
-    this._addFolder('research', '调研工作集', 0.75, 0.35, 0x5fa88a);
-    this._addNote('n1', '便签 A', 1.55, 0.55, 0xffef8a);
-    this._addNote('n2', '便签 B', 2.15, -0.05, 0xffc6d4);
-
-    this._addContactShadow(0.6, -0.85, 1.5, 1.0);
+    this._addContactShadow(this.scene, 0.6, -0.85, 1.5, 1.0);
     const pad = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.04, 1.1),
       new THREE.MeshStandardMaterial({ color: 0xe8eef4, roughness: 0.7, metalness: 0 })
     );
     pad.position.set(0.6, 0.12, -0.85);
     this.scene.add(pad);
+
+    this.setCatalog(this._catalog);
   }
 
   /**
+   * Folder objects = real worksets (or none). One sticky = the desk note.
+   * @param {{ worksets?: Array<{ id: string, name: string }>, noteLabel?: string }} catalog
+   */
+  setCatalog(catalog) {
+    this._catalog = catalog || { worksets: [], noteLabel: '便签' };
+    if (!this.scene) return;
+    this._clearPickables();
+    const worksets = Array.isArray(this._catalog.worksets) ? this._catalog.worksets.slice(0, FOLDER_SLOTS.length) : [];
+    worksets.forEach((w, i) => {
+      if (!w || !w.id) return;
+      const slot = FOLDER_SLOTS[i];
+      const color = FOLDER_COLORS[i % FOLDER_COLORS.length];
+      this._addFolder(w.id, String(w.name || '工作集'), slot.x, slot.z, color);
+    });
+    const noteLabel = String(this._catalog.noteLabel || '便签');
+    this._addNote(NOTE_ID, noteLabel, NOTE_SLOT.x, NOTE_SLOT.z, 0xffef8a);
+    this.requestRender();
+  }
+
+  _clearPickables() {
+    for (const p of this.pickables) {
+      if (!p.mesh) continue;
+      if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+      p.mesh.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        const mat = obj.material;
+        if (!mat) return;
+        const list = Array.isArray(mat) ? mat : [mat];
+        for (const m of list) {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
+      });
+    }
+    this.pickables = [];
+  }
+
+  /**
+   * @param {THREE.Object3D} parent
    * @param {number} x
    * @param {number} z
    * @param {number} sx
    * @param {number} sz
    */
-  _addContactShadow(x, z, sx, sz) {
+  _addContactShadow(parent, x, z, sx, sz) {
+    const root = parent || this.scene;
     const addDisk = (opacity, mul, y) => {
       const mat = new THREE.MeshBasicMaterial({
         color: 0x1c2430,
@@ -174,10 +213,11 @@ export class DeskScene {
       disk.position.set(x, y, z);
       disk.scale.set(sx * mul, sz * mul, 1);
       disk.renderOrder = 2;
-      this.scene.add(disk);
+      root.add(disk);
     };
-    addDisk(0.28, 1.12, 0.098);
-    addDisk(0.12, 1.65, 0.096);
+    const baseY = root === this.scene ? 0.098 : -0.022;
+    addDisk(0.28, 1.12, baseY);
+    addDisk(0.12, 1.65, baseY - 0.002);
   }
 
   /**
@@ -231,7 +271,7 @@ export class DeskScene {
   _addFolder(id, label, x, z, color) {
     const group = new THREE.Group();
     group.position.set(x, 0.12, z);
-    this._addContactShadow(x, z, 1.45, 1.05);
+    this._addContactShadow(group, 0, 0, 1.45, 1.05);
 
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(1.35, 0.08, 1.0),
@@ -266,8 +306,8 @@ export class DeskScene {
   _addNote(id, label, x, z, color) {
     const group = new THREE.Group();
     group.position.set(x, 0.13, z);
-    group.rotation.y = (id === 'n2' ? -1 : 1) * 0.12;
-    this._addContactShadow(x, z, 1.05, 1.0);
+    group.rotation.y = 0.12;
+    this._addContactShadow(group, 0, 0, 1.05, 1.0);
 
     const paper = new THREE.Mesh(
       new THREE.BoxGeometry(0.95, 0.03, 0.95),

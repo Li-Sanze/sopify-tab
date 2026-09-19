@@ -2,7 +2,7 @@
 
 Path 3：固定视角微缩桌嵌在新标签页主书桌，不另开独立入口页。
 
-Draft only。Rick 督手测；专项独立审计；Sanze 确认前禁止合并。`host/` 不改。
+本波把舞台接到真实书桌数据。Draft only。Rick 督手测；专项独立审计；Sanze 确认前禁止合并。`host/` 不改。
 
 ## 干净配置加载（给 Rick）
 
@@ -41,14 +41,20 @@ google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
 ## 行为
 
 - 「下一件事」是 `#resume`，纯 DOM，不经 3D。面板用 `--next-h` / `--resume-bottom`（ResizeObserver）避开它。
-- 侧栏按钮与 3D 拾取走 `DeskUI.openWorkset` / `openNote`。关掉「有 3D」后静态 DOM 桌面仍可用。
+- 默认「有 3D」打开。关掉后静态 DOM 桌面仍可用。
+- 文件夹 = `chrome.storage.local.worksets`。没有工作集时桌面是空的，不造演示文件夹。
+- 便签 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。
+- 点击文件夹打开工作集面板；「恢复」走 newtab 注入的 `restoreWorksetById`（只创建/激活，不关其它标签）。
+- 点击便签读写真实书桌便签，经 `saveDesk({ notes })`。
+- desk-3d 自己不读 `chrome.storage` / `chrome.tabs`。只吃 `window.SopifyDesk3d` 回调（newtab.js 注入，和 `SopifyTheme` / `SopifyDeskCompanion` 同一模式）。
 - 仅在「有 3D」且舞台可见时 `DeskScene.init()`。空闲停 RAF；无暂停按钮；无 `window` 级唤醒。`shadowMap` 关闭。尊重 `prefers-reduced-motion`。
 - 失败（含 `?desk3d=fail`）自动回静态桌面并出横幅。
-- 演示数据只写 `sessionStorage`，不写 `chrome.storage`，不恢复真实标签。
+- 无 desk-3d `sessionStorage` 种子，无模拟恢复。
 
 ## Smoke checklist（Rick）
 
 1. **下一件事 / resume**：第一屏可见，是 `#resume` DOM，不经 3D。打开工作集面板时面板不得盖住它。
-2. **有 3D / 无 3D 同一路径**：侧栏按钮、静态桌面按钮、3D 点击都打开同一套演示面板。关掉「有 3D」后静态桌面仍可开工作集 / 便签。
-3. **空闲停 RAF**：3D 打开后不悬停，`#desk-3d-mount` 与 canvas 的 `data-desk3d-loop` 应为 `idle`。悬停会短暂 `live`，随后回到 `idle`。没有暂停按钮。
-4. **WebGL 失败回退**：`newtab.html?desk3d=fail` 出现「WebGL 不可用」横幅，静态 DOM 桌面仍可用。
+2. **真实数据**：有已保存工作集时桌面上出现同名文件夹；没有则空。便签是书桌那一条，或空。
+3. **有 3D / 无 3D 同一路径**：侧栏按钮、静态桌面按钮、3D 点击都打开同一套真实面板。恢复会打开当前窗口还没有的网页。
+4. **空闲停 RAF**：3D 打开后不悬停，`#desk-3d-mount` 与 canvas 的 `data-desk3d-loop` 应为 `idle`。悬停会短暂 `live`，随后回到 `idle`。没有暂停按钮。
+5. **WebGL 失败回退**：`newtab.html?desk3d=fail` 出现「WebGL 不可用」横幅，静态 DOM 桌面仍可用。
