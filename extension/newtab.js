@@ -34,6 +34,8 @@
     codexAvailable: false,
   };
 
+  const desk3dSubs = [];
+
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
@@ -146,7 +148,7 @@
         kind: 'todo',
         title: todo.text.trim(),
         meta: '待办',
-        action: '完成',
+        action: '标记完成',
         todoId: todo.id,
       };
     }
@@ -316,6 +318,7 @@
     state.worksets = worksets;
     renderSavedWorksets();
     if (hasStorage) await chrome.storage.local.set({ worksets });
+    notifyDesk3d();
   }
 
   async function loadCwd() {
@@ -365,11 +368,6 @@
   }
 
   function renderSites() {
-    const addTile = `
-      <button type="button" class="tile add" id="site-add-2" aria-controls="site-form">
-        <span class="glyph" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-        <span class="lbl">添加</span>
-      </button>`;
     $('#sites').innerHTML = state.sites.map((s, i) => `
       <div class="tilewrap">
         <a class="tile" href="${esc(s.url)}" title="${esc(s.name)} · ${esc(s.url)}" style="--h:${hue(s.url)}">
@@ -379,19 +377,20 @@
         <button type="button" class="iconbtn tile-remove" data-remove-site="${i}" aria-label="移除 ${esc(s.name)}">
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
-      </div>`).join('') + addTile;
+      </div>`).join('');
     $('#c-sites').textContent = String(state.sites.length);
     $('#c-sites').setAttribute('aria-label', `${state.sites.length} 个常用站`);
-    $('#site-add-2').addEventListener('click', () => toggleSiteForm(true));
   }
 
   function toggleSiteForm(force) {
     const f = $('#site-form');
     const t = $('#site-add-toggle');
+    if (!f || !t) return;
     const open = force ?? f.hidden;
     f.hidden = !open;
     t.setAttribute('aria-expanded', String(open));
-    t.textContent = open ? '收起' : '添加';
+    const lbl = t.querySelector('.lbl');
+    if (lbl) lbl.textContent = open ? '收起' : '添加';
     if (open) $('#site-name').focus();
   }
 
@@ -478,11 +477,17 @@
       if (list[0]) recentBtn.title = list[0].name;
       else recentBtn.removeAttribute('title');
     }
+    const recentLabel = $('#ops-recent-label');
+    if (recentLabel) {
+      recentLabel.textContent = list[0] ? `最近：${list[0].name}` : '还没有保存的工作集';
+    }
     const countEl = $('#c-worksets');
     if (countEl) {
       countEl.textContent = String(list.length);
       countEl.setAttribute('aria-label', `${list.length} 个工作集`);
     }
+    const deskCount = $('#c-worksets-desk');
+    if (deskCount) deskCount.textContent = String(list.length);
     const clearBtn = $('#worksets-clear');
     if (clearBtn) clearBtn.disabled = !list.length;
     const box = $('#saved-worksets');
@@ -639,6 +644,14 @@
     $$('input[name="themePreset"]').forEach((el) => {
       el.checked = el.value === preset;
     });
+    const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
+    const themeBtn = $('#studio-theme-toggle');
+    if (themeBtn) {
+      themeBtn.setAttribute('aria-label', sky === 'night' ? '切换到白天' : '切换到夜间');
+      themeBtn.innerHTML = sky === 'night'
+        ? '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>'
+        : '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>';
+    }
   }
 
   function renderHost() {
@@ -791,10 +804,11 @@
     if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
     $$('.view').forEach((el) => el.classList.toggle('active', el.dataset.view === v));
-    $$('.navbtn').forEach((b) => {
+    $$('.navbtn, .studio-navbtn').forEach((b) => {
       if (b.dataset.view === v) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     });
+    document.body.classList.toggle('studio-home', v === 'desk');
     if (v === 'tabs') renderGroups();
     if (v === 'settings') {
       $('#cwd').value = state.cwd;
@@ -804,7 +818,9 @@
       renderSavedWorksets();
     }
     const focusNav = opts && opts.focusNav;
-    const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
+    const nav = focusNav
+      ? ($(`.studio-navbtn[data-view="${v}"]`) || $(`.navbtn[data-view="${v}"]`))
+      : null;
     if (v === 'desk' && !focusNav) {
       const act = $('#resume-act');
       (act || $('#main')).focus({ preventScroll: true });
@@ -841,6 +857,7 @@
     renderNotes();
     renderResume();
     tick();
+    notifyDesk3d();
   }
 
   async function refreshTabs() {
@@ -955,8 +972,81 @@
       saveDesk({ todos: state.todos });
       return;
     }
-    const input = $('#todo-input');
-    if (input) input.focus();
+    openTodosDialog();
+  }
+
+  function openWindowDialog() {
+    const dialog = $('#ops-window-dialog');
+    const body = $('#ops-window-dialog-body');
+    const source = $('#workset');
+    if (!dialog || !body || !source) return;
+    body.innerHTML = source.innerHTML || '<p class="empty">这个窗口还没有网页。</p>';
+    body.querySelectorAll('[data-activate-tab]').forEach((row) => {
+      row.addEventListener('click', () => activateTab(row.dataset.activateTab));
+    });
+    bindFaviconFallback(body);
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function openTodosDialog() {
+    const dialog = $('#ops-todos-dialog');
+    const body = $('#ops-todos-dialog-body');
+    if (!dialog || !body) return;
+    const left = state.todos.filter((t) => !t.done).length;
+    const done = state.todos.filter((t) => t.done).length;
+    body.innerHTML = `
+      <ul class="todos" id="todos-dialog-list">
+        ${state.todos.length ? state.todos.map((t) => `
+          <li class="todo ${t.done ? 'done' : ''}">
+            <label>
+              <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
+              <span>${esc(t.text)}</span>
+            </label>
+            <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
+              <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </li>`).join('') : '<li class="empty">还没有待办，下面写一条。</li>'}
+      </ul>
+      <form class="todoadd" id="todo-form-dialog">
+        <label class="sr-only" for="todo-input-dialog">新待办</label>
+        <input class="field" id="todo-input-dialog" placeholder="写一条，回车添加" autocomplete="off">
+      </form>
+      <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
+    `;
+    body.onclick = (e) => {
+      const del = e.target.closest('[data-del-todo]');
+      if (!del) return;
+      state.todos = state.todos.filter((t) => t.id !== del.dataset.delTodo);
+      renderTodos();
+      saveDesk({ todos: state.todos });
+      openTodosDialog();
+    };
+    body.onchange = (e) => {
+      const cb = e.target.closest('input[type="checkbox"][data-todo-id]');
+      if (!cb) return;
+      const item = state.todos.find((t) => t.id === cb.dataset.todoId);
+      if (!item) return;
+      item.done = cb.checked;
+      renderTodos();
+      saveDesk({ todos: state.todos });
+      openTodosDialog();
+    };
+    const form = body.querySelector('#todo-form-dialog');
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const input = body.querySelector('#todo-input-dialog');
+        const text = (input && input.value || '').trim();
+        if (!text) return;
+        state.todos.push({ id: uid(), text, done: false });
+        renderTodos();
+        saveDesk({ todos: state.todos });
+        openTodosDialog();
+      };
+    }
+    if (!dialog.open) dialog.showModal();
+    const focusInput = body.querySelector('#todo-input-dialog');
+    if (focusInput) focusInput.focus();
   }
 
   async function closeTab(id) {
@@ -974,7 +1064,23 @@
 
   let notesTimer;
   function bind() {
-    $$('.navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    $$('.navbtn, .studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    const studioBrand = $('#studio-brand');
+    if (studioBrand) {
+      studioBrand.addEventListener('click', (e) => {
+        e.preventDefault();
+        setView('desk');
+      });
+    }
+    const themeToggle = $('#studio-theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        if (!window.SopifyTheme) return;
+        const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
+        window.SopifyTheme.setPreset(sky === 'night' ? 'day' : 'night');
+        renderTheme();
+      });
+    }
     const chatBtn = $('#open-chat');
     if (chatBtn) chatBtn.addEventListener('click', () => { openDialogue(); });
     document.addEventListener('click', (e) => {
@@ -1082,6 +1188,10 @@
     $('#notes').addEventListener('blur', () => closeNotesEditor());
 
     $('#resume-act').addEventListener('click', () => runResumeAction());
+    const todosOpen = $('#todos-open');
+    if (todosOpen) todosOpen.addEventListener('click', () => openTodosDialog());
+    const worksetView = $('#workset-view');
+    if (worksetView) worksetView.addEventListener('click', () => openWindowDialog());
     $('#workset-filter').addEventListener('input', (e) => {
       state.worksetFilter = e.target.value;
       renderWorkset();
@@ -1127,6 +1237,7 @@
         if ('worksets' in changes) {
           state.worksets = normalizeWorksets(changes.worksets.newValue);
           renderSavedWorksets();
+          notifyDesk3d();
         }
         if (!DESK_KEYS.some((k) => k in changes)) return;
         applyDesk({
@@ -1197,16 +1308,66 @@
     renderUpstream();
     renderTheme();
     bind();
+    notifyDesk3d();
     tick();
     setInterval(tick, 1000);
     if (state.notes) $('#notes-saved').textContent = '已保存';
     if (location.hash === '#settings') setView('settings');
     else {
+      document.body.classList.add('studio-home');
       const act = $('#resume-act');
       if (act) act.focus({ preventScroll: true });
     }
     await refreshTabs();
   }
 
+  function notifyDesk3d() {
+    for (let i = 0; i < desk3dSubs.length; i += 1) {
+      try { desk3dSubs[i](); } catch { /* ignore */ }
+    }
+  }
+
+  function cloneDesk3dWorksets() {
+    return (state.worksets || []).map((w) => ({
+      id: w.id,
+      name: w.name,
+      savedAt: w.savedAt,
+      tabs: (w.tabs || []).map((t) => ({ title: t.title, url: t.url })),
+    }));
+  }
+
+  function saveDeskNoteFrom3d(text) {
+    state.notes = typeof text === 'string' ? text : '';
+    const ta = $('#notes');
+    if (ta && ta !== document.activeElement) ta.value = state.notes;
+    renderNotes();
+    const saved = $('#notes-saved');
+    if (saved) saved.textContent = '保存中…';
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(() => {
+      saveDesk({ notes: state.notes }).then(() => {
+        if (saved) saved.textContent = '已保存';
+      });
+    }, 400);
+  }
+
+  const desk3dHost = {
+    defaultWant3d: true,
+    getWorksets: function () { return cloneDesk3dWorksets(); },
+    getNote: function () { return typeof state.notes === 'string' ? state.notes : ''; },
+    saveNote: function (text) { saveDeskNoteFrom3d(text); },
+    restoreWorkset: function (id) { return restoreWorksetById(id); },
+    subscribe: function (fn) {
+      if (typeof fn !== 'function') return function () {};
+      desk3dSubs.push(fn);
+      return function () {
+        const i = desk3dSubs.indexOf(fn);
+        if (i >= 0) desk3dSubs.splice(i, 1);
+      };
+    },
+  };
+  if (typeof window !== 'undefined') window.SopifyDesk3d = desk3dHost;
+
   boot();
 })();
+

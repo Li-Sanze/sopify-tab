@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="newtab.css">
   <link rel="stylesheet" href="desk-3d/desk-3d.css">
   <script src="newtab.js" defer></script>
-  <script src="desk-companion.js" defer></script>
 </head>
 <body>
   <div class="sky" aria-hidden="true">
@@ -101,107 +100,132 @@
     </aside>
 
     <main class="main" id="main" tabindex="-1">
-      <section class="view active" data-view="desk" aria-labelledby="greet-h">
-        <header class="deskhead">
-          <div>
-            <p class="clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec">00</small></p>
-            <h1 class="greet" id="greet-h">
-              <span id="greet-word">你好</span>
-              <label class="sr-only" for="name">称呼</label>
-              <input class="name" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24">
-            </h1>
-            <p class="dateline" id="date-line"></p>
+      <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
+        <header class="studio-topbar">
+          <a class="studio-brand" href="#desk" id="studio-brand" aria-label="Sopify Tab 工作台">
+            <span class="studio-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="studio-brand-name">Sopify<span>Tab</span></span>
+          </a>
+          <nav class="studio-nav" aria-label="主导览">
+            <button type="button" class="studio-navbtn" data-view="desk" aria-current="page">书桌</button>
+            <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">工作集 <span id="c-worksets-desk">0</span></button>
+            <button type="button" class="studio-navbtn" data-view="settings">设置</button>
+          </nav>
+          <div class="studio-tools">
+            <p class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></p>
+            <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+            </button>
           </div>
+          <label class="sr-only" for="name">称呼</label>
+          <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
+          <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
+          <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
         </header>
 
-        <section class="resume" id="resume" aria-labelledby="resume-kicker">
-          <p class="resume-kicker" id="resume-kicker">下一件事</p>
-          <div class="resume-row">
-            <div class="resume-copy">
-              <p class="resume-title" id="resume-title">还没有下一件事</p>
-              <p class="resume-meta" id="resume-meta"></p>
-            </div>
-            <button type="button" class="btn" id="resume-act">写一条</button>
-          </div>
+        <section class="studio-greeting">
+          <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true">.</span></h1>
+          <p class="studio-date" id="date-line"></p>
         </section>
 
-        <section id="desk-3d-mount" class="desk-stage" aria-label="工作桌舞台"></section>
-
-        <div class="deskgrid">
-          <section class="card c-workset" aria-labelledby="h-tabs">
-            <div class="cardhead">
-              <h2 id="h-tabs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>这个窗口</h2>
-              <span class="count" id="c-tabs">0</span>
-            </div>
-            <div class="cardbody">
-              <label class="sr-only" for="workset-filter">筛选这个窗口</label>
-              <input class="field" id="workset-filter" placeholder="筛选标题或网址" autocomplete="off">
-              <div class="workset" id="workset"></div>
-            </div>
-            <div class="cardfoot">
-              <span class="muted" id="c-tabs-sub"></span>
-              <div class="cardfoot-acts">
-                <button type="button" class="linkbtn" id="workset-save">保存这个窗口</button>
-                <button type="button" class="linkbtn" id="workset-restore-recent" hidden>最近一份 · 恢复</button>
-                <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">整理 <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <div class="studio-body">
+          <!-- DOM: ops first for narrow（下一件事→当前窗口→桌面）；宽屏 CSS 把舞台放到左侧 -->
+          <aside class="studio-ops" aria-label="操作区">
+            <section class="resume ops-panel" id="resume" aria-labelledby="resume-kicker">
+              <div class="ops-panel-head">
+                <p class="resume-kicker" id="resume-kicker">下一件事</p>
+                <span class="ops-meta" id="resume-meta"></span>
               </div>
-            </div>
-          </section>
+              <p class="resume-title" id="resume-title">还没有下一件事</p>
+              <div class="ops-row">
+                <button type="button" class="btn ops-primary" id="resume-act">写一条</button>
+                <button type="button" class="ops-subtle" id="todos-open">全部待办</button>
+              </div>
+            </section>
 
-          <section class="card c-todo" aria-labelledby="h-todo">
-            <div class="cardhead">
-              <h2 id="h-todo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 6 9.5l3.5-4M4 16.5l2 2 3.5-4M13 7h7M13 17h7"/></svg>待办</h2>
-              <span class="count" id="c-todo">0</span>
-            </div>
-            <div class="cardbody">
-              <ul class="todos" id="todos"></ul>
-              <form class="todoadd" id="todo-form">
-                <label class="sr-only" for="todo-input">新待办，回车添加</label>
-                <input class="field" id="todo-input" placeholder="写一条，回车添加" autocomplete="off">
-              </form>
-            </div>
-            <div class="cardfoot">
-              <span class="muted" id="todo-done"></span>
-              <button type="button" class="linkbtn" id="todo-clear">清除已完成</button>
-            </div>
-          </section>
+            <section class="ops-panel ops-window" id="ops-window" aria-labelledby="h-tabs">
+              <div class="ops-panel-head">
+                <h2 class="ops-panel-title" id="h-tabs">当前窗口</h2>
+                <span class="ops-meta">随时收好</span>
+              </div>
+              <p class="ops-window-copy"><span id="c-tabs">0</span> 个标签，留住此刻的进度</p>
+              <div class="ops-actions" role="group" aria-label="当前窗口操作">
+                <button type="button" class="btn ops-save" id="workset-save">保存</button>
+                <button type="button" class="ops-subtle" id="workset-view">查看</button>
+              </div>
+              <div class="ops-recent">
+                <span class="muted" id="ops-recent-label">还没有保存的工作集</span>
+                <button type="button" class="ops-restore" id="workset-restore-recent" hidden>恢复</button>
+              </div>
+              <span class="sr-only" id="c-tabs-sub"></span>
+              <button type="button" class="sr-only" id="desk-organize" data-goto="tabs">全部工作集</button>
+            </section>
+          </aside>
 
-          <section class="card c-notes" aria-labelledby="h-notes">
-            <div class="cardhead">
-              <h2 id="h-notes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v10.5l-4.5 4.5H5z"/><path d="M14.5 19.5V15H19M8.5 9h7M8.5 12.5h5"/></svg>便签</h2>
-              <span class="count" id="c-notes">0</span>
-            </div>
-            <div class="cardbody">
-              <button type="button" class="notes-preview" id="notes-preview">还没有便签。</button>
-              <label class="sr-only" for="notes">便签内容</label>
-              <textarea class="notes" id="notes" hidden placeholder="还没有便签。"></textarea>
-            </div>
-            <div class="cardfoot">
-              <span class="saved" id="notes-saved" aria-live="polite"></span>
-            </div>
-          </section>
-
-          <section class="card c-sites" aria-labelledby="h-sites">
-            <div class="cardhead">
-              <h2 id="h-sites"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 13.5v7M13.5 17h7"/></svg>常用站</h2>
-              <span class="count" id="c-sites">0</span>
-            </div>
-            <div class="cardbody">
-              <div class="tiles" id="sites"></div>
-              <form class="tileform" id="site-form" hidden>
-                <label class="sr-only" for="site-name">名称</label>
-                <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
-                <label class="sr-only" for="site-url">网址</label>
-                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
-                <button type="submit" class="btn">加入</button>
-                <button type="button" class="btn ghost" id="site-cancel">取消</button>
-              </form>
-            </div>
-            <div class="cardfoot">
-              <button type="button" class="linkbtn" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">添加</button>
-            </div>
-          </section>
+          <div class="studio-stage">
+            <section id="desk-3d-mount" class="desk-stage" aria-label="空间桌面"></section>
+          </div>
         </div>
+
+        <section class="studio-sites c-sites" aria-labelledby="h-sites">
+          <h2 class="studio-sites-label" id="h-sites">常用站</h2>
+          <div class="studio-sites-body">
+            <div class="tiles" id="sites"></div>
+            <button type="button" class="tile add" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">
+              <span class="glyph" aria-hidden="true">+</span>
+              <span class="lbl">添加</span>
+            </button>
+            <form class="tileform" id="site-form" hidden>
+              <label class="sr-only" for="site-name">名称</label>
+              <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
+              <label class="sr-only" for="site-url">网址</label>
+              <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
+              <button type="submit" class="btn">加入</button>
+              <button type="button" class="btn ghost" id="site-cancel">取消</button>
+            </form>
+          </div>
+          <span class="sr-only count" id="c-sites">0</span>
+        </section>
+
+        <!-- 离屏保留：既有 JS 依赖的列表／表单，不进首屏 -->
+        <div class="desk-aux" hidden>
+          <label class="sr-only" for="workset-filter">筛选这个窗口</label>
+          <input class="field" id="workset-filter" placeholder="筛选标题或网址" autocomplete="off">
+          <div class="workset" id="workset"></div>
+          <ul class="todos" id="todos"></ul>
+          <form class="todoadd" id="todo-form">
+            <label class="sr-only" for="todo-input">新待办，回车添加</label>
+            <input class="field" id="todo-input" placeholder="写一条，回车添加" autocomplete="off">
+          </form>
+          <span class="muted" id="todo-done"></span>
+          <button type="button" class="linkbtn" id="todo-clear">清除已完成</button>
+          <span class="count" id="c-todo">0</span>
+          <button type="button" class="notes-preview" id="notes-preview">还没有便签。</button>
+          <label class="sr-only" for="notes">便签内容</label>
+          <textarea class="notes" id="notes" hidden placeholder="还没有便签。"></textarea>
+          <span class="saved" id="notes-saved" aria-live="polite"></span>
+          <span class="count" id="c-notes">0</span>
+        </div>
+
+        <dialog id="ops-window-dialog" class="ops-dialog" aria-labelledby="ops-window-dialog-title">
+          <form method="dialog" class="ops-dialog-inner">
+            <header class="ops-dialog-head">
+              <h2 id="ops-window-dialog-title">当前窗口</h2>
+              <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭">×</button>
+            </header>
+            <div class="ops-dialog-body" id="ops-window-dialog-body"></div>
+          </form>
+        </dialog>
+
+        <dialog id="ops-todos-dialog" class="ops-dialog" aria-labelledby="ops-todos-dialog-title">
+          <form method="dialog" class="ops-dialog-inner">
+            <header class="ops-dialog-head">
+              <h2 id="ops-todos-dialog-title">全部待办</h2>
+              <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭">×</button>
+            </header>
+            <div class="ops-dialog-body" id="ops-todos-dialog-body"></div>
+          </form>
+        </dialog>
       </section>
 
       <section class="view" data-view="tabs" aria-labelledby="tabs-h">
@@ -243,16 +267,6 @@
                   </label>
                 </div>
                 <p class="help">立刻生效，书桌和侧栏同一套；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
-              </div>
-              <div class="frow">
-                <label class="fogset" for="desk-fog-enabled">
-                  <input type="checkbox" id="desk-fog-enabled" checked>
-                  <span>显示桌面软团</span>
-                </label>
-                <div class="inline">
-                  <button type="button" class="linkbtn" id="desk-fog-reset">重置软团位置</button>
-                </div>
-                <p class="help">可选的本地雾团，默认定在右下角。可拖；双击或聚焦后按 Delete 隐藏，刷新后仍藏着。不连网、不当宠物。</p>
               </div>
             </div>
           </section>
@@ -326,22 +340,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <button type="button" class="desk-fog" id="desk-fog" hidden data-fog="hidden" aria-label="桌面软团" title="拖动。双击隐藏。">
-    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="desk-fog-grad" cx="46%" cy="40%" r="58%">
-          <stop offset="0" class="fog-stop-0"/>
-          <stop offset="0.5" class="fog-stop-1"/>
-          <stop offset="1" class="fog-stop-2"/>
-        </radialGradient>
-        <filter id="desk-fog-blur" x="-35%" y="-40%" width="170%" height="180%">
-          <feGaussianBlur stdDeviation="1.8"/>
-        </filter>
-      </defs>
-      <ellipse class="fog-halo" cx="32" cy="35" rx="27" ry="19" filter="url(#desk-fog-blur)"/>
-      <ellipse class="fog-body" cx="32" cy="32" rx="21" ry="15" fill="url(#desk-fog-grad)" filter="url(#desk-fog-blur)"/>
-    </svg>
-  </button>
   <script type="module" src="desk-3d/boot.js"></script>
 </body>
 </html>

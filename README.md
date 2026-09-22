@@ -10,54 +10,44 @@
 
 ## 快速开始
 
-日常机可以这样装：
+**Google Chrome 148+ 忽略 `--load-extension`。请用「加载已解压」。**
 
 ```text
-1. chrome://extensions
-2. 打开「开发者模式」
-3. 「加载已解压的扩展程序」→ extension/
-4. 打开新标签页
+1. chrome://extensions → 打开「开发者模式」
+2. 「加载已解压的扩展程序」→ 本仓库 extension/（内含 manifest.json，不要选仓库根）
+3. 确认卡片「Sopify Tab」，ID cgkhllpelkjmfamddkjpnmchjikdcbgp
+4. Ctrl/Cmd+T → 真扩展 NTP（我的工作台），不是 Google 默认页
 ```
 
-**干净配置（Rick 手测 / 验收）**：不要用日常 Chrome。新建空用户目录，只装这一份扩展：
+**干净配置（Rick / 验收）**：空用户目录，只装这一份扩展：
 
 ```text
-# macOS
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Linux
-google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Windows
-"%ProgramFiles%\Google\Chrome\Application\chrome.exe" ^
-  --user-data-dir="%USERPROFILE%\sopify-tab-clean-profile" --no-first-run
+# 启动干净 profile（不要指望 --load-extension 在 Chrome 148 生效）
+/usr/bin/google-chrome-stable --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
+# 然后：chrome://extensions → 开发者模式 → 加载已解压 → …/extension/
 ```
 
-然后在该窗口：`chrome://extensions` → 开发者模式 → 加载已解压的扩展程序 → 本仓库 `extension/`（绝对路径）。关掉这个配置里其它新标签页扩展。打开**新标签页**（不要沿用旧 NTP）。
+若需要 CLI 自动加载：改用 **Chromium** 并加 `--disable-features=DisableLoadExtensionCommandLineSwitch`（见 `extension/desk-3d/README.md` / `scripts/load-extension.sh`）。
 
 稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。权限见「隐私」。本 PR 只开 Draft，不合并；Rick 督手测，专项独立审计，Sanze 确认后才能合。
 
 ## 书桌
 
 - **下一件事**：第一条未完成待办。没有待办时显示「还没有下一件事」，点「写一条」聚焦待办输入框。不拿标签或便签凑数。始终是第一屏 DOM，不经 3D。
-- **微缩桌 3D**（演示，可选）：嵌在书桌主页，关掉「有 3D」后静态 DOM 桌面与侧栏入口仍走同一套处理。演示工作集不恢复真实标签、不写 `chrome.storage`；便签只进 sessionStorage。Three.js r170 本地 ESM 约 1.25 MiB，仅在打开 3D 且舞台可见时初始化。失败则回静态桌面。CSS 天空保留，3D 是加层，不是 WebGL 天空。
+- **微缩桌 3D**（默认开）：嵌在书桌主页，关掉「有 3D」后静态 DOM 桌面与侧栏入口仍走同一套处理。文件夹是真实 `worksets`；没有就空着。便签是书桌那一条 `notes`。恢复走现有 `restoreWorksetById`（创建/激活标签，不关其它）。desk-3d 只经 newtab.js 注入的 `window.SopifyDesk3d` 回调碰真实数据，不自己读 `chrome.storage` / `chrome.tabs`，也没有 sessionStorage 演示种子。Three.js r170 本地 ESM 约 1.25 MiB，仅在打开 3D 且舞台可见时初始化。失败则回静态桌面。CSS 天空保留，3D 是加层，不是 WebGL 天空。
 - **这个窗口**：当前窗口的 http(s) 和 localhost。筛选后最多显示 5 条，点一行切到那个标签。
 - **工作集**：只有点「保存这个窗口」才写入本机。最多 5 个；满了会问要不要覆盖最早的，不会悄悄丢掉。每个工作集最多 50 个网页，超过会确认后只留前 50；标题约 200 字。书桌一行「最近一份 · 恢复」；设置里列出全部，可删一条或「清空全部工作集」。恢复时打开当前窗口还没有的网址，已打开的同一网址就切过去，不关掉其它标签。关窗口不会自动存。
 - 待办、便签、常用站还在。常用站不再占满整行。
-- **桌面软团**（可选）：右下角一小团本地雾，默认显示，可拖、可藏。设置里「显示桌面软团」和「重置软团位置」。不连网、不当宠物、不记历史。
 
 ## 隐私
 
 权限：`storage`、`tabs`、`sidePanel`。无账号、无云同步、无新权限。
 
-本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，工作集 `worksets`，以及可选桌面软团 `deskCompanion`。
+本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，工作集 `worksets`。
 
 `worksets` 形状：`[{ id, name, savedAt, tabs:[{ title, url }] }]`。不存 favicon、不存 tabId。只收 http(s) 和 localhost。只在明确保存时写入。最多 5 个工作集；每个最多 50 个网页。可删、可清空。不用 `storage.sync`。不用 sessions / history / bookmarks。
 
-`deskCompanion` 形状：`{ enabled, x, y, motion }`。`x` / `y` 为 0–1。`motion` 为 `full` 或 `reduced`。系统 `prefers-reduced-motion: reduce` 优先于 `motion=full`。`enabled=false` 刷新后仍隐藏。不存轨迹、不存画像。
-
-微缩桌 3D 演示便签只进本页 `sessionStorage`，不新增 `chrome.storage` 键，也不恢复真实标签。
+微缩桌 3D 复用现有 `worksets` / `notes` / 待办，不新增 `chrome.storage` 键。恢复走书桌已有 `restoreWorksetById`。
 
 当前窗口标签现查，不自动落盘。对话不落盘。连 Host 才申请 `nativeMessaging`。出站跟本机环境（如 `HTTP_PROXY`）；扩展无代理设置。
 
