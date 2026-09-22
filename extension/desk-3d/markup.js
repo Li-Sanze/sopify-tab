@@ -1,6 +1,6 @@
 /**
  * Shared desk-3d DOM. Canvas is created in JS (not in newtab.html)
- * so host sky/companion contracts that scan the NTP markup stay intact.
+ * so host sky contracts that scan the NTP markup stay intact.
  * Stage is board-only: no chip wall. Labels + fallback cards share pick paths.
  */
 

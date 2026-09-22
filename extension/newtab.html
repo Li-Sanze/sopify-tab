@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="newtab.css">
   <link rel="stylesheet" href="desk-3d/desk-3d.css">
   <script src="newtab.js" defer></script>
-  <script src="desk-companion.js" defer></script>
 </head>
 <body>
   <div class="sky" aria-hidden="true">
@@ -269,16 +268,6 @@
                 </div>
                 <p class="help">立刻生效，书桌和侧栏同一套；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
               </div>
-              <div class="frow">
-                <label class="fogset" for="desk-fog-enabled">
-                  <input type="checkbox" id="desk-fog-enabled">
-                  <span>显示桌面软团（实验）</span>
-                </label>
-                <div class="inline">
-                  <button type="button" class="linkbtn" id="desk-fog-reset">重置软团位置</button>
-                </div>
-                <p class="help">默认关闭，首屏不出现。仅设置里可选打开；不连网、不当宠物。</p>
-              </div>
             </div>
           </section>
 
@@ -351,22 +340,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <button type="button" class="desk-fog" id="desk-fog" hidden data-fog="hidden" aria-label="桌面软团" title="拖动。双击隐藏。">
-    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="desk-fog-grad" cx="46%" cy="40%" r="58%">
-          <stop offset="0" class="fog-stop-0"/>
-          <stop offset="0.5" class="fog-stop-1"/>
-          <stop offset="1" class="fog-stop-2"/>
-        </radialGradient>
-        <filter id="desk-fog-blur" x="-35%" y="-40%" width="170%" height="180%">
-          <feGaussianBlur stdDeviation="1.8"/>
-        </filter>
-      </defs>
-      <ellipse class="fog-halo" cx="32" cy="35" rx="27" ry="19" filter="url(#desk-fog-blur)"/>
-      <ellipse class="fog-body" cx="32" cy="32" rx="21" ry="15" fill="url(#desk-fog-grad)" filter="url(#desk-fog-blur)"/>
-    </svg>
-  </button>
   <script type="module" src="desk-3d/boot.js"></script>
 </body>
 </html>

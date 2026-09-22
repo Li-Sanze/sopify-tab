@@ -64,6 +64,8 @@ assert.ok(!/<canvas|<video|WebGL|webgl|THREE\b|wallpaper|particle/i.test(html));
 assert.ok(!html.includes('soft'));
 assert.ok(!html.includes('打开：'));
 assert.ok(!html.includes('编辑：随手记'));
+assert.ok(!html.includes('desk-companion') && !html.includes('desk-fog') && !html.includes('软团'));
+assert.ok(!html.includes('deskCompanion'));
 
 const newtabCss = read('extension/newtab.css');
 assert.ok(!/WebGL|webgl|THREE\b|<canvas|<video/i.test(newtabCss));

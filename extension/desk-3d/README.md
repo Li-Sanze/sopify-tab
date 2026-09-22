@@ -56,7 +56,6 @@ chromium --user-data-dir="$HOME/sopify-tab-clean-profile" \
 - 跟随 `data-sky` / `sopify-theme` 切换昼夜材质。
 - 失败（含 `?desk3d=fail`）自动回简洁桌面并出横幅。
 - 无 desk-3d `sessionStorage` 种子，无模拟恢复，无示范页脚。
-- 桌面软团（companion）默认关闭，避免与三物件桌面冲突。
 
 ## Smoke checklist（Rick）
 
