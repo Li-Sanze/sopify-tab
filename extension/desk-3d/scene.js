@@ -564,7 +564,7 @@ export class DeskScene {
       const title = el.querySelector('strong');
       const meta = el.querySelector('small');
       if (obj.kind === 'note') {
-        if (title) title.textContent = obj.label || '随手记';
+        if (title) title.textContent = '随手记';
         if (meta) meta.textContent = '';
       } else {
         const ws = (this._catalog.worksets || []).find((x) => x.id === obj.id);
@@ -582,6 +582,10 @@ export class DeskScene {
       const half = el.offsetWidth / 2 + 8;
       el.style.left = `${Math.min(w - half, Math.max(half, x))}px`;
       el.style.top = `${Math.max(24, Math.min(h - 25, y))}px`;
+      if (obj.kind === 'note') {
+        const title = el.querySelector('strong');
+        if (title) title.textContent = '随手记';
+      }
     }
   }
 

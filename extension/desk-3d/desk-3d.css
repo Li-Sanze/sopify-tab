@@ -29,9 +29,11 @@
   z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 12px 14px 14px;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  height: 100%;
+  min-height: inherit;
   border-radius: var(--r-xl);
   background: var(--glass-sheen), var(--glass-secondary);
   border: 1px solid var(--glass-edge);
@@ -85,18 +87,13 @@
   color: var(--accent);
 }
 
-.desk-stage-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 196px;
-  gap: 12px;
-  min-height: 0;
-}
-
 .desk3d-board {
   position: relative;
-  min-height: 260px;
-  aspect-ratio: 16 / 10;
-  max-height: min(48vh, 480px);
+  flex: 1;
+  min-height: 280px;
+  height: 100%;
+  aspect-ratio: auto;
+  max-height: none;
   border-radius: calc(var(--r-xl) + 4px);
   overflow: hidden;
   background:
@@ -318,10 +315,7 @@ html[data-sky="night"] .desk3d-banner {
 }
 
 .desk3d-rail {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  display: none;
 }
 
 .desk3d-rail-heading {
@@ -338,6 +332,7 @@ html[data-sky="night"] .desk3d-banner {
 }
 
 .desk3d-rail-btn {
+  /* Keyboard-only twins live in .sr-only; keep styles for focus routing */
   text-align: left;
   border: 1px solid var(--line);
   background: var(--field-bg);
@@ -348,8 +343,6 @@ html[data-sky="night"] .desk3d-banner {
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .desk3d-rail-btn:hover,
@@ -583,15 +576,10 @@ html[data-sky="night"] .desk3d-banner {
   cursor: pointer;
 }
 
-@container desk (max-width: 619px) {
-  .desk-stage-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  /* Compact desk first; keyboard rail is secondary (below the board). */
+@container desk (max-width: 719px) {
   .desk3d-board {
-    max-height: min(32vh, 280px);
-    min-height: 180px;
-    aspect-ratio: 16 / 11;
+    min-height: 200px;
+    max-height: min(34vh, 280px);
   }
   .desk3d-scene-label {
     max-width: min(126px, 46%);

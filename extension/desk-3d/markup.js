@@ -1,7 +1,7 @@
 /**
  * Shared desk-3d DOM. Canvas is created in JS (not in newtab.html)
  * so host sky/companion contracts that scan the NTP markup stay intact.
- * Folder / note chips are filled from real worksets + the single desk note.
+ * Stage is board-only: no chip wall. Labels + fallback cards share pick paths.
  */
 
 export function stageInnerHTML() {
@@ -16,35 +16,30 @@ export function stageInnerHTML() {
         <span id="desk3d-toggle-label">空间视图</span>
       </label>
     </div>
-    <div class="desk-stage-body">
-      <div class="desk3d-board" aria-label="空间桌面">
-        <div id="desk3d-view" class="desk3d-view">
-          <button type="button" class="desk3d-scene-label" id="desk3d-label-primary" data-desk3d-pick="primary" hidden>
-            <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
-          </button>
-          <button type="button" class="desk3d-scene-label" id="desk3d-label-secondary" data-desk3d-pick="secondary" hidden>
-            <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
-          </button>
-          <button type="button" class="desk3d-scene-label note" id="desk3d-label-note" data-desk3d-pick="note" hidden>
-            <strong>随手记</strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
-          </button>
-        </div>
-        <div id="desk3d-fallback" class="desk3d-fallback">
-          <p class="desk3d-fallback-title">简洁视图 · 所有操作仍可使用</p>
-          <div id="desk3d-fallback-surface" class="desk3d-fallback-surface"></div>
-        </div>
-        <p id="desk3d-banner" class="desk3d-banner" hidden role="status"></p>
+    <div class="desk3d-board" aria-label="空间桌面">
+      <div id="desk3d-view" class="desk3d-view">
+        <button type="button" class="desk3d-scene-label" id="desk3d-label-primary" data-desk3d-pick="primary" hidden>
+          <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+        </button>
+        <button type="button" class="desk3d-scene-label" id="desk3d-label-secondary" data-desk3d-pick="secondary" hidden>
+          <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+        </button>
+        <button type="button" class="desk3d-scene-label note" id="desk3d-label-note" data-desk3d-pick="note" hidden>
+          <strong>随手记</strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+        </button>
       </div>
-      <aside class="desk3d-rail" aria-label="键盘可达入口">
-        <h2 class="desk3d-rail-heading">桌面入口</h2>
-        <p class="desk3d-hint">与 3D 点击同一路径；桌面最多两个工作集。</p>
-        <div id="desk3d-rail-entries"></div>
-        <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部工作集 ↗</button>
-      </aside>
+      <div id="desk3d-fallback" class="desk3d-fallback">
+        <p class="desk3d-fallback-title">简洁视图 · 所有操作仍可使用</p>
+        <div id="desk3d-fallback-surface" class="desk3d-fallback-surface"></div>
+      </div>
+      <p id="desk3d-banner" class="desk3d-banner" hidden role="status"></p>
     </div>
     <div class="desk-stage-foot">
       <p class="desk3d-hint-foot">点一个物件，接着上次的思路</p>
+      <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部工作集 ↗</button>
     </div>
+    <!-- Keyboard twins: same route as 3D / labels; visually hidden, no chip wall -->
+    <div id="desk3d-rail-entries" class="sr-only" aria-label="桌面键盘入口"></div>
   `;
 }
 

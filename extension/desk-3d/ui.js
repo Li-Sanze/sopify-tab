@@ -257,32 +257,24 @@ export class DeskUI {
       onDesk.forEach((w, i) => {
         this.surface.appendChild(fallbackCard('workset', w.id, w.name || '工作集', `${(w.tabs || []).length} 个标签`, i));
       });
-      this.surface.appendChild(fallbackCard('note', NOTE_ID, data.noteLabel, '记录一个想法', 0));
+      this.surface.appendChild(fallbackCard('note', NOTE_ID, '随手记', data.noteLabel === '随手记' ? '记录一个想法' : data.noteLabel, 0));
     }
 
     if (this.railEntries) {
+      // Visually hidden keyboard twins — no "打开：" chip wall on screen.
       this.railEntries.innerHTML = '';
-      if (!data.worksets.length) {
-        const empty = document.createElement('p');
-        empty.className = 'desk3d-empty';
-        empty.textContent = '还没有保存的工作集。';
-        this.railEntries.appendChild(empty);
-      }
-      // Keyboard path: all worksets reachable; desk mesh only shows two.
-      data.worksets.forEach((w, i) => {
-        const prefix = i < MAX_DESK_WORKSETS ? '打开：' : '列表：';
-        this.railEntries.appendChild(railButton('workset', w.id, `${prefix}${w.name || '工作集'}`));
+      onDesk.forEach((w) => {
+        this.railEntries.appendChild(railButton('workset', w.id, w.name || '工作集'));
       });
-      this.railEntries.appendChild(railButton('note', NOTE_ID, '编辑：随手记'));
+      this.railEntries.appendChild(railButton('note', NOTE_ID, '随手记'));
     }
 
-    // Scene labels are only interactive when mode=on; scene._syncLabels owns visibility.
     const spatialOn = this._spatialOn();
     this._fillLabel(this.labelPrimary, onDesk[0], spatialOn);
     this._fillLabel(this.labelSecondary, onDesk[1], spatialOn);
     if (this.labelNote) {
       const strong = this.labelNote.querySelector('strong');
-      if (strong) strong.textContent = data.noteLabel || '随手记';
+      if (strong) strong.textContent = '随手记';
       this.labelNote.hidden = !spatialOn;
     }
   }
