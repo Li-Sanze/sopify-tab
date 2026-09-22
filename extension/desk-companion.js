@@ -9,8 +9,9 @@
   const STRETCH_MAX = 1.18;
   const REBOUND_MS = 280;
   const DEFAULT_PARK = { x: 1, y: 1 };
+  // Studio 03 spatial desk: no floating companion on the NTP by default.
   const DEFAULT_COMPANION = {
-    enabled: true,
+    enabled: false,
     x: DEFAULT_PARK.x,
     y: DEFAULT_PARK.y,
     motion: 'full',

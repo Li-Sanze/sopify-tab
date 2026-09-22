@@ -4,7 +4,7 @@
  * No demo catalog. No extension storage or tab APIs here.
  */
 
-import { NOTE_ID } from './data.js';
+import { MAX_DESK_WORKSETS, NOTE_ID, PICK_NOTE, PICK_PRIMARY, PICK_SECONDARY } from './data.js';
 
 export class DeskUI {
   /**
@@ -15,12 +15,14 @@ export class DeskUI {
    *   getNote?: () => string,
    *   saveNote?: (text: string) => void,
    *   restoreWorkset?: (id: string) => void,
+   *   onHoverPick?: (key: string|null) => void,
    * }} [opts]
    */
   constructor(opts) {
     const options = opts || {};
     this.resumeSelector = options.resumeSelector || '#resume';
     this.root = options.root || document;
+    this.onHoverPick = typeof options.onHoverPick === 'function' ? options.onHoverPick : null;
     this.host = {
       getWorksets: typeof options.getWorksets === 'function' ? options.getWorksets : null,
       getNote: typeof options.getNote === 'function' ? options.getNote : null,
@@ -41,6 +43,12 @@ export class DeskUI {
     this.view = document.getElementById('desk3d-view');
     this.surface = document.getElementById('desk3d-fallback-surface');
     this.railEntries = document.getElementById('desk3d-rail-entries');
+    this.worksetCount = document.getElementById('desk3d-workset-count');
+    this.toggleLabel = document.getElementById('desk3d-toggle-label');
+    this.allWorksetsBtn = document.getElementById('desk3d-all-worksets');
+    this.labelPrimary = document.getElementById('desk3d-label-primary');
+    this.labelSecondary = document.getElementById('desk3d-label-secondary');
+    this.labelNote = document.getElementById('desk3d-label-note');
 
     /** @type {HTMLElement | null} */
     this._returnFocus = null;
@@ -49,9 +57,19 @@ export class DeskUI {
 
     this._bindPanels();
     this._bindEntries();
+    this._bindLabels();
+    this._bindAllWorksets();
     this.syncFromHost();
     this._renderTodoAnchor();
     this._observeResumeHeight();
+  }
+
+  labelEls() {
+    return {
+      primary: this.labelPrimary,
+      secondary: this.labelSecondary,
+      note: this.labelNote,
+    };
   }
 
   /**
@@ -127,12 +145,59 @@ export class DeskUI {
     });
   }
 
+  _bindLabels() {
+    const labels = [
+      { el: this.labelPrimary, key: PICK_PRIMARY },
+      { el: this.labelSecondary, key: PICK_SECONDARY },
+      { el: this.labelNote, key: PICK_NOTE },
+    ];
+    for (const { el, key } of labels) {
+      if (!el) continue;
+      el.addEventListener('click', () => this.openFromPickKey(key, el));
+      el.addEventListener('pointerenter', () => this.onHoverPick && this.onHoverPick(key));
+      el.addEventListener('pointerleave', () => this.onHoverPick && this.onHoverPick(null));
+      el.addEventListener('focus', () => this.onHoverPick && this.onHoverPick(key));
+      el.addEventListener('blur', () => this.onHoverPick && this.onHoverPick(null));
+    }
+  }
+
+  _bindAllWorksets() {
+    if (!this.allWorksetsBtn) return;
+    this.allWorksetsBtn.addEventListener('click', () => {
+      const tabsNav = document.querySelector('.navbtn[data-view="tabs"]');
+      if (tabsNav && typeof tabsNav.click === 'function') {
+        tabsNav.click();
+        return;
+      }
+      const list = this.readCatalog().worksets;
+      if (list[0]) this.openWorkset(list[0].id);
+    });
+  }
+
+  /** Map Studio pick key → workset index / note. */
+  openFromPickKey(key, focusEl) {
+    this._returnFocus = /** @type {HTMLElement} */ (focusEl || this.view);
+    if (key === PICK_NOTE) {
+      this.openNote();
+      return;
+    }
+    const catalog = this.readCatalog();
+    const idx = key === PICK_SECONDARY ? 1 : 0;
+    const item = catalog.worksets[idx];
+    if (item) this.openWorkset(item.id);
+  }
+
   /** 3D pick — same handlers as the DOM rail / static desk. */
   openFromScene(id, kind) {
-    const twin =
-      kind === 'workset'
-        ? this.root.querySelector(`.desk3d-rail-btn[data-desk3d-workset="${cssAttr(id)}"]`)
-        : this.root.querySelector(`.desk3d-rail-btn[data-desk3d-note]`);
+    let twin = null;
+    if (kind === 'workset') {
+      twin = this.root.querySelector(`.desk3d-rail-btn[data-desk3d-workset="${cssAttr(id)}"]`);
+      const list = this.readCatalog().worksets;
+      const pick = list[1] && list[1].id === id ? PICK_SECONDARY : PICK_PRIMARY;
+      twin = twin || this.root.querySelector(`.desk3d-scene-label[data-desk3d-pick="${pick}"]`);
+    } else {
+      twin = this.root.querySelector(`.desk3d-rail-btn[data-desk3d-note], .desk3d-scene-label[data-desk3d-pick="${PICK_NOTE}"]`);
+    }
     this._returnFocus = /** @type {HTMLElement} */ (twin || this.view);
     if (kind === 'workset') this.openWorkset(id);
     else if (kind === 'note') this.openNote();
@@ -145,13 +210,25 @@ export class DeskUI {
     return {
       worksets: list,
       noteText,
-      noteLabel: noteOneLiner(noteText) || '便签',
+      noteLabel: noteOneLiner(noteText) || '随手记',
+    };
+  }
+
+  /** Catalog for the 3D scene: at most two worksets. */
+  deskCatalog() {
+    const catalog = this.readCatalog();
+    return {
+      worksets: catalog.worksets.slice(0, MAX_DESK_WORKSETS),
+      noteLabel: catalog.noteLabel,
     };
   }
 
   syncFromHost() {
     const catalog = this.readCatalog();
     this._renderEntries(catalog);
+    if (this.worksetCount) {
+      this.worksetCount.textContent = `${catalog.worksets.length} 个工作集`;
+    }
     if (this.panelNote && this.panelNote.open && this.noteEditor && this.noteEditor !== document.activeElement) {
       this.noteEditor.value = catalog.noteText;
     }
@@ -161,21 +238,28 @@ export class DeskUI {
     return catalog;
   }
 
+  setToggleLabel(want3d) {
+    if (this.toggleLabel) this.toggleLabel.textContent = want3d ? '空间视图' : '简洁视图';
+  }
+
   _renderEntries(catalog) {
     const data = catalog || this.readCatalog();
+    const onDesk = data.worksets.slice(0, MAX_DESK_WORKSETS);
+
     if (this.surface) {
       this.surface.innerHTML = '';
-      if (!data.worksets.length) {
+      if (!onDesk.length) {
         const empty = document.createElement('p');
         empty.className = 'desk3d-empty';
-        empty.textContent = '还没有保存的工作集。';
+        empty.textContent = '还没有保存的工作集。保存当前窗口后会出现在这里。';
         this.surface.appendChild(empty);
       }
-      data.worksets.forEach((w, i) => {
-        this.surface.appendChild(chipButton('workset', w.id, w.name || '工作集', i));
+      onDesk.forEach((w, i) => {
+        this.surface.appendChild(fallbackCard('workset', w.id, w.name || '工作集', `${(w.tabs || []).length} 个标签`, i));
       });
-      this.surface.appendChild(chipButton('note', NOTE_ID, data.noteLabel, 0));
+      this.surface.appendChild(fallbackCard('note', NOTE_ID, data.noteLabel, '记录一个想法', 0));
     }
+
     if (this.railEntries) {
       this.railEntries.innerHTML = '';
       if (!data.worksets.length) {
@@ -184,11 +268,46 @@ export class DeskUI {
         empty.textContent = '还没有保存的工作集。';
         this.railEntries.appendChild(empty);
       }
-      data.worksets.forEach((w) => {
-        this.railEntries.appendChild(railButton('workset', w.id, `打开：${w.name || '工作集'}`));
+      // Keyboard path: all worksets reachable; desk mesh only shows two.
+      data.worksets.forEach((w, i) => {
+        const prefix = i < MAX_DESK_WORKSETS ? '打开：' : '列表：';
+        this.railEntries.appendChild(railButton('workset', w.id, `${prefix}${w.name || '工作集'}`));
       });
-      this.railEntries.appendChild(railButton('note', NOTE_ID, '编辑：便签'));
+      this.railEntries.appendChild(railButton('note', NOTE_ID, '编辑：随手记'));
     }
+
+    // Scene labels are only interactive when mode=on; scene._syncLabels owns visibility.
+    const spatialOn = this._spatialOn();
+    this._fillLabel(this.labelPrimary, onDesk[0], spatialOn);
+    this._fillLabel(this.labelSecondary, onDesk[1], spatialOn);
+    if (this.labelNote) {
+      const strong = this.labelNote.querySelector('strong');
+      if (strong) strong.textContent = data.noteLabel || '随手记';
+      this.labelNote.hidden = !spatialOn;
+    }
+  }
+
+  _spatialOn() {
+    const mount = this.root instanceof Element ? this.root : document.getElementById('desk-3d-mount');
+    return !!(mount && mount.dataset && mount.dataset.desk3dMode === 'on');
+  }
+
+  /**
+   * @param {HTMLElement|null} el
+   * @param {{ name?: string, tabs?: unknown[] }|undefined} workset
+   * @param {boolean} spatialOn
+   */
+  _fillLabel(el, workset, spatialOn) {
+    if (!el) return;
+    if (!workset) {
+      el.hidden = true;
+      return;
+    }
+    const strong = el.querySelector('strong');
+    const small = el.querySelector('small');
+    if (strong) strong.textContent = workset.name || '工作集';
+    if (small) small.textContent = `${(workset.tabs || []).length} 个标签`;
+    el.hidden = !spatialOn;
   }
 
   openWorkset(id) {
@@ -265,12 +384,17 @@ export class DeskUI {
 
   showFallback(reason) {
     if (this.fallback) this.fallback.hidden = false;
+    if (this.labelPrimary) this.labelPrimary.hidden = true;
+    if (this.labelSecondary) this.labelSecondary.hidden = true;
+    if (this.labelNote) this.labelNote.hidden = true;
     if (reason) this.setBanner(reason);
   }
 
   hideFallback() {
     if (this.fallback) this.fallback.hidden = true;
     this.setBanner('');
+    // Mode is already "on"; refresh copy then let scene position labels.
+    this.syncFromHost();
   }
 
   setBanner(text) {
@@ -302,13 +426,13 @@ function cssAttr(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function chipButton(kind, id, label, index) {
+function fallbackCard(kind, id, label, meta, index) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = kind === 'note' ? 'desk3d-chip note' : `desk3d-chip folder tone-${index % 5}`;
+  btn.className = kind === 'note' ? 'desk3d-chip note' : `desk3d-chip folder tone-${index % 2}`;
   if (kind === 'note') btn.setAttribute('data-desk3d-note', id);
   else btn.setAttribute('data-desk3d-workset', id);
-  btn.textContent = label;
+  btn.innerHTML = `<strong>${escapeHtml(label)} ↗</strong><small>${escapeHtml(meta || '')}</small>`;
   return btn;
 }
 

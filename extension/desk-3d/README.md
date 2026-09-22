@@ -1,8 +1,8 @@
-# desk-3d（嵌入 newtab）
+# desk-3d（嵌入 newtab）· Studio 03 空间桌面
 
-Path 3：固定视角微缩桌嵌在新标签页主书桌，不另开独立入口页。
+Path 3：固定视角空间桌嵌在新标签页主书桌。视觉收敛为简约厚实圆角桌 + 三个功能物件（屏幕 / 资料夹 / 随手记）。
 
-本波把舞台接到真实书桌数据。Draft only。Rick 督手测；专项独立审计；Sanze 确认前禁止合并。`host/` 不改。
+本波基于 PR #33 tip（`window.SopifyDesk3d` 真实接线）移植 Studio 03 示范。Draft only。不合 main；不覆盖 #33 分支。`host/` 不改。
 
 ## 干净配置加载（给 Rick）
 
@@ -41,20 +41,21 @@ google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
 ## 行为
 
 - 「下一件事」是 `#resume`，纯 DOM，不经 3D。面板用 `--next-h` / `--resume-bottom`（ResizeObserver）避开它。
-- 默认「有 3D」打开。关掉后静态 DOM 桌面仍可用。
-- 文件夹 = `chrome.storage.local.worksets`。没有工作集时桌面是空的，不造演示文件夹。
-- 便签 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。
-- 点击文件夹打开工作集面板；「恢复」走 newtab 注入的 `restoreWorksetById`（只创建/激活，不关其它标签）。
-- 点击便签读写真实书桌便签，经 `saveDesk({ notes })`。
-- desk-3d 自己不读 `chrome.storage` / `chrome.tabs`。只吃 `window.SopifyDesk3d` 回调（newtab.js 注入，和 `SopifyTheme` / `SopifyDeskCompanion` 同一模式）。
-- 仅在「有 3D」且舞台可见时 `DeskScene.init()`。空闲停 RAF；无暂停按钮；无 `window` 级唤醒。`shadowMap` 关闭。尊重 `prefers-reduced-motion`。
-- 失败（含 `?desk3d=fail`）自动回静态桌面并出横幅。
-- 无 desk-3d `sessionStorage` 种子，无模拟恢复。
+- 默认「空间视图」打开。关掉后「简洁视图」静态 DOM 桌面仍可用。
+- 桌面最多 **两个** 工作集物件（屏幕 + 资料夹）；多余在侧栏列表 / 「查看全部工作集」进标签页。
+- 随手记 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。
+- 点击物件打开工作集面板或便签；「恢复」走 newtab 注入的 `restoreWorksetById`。
+- desk-3d 自己不读 `chrome.storage` / `chrome.tabs`。只吃 `window.SopifyDesk3d` 回调。
+- 仅在空间视图且舞台可见时 `DeskScene.init()`。空闲停 RAF；无 `window` 级唤醒。`shadowMap` 关闭（接触阴影为假阴影盘）。尊重 `prefers-reduced-motion`。
+- 跟随 `data-sky` / `sopify-theme` 切换昼夜材质。
+- 失败（含 `?desk3d=fail`）自动回简洁桌面并出横幅。
+- 无 desk-3d `sessionStorage` 种子，无模拟恢复，无示范页脚。
+- 桌面软团（companion）默认关闭，避免与三物件桌面冲突。
 
 ## Smoke checklist（Rick）
 
-1. **下一件事 / resume**：第一屏可见，是 `#resume` DOM，不经 3D。打开工作集面板时面板不得盖住它。
-2. **真实数据**：有已保存工作集时桌面上出现同名文件夹；没有则空。便签是书桌那一条，或空。
-3. **有 3D / 无 3D 同一路径**：侧栏按钮、静态桌面按钮、3D 点击都打开同一套真实面板。恢复会打开当前窗口还没有的网页。
-4. **空闲停 RAF**：3D 打开后不悬停，`#desk-3d-mount` 与 canvas 的 `data-desk3d-loop` 应为 `idle`。悬停会短暂 `live`，随后回到 `idle`。没有暂停按钮。
-5. **WebGL 失败回退**：`newtab.html?desk3d=fail` 出现「WebGL 不可用」横幅，静态 DOM 桌面仍可用。
+1. **下一件事 / resume**：第一屏可见，是 `#resume` DOM，不经 3D。
+2. **真实数据**：有已保存工作集时桌面出现屏幕（第 1）/ 资料夹（第 2）；没有则空。便签是书桌那一条。
+3. **空间 / 简洁同一路径**：侧栏按钮、静态桌面按钮、3D 点击、浮动标签都打开同一套真实面板。
+4. **空闲停 RAF**：3D 打开后不悬停，`#desk-3d-mount` 与 canvas 的 `data-desk3d-loop` 应为 `idle`。
+5. **WebGL 失败回退**：`newtab.html?desk3d=fail` 出现「WebGL 不可用」横幅，简洁桌面仍可用。

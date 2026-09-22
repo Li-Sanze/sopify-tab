@@ -7,26 +7,43 @@
 export function stageInnerHTML() {
   return `
     <div class="desk-stage-bar">
-      <p class="desk-stage-kicker">微缩桌</p>
-      <label class="desk-stage-toggle" for="desk3d-toggle">
+      <p class="desk-stage-kicker"><span id="desk3d-workset-count">0 个工作集</span></p>
+      <label class="desk-stage-toggle" for="desk3d-toggle" title="空间视图 / 简洁视图">
         <input type="checkbox" id="desk3d-toggle" />
-        <span>有 3D</span>
+        <span class="desk-stage-toggle-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 3.2 3.5 8v8L12 20.8 20.5 16V8L12 3.2zm0 2.3 6.2 3.4v.1L12 12.4 5.8 8.9v-.1L12 5.5zm-6.7 5.3L12 14.3l6.7-3.5v5.1L12 19.4l-6.7-3.5V10.8z"/></svg>
+        </span>
+        <span id="desk3d-toggle-label">空间视图</span>
       </label>
     </div>
     <div class="desk-stage-body">
-      <div class="desk3d-board" aria-label="工作桌舞台">
-        <div id="desk3d-view" class="desk3d-view"></div>
+      <div class="desk3d-board" aria-label="空间桌面">
+        <div id="desk3d-view" class="desk3d-view">
+          <button type="button" class="desk3d-scene-label" id="desk3d-label-primary" data-desk3d-pick="primary" hidden>
+            <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+          </button>
+          <button type="button" class="desk3d-scene-label" id="desk3d-label-secondary" data-desk3d-pick="secondary" hidden>
+            <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+          </button>
+          <button type="button" class="desk3d-scene-label note" id="desk3d-label-note" data-desk3d-pick="note" hidden>
+            <strong>随手记</strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+          </button>
+        </div>
         <div id="desk3d-fallback" class="desk3d-fallback">
-          <p class="desk3d-fallback-title">静态桌面（无 3D / 已关 3D）</p>
+          <p class="desk3d-fallback-title">简洁视图 · 所有操作仍可使用</p>
           <div id="desk3d-fallback-surface" class="desk3d-fallback-surface"></div>
         </div>
         <p id="desk3d-banner" class="desk3d-banner" hidden role="status"></p>
       </div>
       <aside class="desk3d-rail" aria-label="键盘可达入口">
         <h2 class="desk3d-rail-heading">桌面入口</h2>
-        <p class="desk3d-hint">与 3D 点击同一路径；不必对准桌面物件。</p>
+        <p class="desk3d-hint">与 3D 点击同一路径；桌面最多两个工作集。</p>
         <div id="desk3d-rail-entries"></div>
+        <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部工作集 ↗</button>
       </aside>
+    </div>
+    <div class="desk-stage-foot">
+      <p class="desk3d-hint-foot">点一个物件，接着上次的思路</p>
     </div>
   `;
 }
@@ -50,12 +67,12 @@ export function panelsInnerHTML() {
     <dialog id="desk3d-panel-note" class="desk3d-panel" aria-labelledby="desk3d-note-title">
       <form method="dialog" class="desk3d-panel-inner">
         <header class="desk3d-panel-head">
-          <h2 id="desk3d-note-title">便签</h2>
+          <h2 id="desk3d-note-title">随手记</h2>
           <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭面板">×</button>
         </header>
         <div class="desk3d-panel-body">
-          <label class="sr-only" for="desk3d-note-editor">便签内容</label>
-          <textarea id="desk3d-note-editor" rows="8" placeholder="还没有便签。"></textarea>
+          <label class="sr-only" for="desk3d-note-editor">随手记内容</label>
+          <textarea id="desk3d-note-editor" rows="8" placeholder="记下一个想法。"></textarea>
           <p class="desk3d-save-hint">输入即保存到书桌便签。</p>
         </div>
       </form>

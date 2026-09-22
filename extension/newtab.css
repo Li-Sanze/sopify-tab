@@ -155,7 +155,7 @@ svg.i.sm { width: 14px; height: 14px; }
 #desk-3d-mount {
   position: relative;
   z-index: 8;
-  min-height: 220px;
+  min-height: 260px;
   margin-bottom: 20px;
 }
 

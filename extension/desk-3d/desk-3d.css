@@ -1,4 +1,4 @@
-/* desk-3d stage — additive on the NTP. Tokens come from theme.css. */
+/* Studio 03 spatial desk — additive on the NTP. Tokens from theme.css. */
 
 .sr-only {
   position: absolute;
@@ -15,12 +15,11 @@
 :root {
   --next-h: 148px;
   --resume-bottom: 220px;
-  --desk3d-wood: #f4efe6;
-  --desk3d-wood-edge: #d9d0c2;
-  --desk3d-folder: #6b9bd1;
-  --desk3d-folder-2: #7aaf9a;
-  --desk3d-note-a: #fff3a3;
-  --desk3d-note-b: #ffd6e0;
+  --desk3d-wood: #e4d6c3;
+  --desk3d-wood-edge: #c2ad93;
+  --desk3d-folder: #d99d7d;
+  --desk3d-folder-2: #b8785d;
+  --desk3d-note-a: #f5e5b4;
 }
 
 .desk-stage {
@@ -68,10 +67,22 @@
 }
 
 .desk-stage-toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.desk-stage-toggle-icon {
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.desk-stage-toggle:has(input:checked) .desk-stage-toggle-icon,
+.desk-stage-toggle:has(input:focus-visible) {
+  color: var(--accent);
 }
 
 .desk-stage-body {
@@ -83,13 +94,21 @@
 
 .desk3d-board {
   position: relative;
-  min-height: 220px;
-  aspect-ratio: 16 / 9;
-  max-height: min(42vh, 420px);
-  border-radius: var(--r-lg);
+  min-height: 260px;
+  aspect-ratio: 16 / 10;
+  max-height: min(48vh, 480px);
+  border-radius: calc(var(--r-xl) + 4px);
   overflow: hidden;
-  background: linear-gradient(165deg, color-mix(in srgb, var(--sky-mid) 80%, #dfe7ef) 0%, var(--desk3d-wood) 100%);
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--sky-mid) 55%, transparent), transparent 70%),
+    linear-gradient(165deg, color-mix(in srgb, var(--sky-mid) 70%, #e8e0d4) 0%, var(--desk3d-wood) 100%);
   border: 1px solid var(--line);
+}
+
+html[data-sky="night"] .desk3d-board {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 40%, color-mix(in srgb, #4a5870 50%, transparent), transparent 70%),
+    linear-gradient(165deg, #2a3140 0%, #3d4654 100%);
 }
 
 .desk3d-view,
@@ -109,12 +128,86 @@
   outline: none;
 }
 
+/* Floating object labels — title is block so max-width / ellipsis work. */
+.desk3d-scene-label {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  max-width: min(180px, 42%);
+  margin: 0;
+  padding: 6px 10px 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass) 92%, #fff);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.desk3d-scene-label strong {
+  display: block;
+  max-width: 135px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk3d-scene-label small {
+  display: block;
+  max-width: 135px;
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk3d-scene-label small:empty {
+  display: none;
+}
+
+.desk3d-label-arrow {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.desk3d-scene-label.note {
+  padding-right: 22px;
+}
+
+.desk3d-scene-label:hover,
+.desk3d-scene-label:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.desk3d-scene-label[hidden] {
+  display: none !important;
+}
+
 .desk-stage[data-desk3d-mode="on"] .desk3d-fallback {
   display: none !important;
 }
 
 .desk-stage[data-desk3d-mode="dom"] .desk3d-view {
   visibility: hidden;
+}
+
+.desk-stage[data-desk3d-mode="dom"] .desk3d-scene-label {
+  display: none !important;
 }
 
 .desk3d-fallback {
@@ -141,20 +234,37 @@
   gap: 10px;
   align-content: center;
   padding: 16px;
-  background: var(--desk3d-wood);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--desk3d-wood) 70%, var(--field-bg));
+  border-radius: 14px;
   border: 1px solid var(--desk3d-wood-edge);
 }
 
 .desk3d-chip {
   border: 0;
-  border-radius: 8px;
-  padding: 14px 10px;
+  border-radius: 14px;
+  padding: 14px 12px;
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  text-align: left;
   cursor: pointer;
   box-shadow: 0 2px 6px color-mix(in srgb, var(--ink) 12%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.desk3d-chip strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.desk3d-chip small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 .desk3d-chip.folder {
@@ -164,18 +274,6 @@
 
 .desk3d-chip.folder.tone-1 {
   background: var(--desk3d-folder-2);
-}
-
-.desk3d-chip.folder.tone-2 {
-  background: #c48a4a;
-}
-
-.desk3d-chip.folder.tone-3 {
-  background: #8a7cc4;
-}
-
-.desk3d-chip.folder.tone-4 {
-  background: #d46b6b;
 }
 
 .desk3d-chip.note {
@@ -207,6 +305,12 @@
   border: 1px solid #e8d9a8;
   font-size: 12.5px;
   color: #6a5a2a;
+}
+
+html[data-sky="night"] .desk3d-banner {
+  background: #3a3420;
+  border-color: #5a4e28;
+  color: #e8d9a8;
 }
 
 .desk3d-banner[hidden] {
@@ -244,6 +348,8 @@
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .desk3d-rail-btn:hover,
@@ -254,6 +360,37 @@
 
 .desk3d-rail-btn.note {
   background: color-mix(in srgb, var(--field-bg) 70%, #fff8d8);
+}
+
+.desk3d-rail-link {
+  margin-top: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.desk3d-rail-link:hover,
+.desk3d-rail-link:focus-visible {
+  text-decoration: underline;
+}
+
+.desk-stage-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.desk3d-hint-foot {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
 }
 
 .desk3d-panel {
@@ -330,6 +467,8 @@
 #desk3d-workset-name {
   margin: 0 0 8px;
   font-size: 16px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .desk3d-page-list {
@@ -346,6 +485,8 @@
   font-size: 13.5px;
   border-bottom: 1px solid var(--line);
   background: var(--field-bg);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .desk3d-page-list li:last-child {
@@ -448,6 +589,13 @@
   }
   .desk3d-board {
     max-height: min(36vh, 320px);
+    min-height: 200px;
+  }
+  .desk3d-scene-label strong {
+    max-width: 90px;
+  }
+  .desk3d-rail {
+    order: -1;
   }
 }
 
@@ -455,7 +603,8 @@
   .desk-stage,
   .desk3d-chip,
   .desk3d-rail-btn,
-  .desk3d-panel {
+  .desk3d-panel,
+  .desk3d-scene-label {
     transition: none;
   }
 }

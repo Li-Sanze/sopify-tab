@@ -1,6 +1,6 @@
 /**
  * Embed desk-3d into a mount node (newtab stage or standalone prototype).
- * Lazy-inits WebGL only when 「有 3D」 is on and the stage is visible.
+ * Lazy-inits WebGL only when 「空间视图」 is on and the stage is visible.
  * Real desk data arrives only via callbacks from newtab.js.
  */
 
@@ -13,9 +13,10 @@ function ensureCanvas(view) {
   if (!canvas) {
     canvas = document.createElement('canvas');
     canvas.id = 'desk3d-canvas';
-    canvas.setAttribute('aria-label', '固定视角工作桌');
+    canvas.setAttribute('aria-label', '空间桌面');
     canvas.tabIndex = -1;
-    view.appendChild(canvas);
+    // Labels sit above the canvas; insert canvas first.
+    view.insertBefore(canvas, view.firstChild);
   }
   return canvas;
 }
@@ -36,6 +37,14 @@ function forceFailRequested(opts) {
   if (opts && opts.forceFail) return true;
   try {
     return new URLSearchParams(location.search).get('desk3d') === 'fail';
+  } catch {
+    return false;
+  }
+}
+
+function isNightSky() {
+  try {
+    return document.documentElement.dataset.sky === 'night';
   } catch {
     return false;
   }
@@ -65,18 +74,6 @@ export function mountDesk3d(mount, opts) {
   mount.dataset.desk3dMode = 'dom';
   ensurePanels();
 
-  const ui = new DeskUI({
-    resumeSelector,
-    root: mount,
-    getWorksets: options.getWorksets,
-    getNote: options.getNote,
-    saveNote: options.saveNote,
-    restoreWorkset: options.restoreWorkset,
-  });
-  const toggle = mount.querySelector('#desk3d-toggle');
-  const view = mount.querySelector('#desk3d-view');
-  if (!toggle || !view) return { ui, scene: null };
-
   /** @type {DeskScene | null} */
   let scene = null;
   let inited = false;
@@ -84,30 +81,45 @@ export function mountDesk3d(mount, opts) {
   let want3d = defaultWant3d;
   /** @type {string} */
   let failReason = '';
+  /** @type {Function|void} */
+  let unsubscribe = undefined;
+
+  const ui = new DeskUI({
+    resumeSelector,
+    root: mount,
+    getWorksets: options.getWorksets,
+    getNote: options.getNote,
+    saveNote: options.saveNote,
+    restoreWorkset: options.restoreWorkset,
+    onHoverPick: (key) => {
+      if (scene) scene.setHover(key);
+    },
+  });
+
+  const toggle = mount.querySelector('#desk3d-toggle');
+  const view = mount.querySelector('#desk3d-view');
+  if (!toggle || !view) return { ui, scene: null };
+
   toggle.checked = want3d && !failReason;
+  ui.setToggleLabel(want3d && !failReason);
 
   function catalogForScene() {
-    const data = ui.readCatalog();
-    return {
-      worksets: data.worksets.map((w) => ({ id: w.id, name: w.name })),
-      noteLabel: data.noteLabel,
-    };
+    return ui.deskCatalog();
   }
 
   function syncScene() {
     const catalog = ui.syncFromHost();
     if (scene) {
-      scene.setCatalog({
-        worksets: catalog.worksets.map((w) => ({ id: w.id, name: w.name })),
-        noteLabel: catalog.noteLabel,
-      });
+      scene.setCatalog(ui.deskCatalog());
     }
+    return catalog;
   }
 
   function markUnavailable(reason) {
     failReason = reason;
     want3d = false;
     toggle.checked = false;
+    ui.setToggleLabel(false);
     mount.dataset.desk3dMode = 'dom';
     if (scene) {
       scene.dispose();
@@ -121,6 +133,7 @@ export function mountDesk3d(mount, opts) {
     if (failReason) {
       mount.dataset.desk3dMode = 'dom';
       if (scene) scene.setEnabled(false);
+      ui.setToggleLabel(false);
       ui.showFallback(failReason);
       return;
     }
@@ -128,7 +141,8 @@ export function mountDesk3d(mount, opts) {
     if (!want3d) {
       mount.dataset.desk3dMode = 'dom';
       if (scene) scene.setEnabled(false);
-      ui.showFallback('已关闭 3D：使用静态 DOM 桌面（与 3D 同一交互路径）。');
+      ui.setToggleLabel(false);
+      ui.showFallback('已关闭空间视图：使用简洁桌面（与 3D 同一交互路径）。');
       return;
     }
 
@@ -142,7 +156,7 @@ export function mountDesk3d(mount, opts) {
 
     if (!inited) {
       if (forceFail) {
-        markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+        markUnavailable('WebGL 不可用：已切换为简洁桌面，全部交互仍可用。');
         return;
       }
       const canvas = ensureCanvas(view);
@@ -150,18 +164,23 @@ export function mountDesk3d(mount, opts) {
         reducedMotion,
         onPick: (id, kind) => ui.openFromScene(id, kind),
         catalog: catalogForScene(),
+        labelEls: ui.labelEls(),
+        night: isNightSky(),
       });
       const ok = scene.init();
       inited = true;
       if (!ok) {
-        markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+        markUnavailable('WebGL 不可用：已切换为简洁桌面，全部交互仍可用。');
         return;
       }
     }
 
     mount.dataset.desk3dMode = 'on';
     ui.hideFallback();
+    scene.setTheme(isNightSky());
+    scene.setCatalog(catalogForScene());
     scene.setEnabled(true);
+    ui.setToggleLabel(true);
     if (reducedMotion) {
       ui.setBanner('已尊重 prefers-reduced-motion：减少抗锯齿与悬停抬起，空闲更快停渲。');
     }
@@ -174,7 +193,7 @@ export function mountDesk3d(mount, opts) {
   });
 
   if (forceFail) {
-    markUnavailable('WebGL 不可用：已切换为静态 DOM 桌面，全部交互仍可用。');
+    markUnavailable('WebGL 不可用：已切换为简洁桌面，全部交互仍可用。');
   }
 
   const box = mount.getBoundingClientRect();
@@ -199,15 +218,19 @@ export function mountDesk3d(mount, opts) {
     applyMode();
   });
 
+  document.documentElement.addEventListener('sopify-theme', () => {
+    if (scene) scene.setTheme(isNightSky());
+  });
+
   if (typeof options.subscribe === 'function') {
-    options.subscribe(() => { syncScene(); });
+    unsubscribe = options.subscribe(() => { syncScene(); });
   }
 
   console.info('[sopify-desk-3d] mounted', {
     want3d,
     reducedMotion,
     lazy: true,
-    dogfood: true,
+    studio: '03-spatial',
   });
 
   return {
@@ -215,5 +238,12 @@ export function mountDesk3d(mount, opts) {
     get scene() { return scene; },
     applyMode,
     syncScene,
+    dispose() {
+      if (typeof unsubscribe === 'function') unsubscribe();
+      if (scene) {
+        scene.dispose();
+        scene = null;
+      }
+    },
   };
 }

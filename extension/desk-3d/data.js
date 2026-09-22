@@ -14,14 +14,10 @@ export const THREE_VENDOR = {
 /** One sticky on the desk maps to chrome.storage.local.notes. */
 export const NOTE_ID = 'note';
 
-export const FOLDER_COLORS = [0x5b8fd4, 0x5fa88a, 0xc48a4a, 0x8a7cc4, 0xd46b6b];
+/** Desk shows at most two worksets; extras live in the full list. */
+export const MAX_DESK_WORKSETS = 2;
 
-export const FOLDER_SLOTS = [
-  { x: -1.7, z: 0.52 },
-  { x: -0.15, z: 0.3 },
-  { x: 1.35, z: 0.5 },
-  { x: -0.95, z: -1.05 },
-  { x: 0.6, z: -1.2 },
-];
-
-export const NOTE_SLOT = { x: 2.2, z: 0.18 };
+/** Pick keys for the three functional objects. */
+export const PICK_PRIMARY = 'primary';
+export const PICK_SECONDARY = 'secondary';
+export const PICK_NOTE = 'note';
