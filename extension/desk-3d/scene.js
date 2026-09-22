@@ -563,14 +563,17 @@ export class DeskScene {
       if (!visible) continue;
       const title = el.querySelector('strong');
       const meta = el.querySelector('small');
-      if (title) title.textContent = obj.label || '';
-      if (meta && obj.kind === 'workset') {
+      if (obj.kind === 'note') {
+        if (title) title.textContent = obj.label || '随手记';
+        if (meta) meta.textContent = '';
+      } else {
         const ws = (this._catalog.worksets || []).find((x) => x.id === obj.id);
+        const name = (ws && ws.name) || obj.label || '工作集';
         const n = ws && Array.isArray(ws.tabs) ? ws.tabs.length : 0;
-        meta.textContent = `${n} 个标签`;
-      } else if (meta && obj.kind === 'note') {
-        meta.textContent = '';
+        if (title) title.textContent = name;
+        if (meta) meta.textContent = `${n} 个标签`;
       }
+      el.setAttribute('aria-label', `${title ? title.textContent : ''} ${meta && meta.textContent ? meta.textContent : ''}`.trim());
       this._project.copy(obj.anchor);
       this._project.y += obj.offset;
       this._project.project(this.camera);

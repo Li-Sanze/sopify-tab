@@ -587,15 +587,18 @@ html[data-sky="night"] .desk3d-banner {
   .desk-stage-body {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* Compact desk first; keyboard rail is secondary (below the board). */
   .desk3d-board {
-    max-height: min(36vh, 320px);
-    min-height: 200px;
+    max-height: min(32vh, 280px);
+    min-height: 180px;
+    aspect-ratio: 16 / 11;
+  }
+  .desk3d-scene-label {
+    max-width: min(126px, 46%);
+    padding: 5px 20px 5px 8px;
   }
   .desk3d-scene-label strong {
     max-width: 90px;
-  }
-  .desk3d-rail {
-    order: -1;
   }
 }
 
