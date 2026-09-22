@@ -644,6 +644,14 @@
     $$('input[name="themePreset"]').forEach((el) => {
       el.checked = el.value === preset;
     });
+    const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
+    const themeBtn = $('#studio-theme-toggle');
+    if (themeBtn) {
+      themeBtn.setAttribute('aria-label', sky === 'night' ? '切换到白天' : '切换到夜间');
+      themeBtn.innerHTML = sky === 'night'
+        ? '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>'
+        : '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>';
+    }
   }
 
   function renderHost() {
@@ -796,10 +804,11 @@
     if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
     $$('.view').forEach((el) => el.classList.toggle('active', el.dataset.view === v));
-    $$('.navbtn').forEach((b) => {
+    $$('.navbtn, .studio-navbtn').forEach((b) => {
       if (b.dataset.view === v) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     });
+    document.body.classList.toggle('studio-home', v === 'desk');
     if (v === 'tabs') renderGroups();
     if (v === 'settings') {
       $('#cwd').value = state.cwd;
@@ -809,7 +818,9 @@
       renderSavedWorksets();
     }
     const focusNav = opts && opts.focusNav;
-    const nav = focusNav ? $(`.navbtn[data-view="${v}"]`) : null;
+    const nav = focusNav
+      ? ($(`.studio-navbtn[data-view="${v}"]`) || $(`.navbtn[data-view="${v}"]`))
+      : null;
     if (v === 'desk' && !focusNav) {
       const act = $('#resume-act');
       (act || $('#main')).focus({ preventScroll: true });
@@ -1053,7 +1064,23 @@
 
   let notesTimer;
   function bind() {
-    $$('.navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    $$('.navbtn, .studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    const studioBrand = $('#studio-brand');
+    if (studioBrand) {
+      studioBrand.addEventListener('click', (e) => {
+        e.preventDefault();
+        setView('desk');
+      });
+    }
+    const themeToggle = $('#studio-theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', () => {
+        if (!window.SopifyTheme) return;
+        const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
+        window.SopifyTheme.setPreset(sky === 'night' ? 'day' : 'night');
+        renderTheme();
+      });
+    }
     const chatBtn = $('#open-chat');
     if (chatBtn) chatBtn.addEventListener('click', () => { openDialogue(); });
     document.addEventListener('click', (e) => {
@@ -1287,6 +1314,7 @@
     if (state.notes) $('#notes-saved').textContent = '已保存';
     if (location.hash === '#settings') setView('settings');
     else {
+      document.body.classList.add('studio-home');
       const act = $('#resume-act');
       if (act) act.focus({ preventScroll: true });
     }

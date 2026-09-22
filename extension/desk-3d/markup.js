@@ -18,14 +18,19 @@ export function stageInnerHTML() {
     </div>
     <div class="desk3d-board" aria-label="空间桌面">
       <div id="desk3d-view" class="desk3d-view">
-        <button type="button" class="desk3d-scene-label" id="desk3d-label-primary" data-desk3d-pick="primary" hidden>
-          <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+        <button type="button" class="desk3d-scene-label primary" id="desk3d-label-primary" data-desk3d-pick="primary" hidden>
+          <span class="desk3d-label-dot" aria-hidden="true"></span>
+          <span><strong></strong><small></small></span>
+          <span class="desk3d-label-arrow" aria-hidden="true">↗</span>
         </button>
-        <button type="button" class="desk3d-scene-label" id="desk3d-label-secondary" data-desk3d-pick="secondary" hidden>
-          <strong></strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+        <button type="button" class="desk3d-scene-label secondary" id="desk3d-label-secondary" data-desk3d-pick="secondary" hidden>
+          <span class="desk3d-label-dot" aria-hidden="true"></span>
+          <span><strong></strong><small></small></span>
+          <span class="desk3d-label-arrow" aria-hidden="true">↗</span>
         </button>
         <button type="button" class="desk3d-scene-label note" id="desk3d-label-note" data-desk3d-pick="note" hidden>
-          <strong>随手记</strong><small></small><span class="desk3d-label-arrow" aria-hidden="true">↗</span>
+          <strong>随手记</strong>
+          <span class="desk3d-label-arrow" aria-hidden="true">↗</span>
         </button>
       </div>
       <div id="desk3d-fallback" class="desk3d-fallback">

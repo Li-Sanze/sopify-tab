@@ -102,53 +102,64 @@
 
     <main class="main" id="main" tabindex="-1">
       <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
-        <header class="studio-head">
-          <div class="studio-head-lead">
-            <p class="studio-brand">Sopify Tab</p>
-            <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true"></span></h1>
-            <p class="studio-sub"><span id="c-worksets-desk">0</span> 个工作集</p>
-            <label class="sr-only" for="name">称呼</label>
-            <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
-            <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
-            <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
-          </div>
-          <div class="studio-head-meta">
-            <p class="studio-date" id="date-line"></p>
+        <header class="studio-topbar">
+          <a class="studio-brand" href="#desk" id="studio-brand" aria-label="Sopify Tab 工作台">
+            <span class="studio-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="studio-brand-name">Sopify<span>Tab</span></span>
+          </a>
+          <nav class="studio-nav" aria-label="主导览">
+            <button type="button" class="studio-navbtn" data-view="desk" aria-current="page">书桌</button>
+            <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">工作集 <span id="c-worksets-desk">0</span></button>
+            <button type="button" class="studio-navbtn" data-view="settings">设置</button>
+          </nav>
+          <div class="studio-tools">
             <p class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></p>
+            <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+            </button>
           </div>
+          <label class="sr-only" for="name">称呼</label>
+          <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
+          <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
+          <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
         </header>
+
+        <section class="studio-greeting">
+          <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true">.</span></h1>
+          <p class="studio-date" id="date-line"></p>
+        </section>
 
         <div class="studio-body">
           <!-- DOM: ops first for narrow（下一件事→当前窗口→桌面）；宽屏 CSS 把舞台放到左侧 -->
           <aside class="studio-ops" aria-label="操作区">
-            <section class="resume ops-card" id="resume" aria-labelledby="resume-kicker">
-              <div class="ops-card-head">
+            <section class="resume ops-panel" id="resume" aria-labelledby="resume-kicker">
+              <div class="ops-panel-head">
                 <p class="resume-kicker" id="resume-kicker">下一件事</p>
                 <span class="ops-meta" id="resume-meta"></span>
               </div>
               <p class="resume-title" id="resume-title">还没有下一件事</p>
               <div class="ops-row">
                 <button type="button" class="btn ops-primary" id="resume-act">写一条</button>
-                <button type="button" class="linkbtn" id="todos-open">全部待办</button>
+                <button type="button" class="ops-subtle" id="todos-open">全部待办</button>
               </div>
             </section>
 
-            <section class="ops-card ops-window" id="ops-window" aria-labelledby="h-tabs">
-              <div class="ops-card-head">
-                <h2 class="ops-card-title" id="h-tabs">当前窗口</h2>
+            <section class="ops-panel ops-window" id="ops-window" aria-labelledby="h-tabs">
+              <div class="ops-panel-head">
+                <h2 class="ops-panel-title" id="h-tabs">当前窗口</h2>
                 <span class="ops-meta">随时收好</span>
               </div>
               <p class="ops-window-copy"><span id="c-tabs">0</span> 个标签，留住此刻的进度</p>
               <div class="ops-actions" role="group" aria-label="当前窗口操作">
-                <button type="button" class="btn ghost" id="workset-view">查看</button>
                 <button type="button" class="btn ops-save" id="workset-save">保存</button>
-                <button type="button" class="btn ghost" id="workset-restore-recent" hidden>恢复</button>
+                <button type="button" class="ops-subtle" id="workset-view">查看</button>
               </div>
               <div class="ops-recent">
                 <span class="muted" id="ops-recent-label">还没有保存的工作集</span>
-                <button type="button" class="linkbtn" id="desk-organize" data-goto="tabs">全部工作集 ↗</button>
+                <button type="button" class="ops-restore" id="workset-restore-recent" hidden>恢复</button>
               </div>
               <span class="sr-only" id="c-tabs-sub"></span>
+              <button type="button" class="sr-only" id="desk-organize" data-goto="tabs">全部工作集</button>
             </section>
           </aside>
 

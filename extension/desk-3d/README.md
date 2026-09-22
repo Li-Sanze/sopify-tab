@@ -4,31 +4,37 @@ Path 3：固定视角空间桌嵌在新标签页主书桌。视觉收敛为简�
 
 本波基于 PR #33 tip（`window.SopifyDesk3d` 真实接线）移植 Studio 03 示范。Draft only。不合 main；不覆盖 #33 分支。`host/` 不改。
 
-## 干净配置加载（给 Rick）
+## 干净配置加载（给 Rick / 验收官）
 
-不要用日常 Chrome。空用户目录、只装这一份扩展：
+**Google Chrome 148+ 会忽略 `--load-extension`（日志：`not allowed in Google Chrome, ignoring`）。验收必须用「加载已解压」，不要空转 CLI。**
+
+### 推荐（可复现 · 验收用）
 
 ```text
-# macOS
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Linux
-google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Windows
-"%ProgramFiles%\Google\Chrome\Application\chrome.exe" ^
-  --user-data-dir="%USERPROFILE%\sopify-tab-clean-profile" --no-first-run
+1. 启动干净配置（任选）：
+   /usr/bin/google-chrome-stable --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
+2. 打开 chrome://extensions
+3. 打开右上角「开发者模式」
+4. 「加载已解压的扩展程序」→ 指向本仓库的 extension/ 目录
+   （该目录内必须直接有 manifest.json；不要选仓库根或 host/）
+5. 确认列表出现「Sopify Tab」卡片，ID = cgkhllpelkjmfamddkjpnmchjikdcbgp
+6. Ctrl/Cmd+T 打开新标签页 → 应为本扩展 NTP（我的工作台），不是 Google 默认页
+7. 地址栏可核对：chrome-extension://cgkhllpelkjmfamddkjpnmchjikdcbgp/newtab.html
 ```
 
-1. 打开该窗口的 `chrome://extensions`
-2. 打开「开发者模式」
-3. 「加载已解压的扩展程序」→ 仓库里的 `extension/`（绝对路径，不要选仓库根或 `host/`）
-4. 确认扩展 ID 为 `cgkhllpelkjmfamddkjpnmchjikdcbgp`
-5. 关掉这个配置里其它新标签页扩展
-6. 打开新标签页（Ctrl/Cmd+T），不要打开旧的 chrome://newtab 缓存页
+失败回退：`chrome-extension://cgkhllpelkjmfamddkjpnmchjikdcbgp/newtab.html?desk3d=fail`
 
-失败回退：同一新标签页加 `?desk3d=fail`（扩展页把查询串加在 `chrome-extension://<id>/newtab.html?desk3d=fail`）。
+### CLI（仅 Chromium / 可开 LoadExtension 的构建）
+
+```bash
+# 不要对 Google Chrome 148 指望 --load-extension
+chromium --user-data-dir="$HOME/sopify-tab-clean-profile" \
+  --disable-features=DisableLoadExtensionCommandLineSwitch \
+  --load-extension="$(pwd)/extension" \
+  --disable-extensions-except="$(pwd)/extension"
+```
+
+辅助脚本：`scripts/load-extension.sh`（优先找 Chromium；对 branded Chrome 只开干净 profile，并打印上述警告）。
 
 ## 体积
 

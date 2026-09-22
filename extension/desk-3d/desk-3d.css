@@ -23,23 +23,23 @@
 }
 
 .desk-stage {
-  --desk3d-ink: var(--ink);
-  --desk3d-muted: var(--ink-3);
+  --desk3d-ink: var(--studio-ink, var(--ink));
+  --desk3d-muted: var(--studio-muted, var(--ink-3));
   position: relative;
   z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  padding: 10px 12px 12px;
+  padding: 0;
   height: 100%;
   min-height: inherit;
-  border-radius: var(--r-xl);
-  background: var(--glass-sheen), var(--glass-secondary);
-  border: 1px solid var(--glass-edge);
-  box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
-  backdrop-filter: blur(26px);
-  -webkit-backdrop-filter: blur(26px);
+  border-radius: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .desk-stage-bar {
@@ -51,21 +51,37 @@
 
 .desk-stage-kicker {
   margin: 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--desk3d-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.desk-stage-kicker::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8f9e85;
+  flex-shrink: 0;
 }
 
 .desk-stage-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--desk3d-muted);
   cursor: pointer;
   user-select: none;
+  padding: 7px 9px;
+  border-radius: 9px;
+}
+.desk-stage-toggle:hover {
+  background: color-mix(in srgb, var(--studio-solid, #fff) 55%, transparent);
 }
 
 .desk-stage-toggle input {
@@ -94,18 +110,26 @@
   height: 100%;
   aspect-ratio: auto;
   max-height: none;
-  border-radius: calc(var(--r-xl) + 4px);
+  border-radius: 24px;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 42%, color-mix(in srgb, var(--sky-mid) 55%, transparent), transparent 70%),
-    linear-gradient(165deg, color-mix(in srgb, var(--sky-mid) 70%, #e8e0d4) 0%, var(--desk3d-wood) 100%);
-  border: 1px solid var(--line);
+  isolation: isolate;
+  background: transparent;
+  border: 0;
 }
-
-html[data-sky="night"] .desk3d-board {
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 40%, color-mix(in srgb, #4a5870 50%, transparent), transparent 70%),
-    linear-gradient(165deg, #2a3140 0%, #3d4654 100%);
+.desk3d-board::before {
+  content: "";
+  position: absolute;
+  width: 70%;
+  height: 60%;
+  left: 10%;
+  top: 30%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse, rgba(211, 196, 183, 0.36), transparent 70%);
+  filter: blur(26px);
+}
+html[data-sky="night"] .desk3d-board::before {
+  background: radial-gradient(ellipse, rgba(112, 96, 132, 0.25), transparent 70%);
 }
 
 .desk3d-view,
@@ -125,34 +149,56 @@ html[data-sky="night"] .desk3d-board {
   outline: none;
 }
 
-/* Floating object labels — title is block so max-width / ellipsis work. */
+/* Floating object labels — Studio 03 handoff chips */
 .desk3d-scene-label {
   position: absolute;
   z-index: 4;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  max-width: min(180px, 42%);
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - 16px);
   margin: 0;
-  padding: 6px 10px 6px 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--glass) 92%, #fff);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 12%, transparent);
-  color: var(--ink);
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  background: rgba(255, 253, 247, 0.91);
+  box-shadow: 0 4px 16px rgba(52, 39, 17, 0.03);
+  color: #323741;
   font: inherit;
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
+  white-space: nowrap;
+}
+html[data-sky="night"] .desk3d-scene-label {
+  background: rgba(37, 43, 59, 0.92);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #eef0f4;
+}
+
+.desk3d-scene-label .desk3d-label-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8c9e95;
+  flex-shrink: 0;
+}
+.desk3d-scene-label.secondary .desk3d-label-dot { background: #c4866e; }
+
+.desk3d-scene-label > span:not(.desk3d-label-arrow):not(.desk3d-label-dot) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .desk3d-scene-label strong {
   display: block;
   max-width: 135px;
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 550;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -162,33 +208,39 @@ html[data-sky="night"] .desk3d-board {
 .desk3d-scene-label small {
   display: block;
   max-width: 135px;
-  font-size: 11px;
-  color: var(--ink-3);
+  font-size: 9px;
+  color: #8b8c90;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+html[data-sky="night"] .desk3d-scene-label small { color: #9b9eac; }
 
 .desk3d-scene-label small:empty {
   display: none;
 }
 
 .desk3d-label-arrow {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  font-size: 11px;
-  color: var(--ink-3);
+  position: static;
+  font-size: 13px;
+  color: #9a9b9f;
+  flex-shrink: 0;
 }
 
 .desk3d-scene-label.note {
-  padding-right: 22px;
+  padding: 7px 10px;
+  gap: 7px;
 }
 
 .desk3d-scene-label:hover,
 .desk3d-scene-label:focus-visible {
-  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 7px 24px rgba(53, 35, 23, 0.16);
   outline: none;
+}
+html[data-sky="night"] .desk3d-scene-label:hover,
+html[data-sky="night"] .desk3d-scene-label:focus-visible {
+  background: #2c3344;
 }
 
 .desk3d-scene-label[hidden] {
@@ -356,16 +408,17 @@ html[data-sky="night"] .desk3d-banner {
 }
 
 .desk3d-rail-link {
-  margin-top: 4px;
+  margin-top: 0;
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--studio-accent, var(--accent));
   font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 7px 0;
+  flex-shrink: 0;
 }
 
 .desk3d-rail-link:hover,
@@ -377,13 +430,18 @@ html[data-sky="night"] .desk3d-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  margin: 0 8px 0 3px;
+  color: var(--desk3d-muted);
+  font-size: 10px;
+  min-height: 30px;
 }
 
 .desk3d-hint-foot {
   margin: 0;
-  font-size: 12.5px;
-  color: var(--ink-3);
+  font-size: 10px;
+  color: var(--desk3d-muted);
+  opacity: 0.8;
 }
 
 .desk3d-panel {

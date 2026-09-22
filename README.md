@@ -10,31 +10,24 @@
 
 ## 快速开始
 
-日常机可以这样装：
+**Google Chrome 148+ 忽略 `--load-extension`。请用「加载已解压」。**
 
 ```text
-1. chrome://extensions
-2. 打开「开发者模式」
-3. 「加载已解压的扩展程序」→ extension/
-4. 打开新标签页
+1. chrome://extensions → 打开「开发者模式」
+2. 「加载已解压的扩展程序」→ 本仓库 extension/（内含 manifest.json，不要选仓库根）
+3. 确认卡片「Sopify Tab」，ID cgkhllpelkjmfamddkjpnmchjikdcbgp
+4. Ctrl/Cmd+T → 真扩展 NTP（我的工作台），不是 Google 默认页
 ```
 
-**干净配置（Rick 手测 / 验收）**：不要用日常 Chrome。新建空用户目录，只装这一份扩展：
+**干净配置（Rick / 验收）**：空用户目录，只装这一份扩展：
 
 ```text
-# macOS
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-  --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Linux
-google-chrome --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-
-# Windows
-"%ProgramFiles%\Google\Chrome\Application\chrome.exe" ^
-  --user-data-dir="%USERPROFILE%\sopify-tab-clean-profile" --no-first-run
+# 启动干净 profile（不要指望 --load-extension 在 Chrome 148 生效）
+/usr/bin/google-chrome-stable --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
+# 然后：chrome://extensions → 开发者模式 → 加载已解压 → …/extension/
 ```
 
-然后在该窗口：`chrome://extensions` → 开发者模式 → 加载已解压的扩展程序 → 本仓库 `extension/`（绝对路径）。关掉这个配置里其它新标签页扩展。打开**新标签页**（不要沿用旧 NTP）。
+若需要 CLI 自动加载：改用 **Chromium** 并加 `--disable-features=DisableLoadExtensionCommandLineSwitch`（见 `extension/desk-3d/README.md` / `scripts/load-extension.sh`）。
 
 稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。权限见「隐私」。本 PR 只开 Draft，不合并；Rick 督手测，专项独立审计，Sanze 确认后才能合。
 
