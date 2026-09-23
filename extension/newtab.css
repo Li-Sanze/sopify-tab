@@ -706,20 +706,24 @@ dialog.ops-dialog::backdrop {
 @container desk (max-width: 800px) {
   /* Narrow ~390: 下一件事 → 当前窗口 → 紧凑桌面 → 常用站 */
   .studio-topbar {
-    height: auto;
+    height: 64px;
     min-height: 64px;
-    flex-wrap: wrap;
-    row-gap: 4px;
-    padding-block: 8px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding-block: 0;
   }
   .studio-nav {
-    order: 3;
-    flex: 1 0 100%;
-    margin: 0;
-    gap: 16px;
+    order: 0;
+    flex: 0 1 auto;
+    margin-left: 12px;
+    margin-right: auto;
+    gap: 14px;
+    min-width: 0;
   }
-  .studio-tools { margin-left: auto; }
-  .studio-navbtn { font-size: 15px; }
+  .studio-tools { margin-left: 0; }
+  .studio-brand { font-size: 15px; gap: 8px; }
+  .studio-brand-mark { width: 26px; height: 26px; }
+  .studio-navbtn { font-size: 14px; white-space: nowrap; }
   .studio-greeting { padding-top: 12px; padding-bottom: 0; }
   .studio-title { font-size: 23px; }
   .studio-when { flex-wrap: wrap; gap: 8px; }
