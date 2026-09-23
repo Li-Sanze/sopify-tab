@@ -409,14 +409,15 @@ html[data-sky="night"] .desk3d-banner {
 .desk3d-rail-link {
   margin-top: 0;
   border: 0;
-  background: transparent;
+  background: color-mix(in srgb, var(--studio-paper, #f6f4ef) 94%, transparent);
   color: var(--studio-accent, var(--accent));
   font: inherit;
   font-size: 11px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  padding: 7px 0;
+  padding: 4px 8px;
+  border-radius: 8px;
   flex-shrink: 0;
 }
 
@@ -425,15 +426,27 @@ html[data-sky="night"] .desk3d-banner {
   text-decoration: underline;
 }
 
+/* Out of flow so 查看全部 does not shrink .desk3d-board when worksets exist.
+   The link stays clickable; the rest of the strip does not block the canvas. */
 .desk-stage-foot {
+  position: absolute;
+  left: 3px;
+  right: 8px;
+  bottom: 2px;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 0 8px 0 3px;
+  margin: 0;
   color: var(--desk3d-muted);
   font-size: 12px;
   min-height: 0;
+  pointer-events: none;
+}
+.desk-stage-foot .desk3d-rail-link,
+.desk-stage-foot .desk3d-hint-foot {
+  pointer-events: auto;
 }
 .desk-stage-foot[hidden] { display: none !important; }
 

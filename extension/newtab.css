@@ -214,7 +214,7 @@ body:has(.studio-desk.active) .shell {
 }
 body:has(.studio-desk.active) .rail { display: none; }
 body:has(.studio-desk.active) .main {
-  padding: 0 clamp(14px, 4.4vw, 64px) 12px;
+  padding: 0 clamp(14px, 4.4vw, 64px) 0;
   max-width: 1456px;
   margin-inline: auto;
   width: 100%;
@@ -222,12 +222,10 @@ body:has(.studio-desk.active) .main {
   display: flex;
   flex-direction: column;
 }
-/* Empty desk only: a definite viewport height lets the stage take leftover space
-   so 1440×900 / 1280×720 do not phantom-scroll. Saved worksets leave this off
-   and the page grows and scrolls. */
-body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .main {
-  height: 100dvh;
-}
+/* First screen is .studio-screen (greeting + stage row + sites). Its height is
+   the viewport remainder under the top bar, with or without saved worksets.
+   The list sits after that slice and only adds scroll — it must not shrink the stage.
+   Bottom padding is 0 so this slice can stay at least as tall as d0256cf. */
 body:has(.studio-desk.active) .view.studio-desk.active {
   /* max-width: none does not stretch this item. .view { margin-inline: auto }
      turns off cross-axis stretch in the column-flex .main, so the desk
@@ -246,17 +244,27 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   flex: 1 0 auto;
   color: var(--studio-ink);
 }
-/* .view.active is display:block; the desk frame needs flex, and only while it is the page.
-   Shrink only on an empty desk (rule below). With saved worksets the frame does not
-   shrink, so 下一件事, the save panel, sites, and the list stay intact and the page scrolls. */
+/* .view.active is display:block; the desk frame needs flex, and only while it is the page. */
 .view.studio-desk.active {
   display: flex;
   flex: 1 0 auto;
   min-height: 0;
 }
-body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .studio-desk,
-body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .view.studio-desk.active {
-  flex: 1 1 auto;
+
+/* Viewport remainder after the 64px top bar.
+   Wide desk only: on a narrow stack the ops column sits above the stage and
+   must be allowed to grow the page. */
+.studio-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 0;
+  min-width: 0;
+}
+@container desk (min-width: 801px) {
+  .studio-screen {
+    height: calc(100dvh - 64px);
+  }
 }
 
 .studio-topbar {
@@ -404,9 +412,10 @@ body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .view.
   align-items: stretch;
   flex: 1 1 auto;
   /* Floor is the ops column (下一件事 + 保存面板). Do not use min-height: 0 here:
-     a viewport-locked empty desk would otherwise squash this row over the sites. */
+     a viewport-locked empty desk would otherwise squash this row over the sites.
+     The row still grows to the first-screen leftover inside .studio-screen. */
   min-height: auto;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .studio-stage {
