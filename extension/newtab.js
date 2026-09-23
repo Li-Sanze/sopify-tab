@@ -1007,10 +1007,10 @@
             </button>
           </li>`).join('') : '<li class="empty">还没有待办，下面写一条。</li>'}
       </ul>
-      <form class="todoadd" id="todo-form-dialog">
+      <div class="todoadd" id="todo-add-dialog">
         <label class="sr-only" for="todo-input-dialog">新待办</label>
         <input class="field" id="todo-input-dialog" placeholder="写一条，回车添加" autocomplete="off">
-      </form>
+      </div>
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
     body.onclick = (e) => {
@@ -1031,18 +1031,20 @@
       saveDesk({ todos: state.todos });
       openTodosDialog();
     };
-    const form = body.querySelector('#todo-form-dialog');
-    if (form) {
-      form.onsubmit = (e) => {
+    const input = body.querySelector('#todo-input-dialog');
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        // The dialog shell is a <form method="dialog">. A nested <form> is
+        // dropped by the parser, and Enter would close the dialog instead of adding.
         e.preventDefault();
-        const input = body.querySelector('#todo-input-dialog');
-        const text = (input && input.value || '').trim();
+        const text = input.value.trim();
         if (!text) return;
         state.todos.push({ id: uid(), text, done: false });
         renderTodos();
         saveDesk({ todos: state.todos });
         openTodosDialog();
-      };
+      });
     }
     if (!dialog.open) dialog.showModal();
     const focusInput = body.querySelector('#todo-input-dialog');
