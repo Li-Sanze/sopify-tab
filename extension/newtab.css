@@ -162,9 +162,10 @@ svg.i.sm { width: 14px; height: 14px; }
 #desk-3d-mount {
   position: relative;
   z-index: 8;
-  min-height: 280px;
+  min-height: 0;
   margin: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  height: 100%;
 }
 
 /* —— Studio 03 whole-page frame (Sanze handoff) —— */
@@ -213,10 +214,19 @@ body:has(.studio-desk.active) .shell {
 }
 body:has(.studio-desk.active) .rail { display: none; }
 body:has(.studio-desk.active) .main {
-  padding: 0 clamp(18px, 4.4vw, 64px) 28px;
+  padding: 0 clamp(14px, 4.4vw, 64px) 12px;
   max-width: 1456px;
   margin-inline: auto;
   width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+/* Empty desk only: a definite viewport height lets the stage take leftover space
+   so 1440×900 / 1280×720 do not phantom-scroll. Saved worksets leave this off
+   and the page grows and scrolls. */
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .main {
+  height: 100dvh;
 }
 body:has(.studio-desk.active) .view.studio-desk.active {
   max-width: none;
@@ -226,20 +236,34 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .studio-desk {
   flex-direction: column;
   gap: 0;
-  min-height: min(100%, calc(100dvh - 24px));
+  min-height: 0;
+  flex: 1 0 auto;
   color: var(--studio-ink);
 }
-/* .view.active is display:block; the desk frame needs flex, and only while it is the page. */
+/* .view.active is display:block; the desk frame needs flex, and only while it is the page.
+   Shrink only on an empty desk (rule below). With saved worksets the frame does not
+   shrink, so 下一件事, the save panel, sites, and the list stay intact and the page scrolls. */
 .view.studio-desk.active {
   display: flex;
+  flex: 1 0 auto;
+  min-height: 0;
+}
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .studio-desk,
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .view.studio-desk.active {
+  flex: 1 1 auto;
 }
 
 .studio-topbar {
-  height: 76px;
+  height: 64px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   gap: 18px;
-  border-bottom: 1px solid var(--studio-line);
+  border-bottom: 1px solid color-mix(in srgb, var(--studio-ink) 14%, transparent);
+  background: var(--studio-solid, #fffefa);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   flex-shrink: 0;
 }
 
@@ -276,11 +300,11 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   display: flex;
   align-items: center;
   gap: 22px;
-  margin-left: auto;
-  margin-right: 18px;
+  margin-left: 28px;
+  margin-right: auto;
 }
 .studio-navbtn {
-  padding: 8px 0;
+  padding: 6px 0 8px;
   color: var(--studio-muted);
   font-size: 15px;
   font-weight: 550;
@@ -288,17 +312,17 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 }
 .studio-navbtn[aria-current="page"] {
   color: var(--studio-ink);
-  font-weight: 600;
+  font-weight: 700;
 }
 .studio-navbtn[aria-current="page"]::after {
   content: "";
   position: absolute;
-  bottom: -8px;
-  left: calc(50% - 2px);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--studio-accent);
+  left: 0;
+  bottom: 1px;
+  width: 1.15em;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
 }
 .studio-navbtn span {
   font-size: 15px;
@@ -336,7 +360,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   justify-content: space-between;
   align-items: flex-end;
   gap: 16px;
-  padding: 30px 0 8px;
+  padding: 16px 0 6px;
   flex-shrink: 0;
 }
 .studio-title {
@@ -351,11 +375,18 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   color: var(--studio-accent);
   font-weight: 600;
 }
+.studio-when {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+  padding-bottom: 4px;
+  flex-shrink: 0;
+}
 .studio-date {
   margin: 0;
   font-size: 13px;
   color: var(--studio-muted);
-  padding-bottom: 4px;
   flex-shrink: 0;
 }
 
@@ -364,10 +395,12 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   grid-template-columns: minmax(0, 1fr) 290px;
   grid-template-areas: "stage ops";
   gap: 22px;
-  align-items: center;
-  flex: 1;
-  min-height: 0;
-  margin-top: 14px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  /* Floor is the ops column (下一件事 + 保存面板). Do not use min-height: 0 here:
+     a viewport-locked empty desk would otherwise squash this row over the sites. */
+  min-height: auto;
+  margin-top: 8px;
 }
 
 .studio-stage {
@@ -375,7 +408,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 420px;
+  min-height: 0;
   align-self: stretch;
 }
 
@@ -399,7 +432,11 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .ops-window {
   border-top: 1px solid var(--studio-line);
   margin-top: 8px;
-  padding-top: 26px;
+  padding-top: 18px;
+}
+.ops-window .ops-panel-title {
+  display: block;
+  line-height: 1.45;
 }
 
 .resume {
@@ -458,13 +495,21 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 }
 .resume.is-empty .resume-title { color: var(--studio-muted); font-weight: 500; }
 
+.ops-tab-count {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--studio-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .ops-row,
 .ops-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .btn.ops-primary {
@@ -538,10 +583,25 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   align-items: center;
   gap: 16px 24px;
   flex-wrap: wrap;
-  margin-top: 12px;
-  padding: 12px 0;
+  margin-top: 8px;
+  padding: 10px 0 6px;
   border-top: 1px solid var(--studio-line);
   flex-shrink: 0;
+}
+
+.studio-saved {
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 12px 0 8px;
+  border-top: 1px solid var(--studio-line);
+}
+.studio-saved[hidden] { display: none !important; }
+.studio-saved .ops-panel-head { margin-bottom: 4px; }
+.studio-saved .savedsets { margin-top: 0; }
+.studio-saved:focus { outline: none; }
+.studio-saved:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }
 .studio-sites-label {
   margin: 0;
@@ -653,23 +713,27 @@ dialog.ops-dialog::backdrop {
 @container desk (max-width: 800px) {
   /* Narrow ~390: 下一件事 → 当前窗口 → 紧凑桌面 → 常用站 */
   .studio-topbar {
-    height: auto;
-    min-height: 56px;
-    flex-wrap: wrap;
-    row-gap: 8px;
-    padding-block: 10px;
+    height: 64px;
+    min-height: 64px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding-block: 0;
   }
   .studio-nav {
-    order: 3;
-    flex: 1 0 100%;
-    margin: 0;
-    gap: 16px;
+    order: 0;
+    flex: 0 1 auto;
+    margin-left: 12px;
+    margin-right: auto;
+    gap: 14px;
+    min-width: 0;
   }
-  .studio-tools { margin-left: auto; }
-  .studio-navbtn { font-size: 15px; }
-  .studio-greeting { padding-top: 20px; padding-bottom: 0; }
+  .studio-tools { margin-left: 0; }
+  .studio-brand { font-size: 15px; gap: 8px; }
+  .studio-brand-mark { width: 26px; height: 26px; }
+  .studio-navbtn { font-size: 14px; white-space: nowrap; }
+  .studio-greeting { padding-top: 12px; padding-bottom: 0; }
   .studio-title { font-size: 23px; }
-  .studio-date { display: none; }
+  .studio-when { flex-wrap: wrap; gap: 8px; }
   .studio-body {
     display: flex;
     flex-direction: column;
@@ -706,11 +770,12 @@ dialog.ops-dialog::backdrop {
   .studio-stage {
     order: 2;
     width: 100%;
-    min-height: 255px;
+    min-height: 0;
     margin-top: 5px;
   }
-  .studio-sites { order: 3; margin-top: 15px; }
-  #desk-3d-mount { min-height: 255px; }
+  .studio-sites { order: 3; margin-top: 12px; }
+  .studio-saved { order: 4; }
+  #desk-3d-mount { min-height: 0; }
   .resume-title { font-size: 15px; }
   .ops-row { margin-top: 9px; }
   .ops-panel-head { margin-bottom: 6px; }
@@ -989,16 +1054,17 @@ details.advanced .advanced-body {
 body:not(.sidepanel) .rail { display: none !important; }
 body:not(.sidepanel) .shell { grid-template-columns: minmax(0, 1fr) !important; }
 body:not(.sidepanel) .main {
-  padding: 0 clamp(14px, 4.4vw, 64px) 28px;
+  padding: 0 clamp(14px, 4.4vw, 64px) 12px;
   max-width: 1456px;
   margin-inline: auto;
   width: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
+/* Header stays in normal flow so it cannot cover 我的工作台 while the title is still on screen. */
 .studio-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: var(--studio-solid, #fffefa);
+  position: static;
 }
 .view[data-view="tabs"],
 .view[data-view="settings"] { padding-top: 8px; }

@@ -105,13 +105,13 @@
 
 .desk3d-board {
   position: relative;
-  flex: 1;
-  min-height: 280px;
+  flex: 1 1 auto;
+  min-height: 140px;
   height: 100%;
   aspect-ratio: auto;
   max-height: none;
   border-radius: 24px;
-  overflow: hidden;
+  overflow: clip;
   isolation: isolate;
   background: transparent;
   border: 0;
@@ -126,7 +126,6 @@
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(ellipse, rgba(211, 196, 183, 0.36), transparent 70%);
-  filter: blur(26px);
 }
 html[data-sky="night"] .desk3d-board::before {
   background: radial-gradient(ellipse, rgba(112, 96, 132, 0.25), transparent 70%);
@@ -434,8 +433,9 @@ html[data-sky="night"] .desk3d-banner {
   margin: 0 8px 0 3px;
   color: var(--desk3d-muted);
   font-size: 12px;
-  min-height: 30px;
+  min-height: 0;
 }
+.desk-stage-foot[hidden] { display: none !important; }
 
 .desk3d-hint-foot {
   margin: 0;
