@@ -219,6 +219,7 @@ body:has(.studio-desk.active) .main {
   margin-inline: auto;
   width: 100%;
   min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -231,15 +232,15 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   flex-direction: column;
   gap: 0;
   min-height: 0;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   color: var(--studio-ink);
 }
 /* .view.active is display:block; the desk frame needs flex, and only while it is the page.
-   Extra viewport space goes to the stage. The stage's floor stays small so an empty
-   desk fits one screen; taller pages (many tabs, zoom, the saved list) scroll normally. */
+   Main has a definite viewport height so the stage can shrink. An empty desk stays one
+   screen; content that cannot shrink (saved worksets, zoom, narrow stacks) still scrolls. */
 .view.studio-desk.active {
   display: flex;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -352,10 +353,6 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   gap: 16px;
   padding: 16px 0 6px;
   flex-shrink: 0;
-}
-.studio-title,
-.viewhead h1 {
-  scroll-margin-top: 76px;
 }
 .studio-title {
   margin: 0;
@@ -586,7 +583,6 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   margin-top: 4px;
   padding: 12px 0 8px;
   border-top: 1px solid var(--studio-line);
-  scroll-margin-top: 76px;
 }
 .studio-saved[hidden] { display: none !important; }
 .studio-saved .ops-panel-head { margin-bottom: 4px; }
@@ -1055,14 +1051,9 @@ body:not(.sidepanel) .main {
   display: flex;
   flex-direction: column;
 }
+/* Header stays in normal flow so it cannot cover 我的工作台 while the title is still on screen. */
 .studio-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: var(--studio-solid, #fffefa);
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  position: static;
 }
 .view[data-view="tabs"],
 .view[data-view="settings"] { padding-top: 8px; }
