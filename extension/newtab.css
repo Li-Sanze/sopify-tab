@@ -229,7 +229,13 @@ body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .main 
   height: 100dvh;
 }
 body:has(.studio-desk.active) .view.studio-desk.active {
+  /* max-width: none does not stretch this item. .view { margin-inline: auto }
+     turns off cross-axis stretch in the column-flex .main, so the desk
+     shrink-wraps and its edges miss the top bar. */
   max-width: none;
+  width: 100%;
+  margin-inline: 0;
+  align-self: stretch;
   animation: none;
 }
 
@@ -1068,6 +1074,13 @@ body:not(.sidepanel) .main {
 }
 .view[data-view="tabs"],
 .view[data-view="settings"] { padding-top: 8px; }
+/* Same column-flex trap as the desk. A definite width keeps the 1240px cap
+   (and centering via margin-inline: auto) without shrink-wrapping below the
+   top bar when the bar itself is narrower than 1240px. */
+body:not(.sidepanel) .view[data-view="tabs"].active,
+body:not(.sidepanel) .view[data-view="settings"].active {
+  width: min(1240px, 100%);
+}
 
 @media (prefers-reduced-motion: reduce) {
   :root {
