@@ -443,7 +443,7 @@ html[data-sky="night"] .desk3d-banner {
   color: var(--desk3d-muted);
 }
 
-.desk3d-panel {
+dialog.desk3d-panel {
   z-index: 80;
   border: 1px solid var(--studio-line, var(--line-2));
   border-radius: var(--r-xl);
@@ -451,20 +451,24 @@ html[data-sky="night"] .desk3d-banner {
   max-width: min(440px, calc(100vw - 2rem));
   width: 100%;
   max-height: min(72dvh, calc(100dvh - 32px));
-  background: var(--studio-solid, #fffefa);
-  color: var(--studio-ink, var(--ink));
-  box-shadow: 0 24px 80px rgba(16, 20, 33, 0.32);
+  background-color: #fffefa;
+  background-image: none;
+  color: var(--studio-ink, #292e39);
+  box-shadow: 0 24px 80px rgba(16, 20, 33, 0.45);
   margin: auto;
   overflow: hidden;
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-html[data-sky="night"] .desk3d-panel {
-  background: var(--studio-solid, #252b3b);
-  color: var(--studio-ink, var(--ink));
+html[data-sky="night"] dialog.desk3d-panel {
+  background-color: #1b2130;
+  color: #eef0f4;
 }
 
-.desk3d-panel::backdrop {
-  background: rgba(16, 20, 33, 0.62);
+dialog.desk3d-panel::backdrop {
+  background: rgba(8, 10, 16, 0.78);
 }
 
 .desk3d-panel-inner {
@@ -590,8 +594,14 @@ html[data-sky="night"] .desk3d-panel {
   border: 1px solid var(--line-2);
   border-radius: var(--r-md);
   padding: 10px;
-  background: var(--field-bg);
-  color: var(--ink);
+  background-color: #fffefa;
+  color: #292e39;
+}
+
+html[data-sky="night"] #desk3d-note-editor {
+  background-color: #141824;
+  color: #eef0f4;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 #desk3d-note-editor:focus {
@@ -601,9 +611,14 @@ html[data-sky="night"] .desk3d-panel {
 }
 
 .desk3d-save-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--ink-3);
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2, #3d4454);
+}
+.desk3d-save-hint.is-saved {
+  color: var(--ok, #1c7c45);
+  font-weight: 700;
 }
 
 .desk3d-todo-list {

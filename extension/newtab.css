@@ -65,8 +65,17 @@ svg.i.sm { width: 14px; height: 14px; }
 .main { padding: 38px 48px 72px; min-width: 0; container: desk / inline-size; }
 .view { display: none; max-width: 1240px; margin-inline: auto; }
 .view.active { display: block; animation: rise var(--dur-slow) var(--out); }
-/* Two classes so a later single-class layout rule cannot resurrect a hidden view. */
-.view:not(.active) { display: none; }
+/* Inactive views must not keep a box. display:flex on .studio-desk used to beat .view { display:none }. */
+.view:not(.active) {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 .deskhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap; margin-bottom: 26px; color: var(--sky-ink); text-shadow: var(--sky-text-shadow); }
@@ -273,7 +282,8 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .studio-navbtn {
   padding: 8px 0;
   color: var(--studio-muted);
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 550;
   position: relative;
 }
 .studio-navbtn[aria-current="page"] {
@@ -291,9 +301,9 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   background: var(--studio-accent);
 }
 .studio-navbtn span {
-  font-size: 12px;
-  font-weight: 600;
-  margin-left: 4px;
+  font-size: 15px;
+  font-weight: 650;
+  margin-left: 1px;
 }
 
 .studio-tools {
@@ -418,8 +428,8 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .ops-panel-title,
 .resume-kicker {
   margin: 0;
-  font-size: 12px;
-  font-weight: 550;
+  font-size: 16px;
+  font-weight: 650;
   color: var(--studio-ink);
   letter-spacing: 0;
   display: flex;
@@ -459,38 +469,39 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 
 .btn.ops-primary {
   flex: 1 1 auto;
-  min-height: 39px;
+  min-height: 40px;
   padding: 10px 14px;
   border-radius: 10px;
   background: var(--studio-ink);
   color: var(--studio-paper);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   border: 0;
 }
 .btn.ops-primary:hover { filter: brightness(1.08); }
 
 .btn.ops-save {
   flex: 1 1 auto;
-  min-height: 39px;
-  padding: 10px 9px;
+  min-height: 40px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: var(--studio-accent-bg);
   color: var(--studio-accent);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   border: 0;
 }
 .btn.ops-save:hover { filter: brightness(0.97); }
 
 .ops-subtle {
-  padding: 9px 11px;
+  padding: 9px 12px;
   border: 0;
   background: none;
   border-radius: 10px;
-  font-size: 11px;
-  color: var(--studio-muted);
-  min-height: 39px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--studio-ink);
+  min-height: 40px;
 }
 .ops-subtle:hover { color: var(--studio-ink); }
 
@@ -585,7 +596,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 
 .desk-aux[hidden] { display: none !important; }
 
-.ops-dialog {
+dialog.ops-dialog {
   z-index: 80;
   border: 1px solid var(--studio-line);
   border-radius: 24px;
@@ -593,13 +604,21 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   max-width: min(560px, calc(100vw - 30px));
   width: 100%;
   max-height: min(85dvh, calc(100dvh - 32px));
-  background: var(--studio-solid);
-  color: var(--studio-ink);
-  box-shadow: 0 25px 100px rgba(16, 20, 33, 0.28);
+  background-color: #fffefa;
+  background-image: none;
+  color: var(--studio-ink, #292e39);
+  box-shadow: 0 25px 100px rgba(16, 20, 33, 0.45);
   overflow: hidden;
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
-.ops-dialog::backdrop {
-  background: rgba(16, 20, 33, 0.62);
+html[data-sky="night"] dialog.ops-dialog {
+  background-color: #1b2130;
+  color: #eef0f4;
+}
+dialog.ops-dialog::backdrop {
+  background: rgba(8, 10, 16, 0.78);
 }
 .ops-dialog-inner {
   margin: 0;
@@ -647,7 +666,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
     gap: 16px;
   }
   .studio-tools { margin-left: auto; }
-  .studio-navbtn { font-size: 13px; }
+  .studio-navbtn { font-size: 15px; }
   .studio-greeting { padding-top: 20px; padding-bottom: 0; }
   .studio-title { font-size: 23px; }
   .studio-date { display: none; }
@@ -752,6 +771,9 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .field:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
 .field::placeholder { color: var(--ink-3); }
 .todoadd { margin-top: 10px; }
+#todo-add-dialog { display: flex; gap: 8px; align-items: center; }
+#todo-add-dialog .field { flex: 1; }
+#todo-add-dialog .btn { flex: none; font-size: 15px; min-height: 40px; }
 
 .notes {
   width: 100%; min-height: 120px; height: 100%; resize: vertical;
@@ -863,6 +885,27 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 }
 
 .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: start; }
+details.advanced {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--glass-sheen), var(--glass);
+  padding: 0;
+}
+details.advanced > summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 16px 18px;
+  list-style: none;
+}
+details.advanced > summary::-webkit-details-marker { display: none; }
+details.advanced .advanced-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  padding: 0 12px 16px;
+}
 .form { display: flex; flex-direction: column; gap: 16px; }
 .frow { display: flex; flex-direction: column; gap: 8px; }
 .frow label,
@@ -942,6 +985,23 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
   .groups, .settings { grid-template-columns: 1fr; }
   .tile, .tile.add { width: calc(33.33% - 7px); }
 }
+
+body:not(.sidepanel) .rail { display: none !important; }
+body:not(.sidepanel) .shell { grid-template-columns: minmax(0, 1fr) !important; }
+body:not(.sidepanel) .main {
+  padding: 0 clamp(14px, 4.4vw, 64px) 28px;
+  max-width: 1456px;
+  margin-inline: auto;
+  width: 100%;
+}
+.studio-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--studio-solid, #fffefa);
+}
+.view[data-view="tabs"],
+.view[data-view="settings"] { padding-top: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
   :root {

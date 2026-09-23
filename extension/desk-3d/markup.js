@@ -40,7 +40,6 @@ export function stageInnerHTML() {
       <p id="desk3d-banner" class="desk3d-banner" hidden role="status"></p>
     </div>
     <div class="desk-stage-foot">
-      <p class="desk3d-hint-foot">点一个物件，接着上次的思路</p>
       <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部工作集 ↗</button>
     </div>
     <!-- Keyboard twins: same route as 3D / labels; visually hidden, no chip wall -->
@@ -73,7 +72,7 @@ export function panelsInnerHTML() {
         <div class="desk3d-panel-body">
           <label class="sr-only" for="desk3d-note-editor">随手记内容</label>
           <textarea id="desk3d-note-editor" rows="8" placeholder="记下一个想法。"></textarea>
-          <p class="desk3d-save-hint">输入即保存到书桌便签。</p>
+          <p class="desk3d-save-hint" id="desk3d-note-status" role="status">输入即保存到书桌便签。</p>
         </div>
       </form>
     </dialog>
