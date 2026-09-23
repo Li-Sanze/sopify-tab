@@ -219,9 +219,14 @@ body:has(.studio-desk.active) .main {
   margin-inline: auto;
   width: 100%;
   min-height: 100dvh;
-  height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+/* Empty desk only: a definite viewport height lets the stage take leftover space
+   so 1440×900 / 1280×720 do not phantom-scroll. Saved worksets leave this off
+   and the page grows and scrolls. */
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .main {
+  height: 100dvh;
 }
 body:has(.studio-desk.active) .view.studio-desk.active {
   max-width: none;
@@ -232,16 +237,20 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   flex-direction: column;
   gap: 0;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   color: var(--studio-ink);
 }
 /* .view.active is display:block; the desk frame needs flex, and only while it is the page.
-   Main has a definite viewport height so the stage can shrink. An empty desk stays one
-   screen; content that cannot shrink (saved worksets, zoom, narrow stacks) still scrolls. */
+   Shrink only on an empty desk (rule below). With saved worksets the frame does not
+   shrink, so 下一件事, the save panel, sites, and the list stay intact and the page scrolls. */
 .view.studio-desk.active {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 0;
+}
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .studio-desk,
+body:has(.studio-desk.active):not(:has(#desk-workset-list:not([hidden]))) .view.studio-desk.active {
+  flex: 1 1 auto;
 }
 
 .studio-topbar {
@@ -388,7 +397,9 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   gap: 22px;
   align-items: stretch;
   flex: 1 1 auto;
-  min-height: 0;
+  /* Floor is the ops column (下一件事 + 保存面板). Do not use min-height: 0 here:
+     a viewport-locked empty desk would otherwise squash this row over the sites. */
+  min-height: auto;
   margin-top: 8px;
 }
 
