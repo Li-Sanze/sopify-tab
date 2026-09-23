@@ -487,12 +487,15 @@
       countEl.setAttribute('aria-label', `${list.length} 个工作集`);
     }
     const deskCount = $('#c-worksets-desk');
-    if (deskCount) deskCount.textContent = String(list.length);
+    if (deskCount) {
+      deskCount.textContent = `${list.length} 个`;
+      deskCount.setAttribute('aria-label', `${list.length} 个工作集`);
+    }
+    const deskList = $('#desk-workset-list');
+    if (deskList) deskList.hidden = list.length === 0;
     const clearBtn = $('#worksets-clear');
     if (clearBtn) clearBtn.disabled = !list.length;
-    const box = $('#saved-worksets');
-    if (!box) return;
-    box.innerHTML = list.length ? list.map((w) => `
+    const entryHtml = list.length ? list.map((w) => `
       <div class="savedset">
         <div class="t">
           <span>${esc(w.name)}</span>
@@ -503,6 +506,33 @@
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </div>`).join('') : `<p class="empty">还没有保存的工作集。</p>`;
+    const box = $('#saved-worksets');
+    if (box) box.innerHTML = entryHtml;
+    const deskEntries = $('#desk-workset-entries');
+    if (deskEntries) deskEntries.innerHTML = list.length ? entryHtml : '';
+  }
+
+  function revealDeskWorksets() {
+    if (state.view !== 'desk') setView('desk');
+    const list = state.worksets || [];
+    const target = $('#desk-workset-list');
+    if (!list.length || !target) {
+      const save = $('#workset-save');
+      if (save) save.focus();
+      return;
+    }
+    target.hidden = false;
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+  }
+
+  function onSavedWorksetClick(e) {
+    const restore = e.target.closest('[data-restore-workset]');
+    const del = e.target.closest('[data-del-workset]');
+    if (restore) restoreWorksetById(restore.dataset.restoreWorkset);
+    else if (del) deleteWorksetById(del.dataset.delWorkset);
   }
 
   function faviconOf(tabs) {
@@ -552,10 +582,15 @@
       </button>`;
     }).join('') : `<p class="empty">${q ? '没有匹配的标签。' : '这个窗口还没有网页。'}</p>`;
     bindFaviconFallback(box);
-    $('#c-tabs').textContent = String(eligible.length);
-    $('#c-tabs').setAttribute('aria-label', `${eligible.length} 个网页`);
-    const tabNav = $('#c-tabs-nav');
-    if (tabNav) tabNav.textContent = String((state.tabs || []).length);
+    const allCount = (state.tabs || []).length;
+    const savable = eligible.length;
+    const tabCount = $('#c-tabs');
+    if (tabCount) {
+      tabCount.textContent = String(savable);
+      tabCount.setAttribute('aria-label', `可保存网页 ${savable}`);
+    }
+    const countLine = $('#ops-tab-count');
+    if (countLine) countLine.textContent = `当前标签 ${allCount} / 可保存网页 ${savable}`;
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
       : (filtered.length ? `${filtered.length} 个网页` : '');
@@ -567,7 +602,8 @@
     const list = filterTabs(state.tabs, q);
     const groups = groupTabs(list);
     const allGroups = groupTabs(state.tabs);
-    $('#tabs-sub').textContent = `本窗口 ${state.tabs.length} 个标签 · ${allGroups.length} 个域名，localhost 端口只是标签。`;
+    const savable = worksetTabs(state.tabs).length;
+    $('#tabs-sub').textContent = `当前标签 ${state.tabs.length} / 可保存网页 ${savable} · ${allGroups.length} 个域名，localhost 端口只是标签。`;
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
@@ -1224,12 +1260,11 @@
     });
     $('#workset-save').addEventListener('click', () => { saveThisWindow(); });
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
-    $('#saved-worksets').addEventListener('click', (e) => {
-      const restore = e.target.closest('[data-restore-workset]');
-      const del = e.target.closest('[data-del-workset]');
-      if (restore) restoreWorksetById(restore.dataset.restoreWorkset);
-      else if (del) deleteWorksetById(del.dataset.delWorkset);
-    });
+    const organize = $('#desk-organize');
+    if (organize) organize.addEventListener('click', () => revealDeskWorksets());
+    const deskSaved = $('#desk-workset-entries');
+    if (deskSaved) deskSaved.addEventListener('click', onSavedWorksetClick);
+    $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 
     $('#tab-filter').addEventListener('input', (e) => {

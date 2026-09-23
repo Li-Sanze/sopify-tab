@@ -105,8 +105,8 @@
 
 .desk3d-board {
   position: relative;
-  flex: 1;
-  min-height: 280px;
+  flex: 1 1 auto;
+  min-height: 140px;
   height: 100%;
   aspect-ratio: auto;
   max-height: none;
@@ -434,8 +434,9 @@ html[data-sky="night"] .desk3d-banner {
   margin: 0 8px 0 3px;
   color: var(--desk3d-muted);
   font-size: 12px;
-  min-height: 30px;
+  min-height: 0;
 }
+.desk-stage-foot[hidden] { display: none !important; }
 
 .desk3d-hint-foot {
   margin: 0;

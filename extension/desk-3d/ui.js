@@ -166,13 +166,23 @@ export class DeskUI {
   _bindAllWorksets() {
     if (!this.allWorksetsBtn) return;
     this.allWorksetsBtn.addEventListener('click', () => {
-      const tabsNav = document.querySelector('.navbtn[data-view="tabs"]');
-      if (tabsNav && typeof tabsNav.click === 'function') {
-        tabsNav.click();
+      const list = this.readCatalog().worksets;
+      if (!list.length) {
+        const save = document.getElementById('workset-save');
+        if (save && typeof save.focus === 'function') save.focus();
         return;
       }
-      const list = this.readCatalog().worksets;
-      if (list[0]) this.openWorkset(list[0].id);
+      const jump = document.getElementById('desk-organize');
+      if (jump && typeof jump.click === 'function') {
+        jump.click();
+        return;
+      }
+      const target = document.getElementById('desk-workset-list');
+      if (target) {
+        target.hidden = false;
+        target.scrollIntoView({ block: 'start' });
+        if (typeof target.focus === 'function') target.focus();
+      }
     });
   }
 
@@ -230,6 +240,13 @@ export class DeskUI {
     this._renderEntries(catalog);
     if (this.worksetCount) {
       this.worksetCount.textContent = `${catalog.worksets.length} 个工作集`;
+    }
+    if (this.allWorksetsBtn) {
+      const empty = catalog.worksets.length === 0;
+      this.allWorksetsBtn.hidden = empty;
+      this.allWorksetsBtn.textContent = empty ? '保存当前窗口' : '查看全部工作集 ↗';
+      const foot = this.allWorksetsBtn.closest('.desk-stage-foot');
+      if (foot) foot.hidden = empty;
     }
     if (this.panelNote && this.panelNote.open && this.noteEditor && this.noteEditor !== document.activeElement) {
       this.noteEditor.value = catalog.noteText;

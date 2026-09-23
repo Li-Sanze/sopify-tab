@@ -79,11 +79,11 @@
       <nav aria-label="主导览">
         <button type="button" class="navbtn" data-view="desk" aria-current="page">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 10h17M9 10v9.5"/></svg>
-          <span>书桌</span>
+          <span>工作台</span>
         </button>
         <button type="button" class="navbtn" id="nav-tabs" data-view="tabs">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>
-          <span>标签</span>
+          <span>当前标签</span>
         </button>
         <button type="button" class="navbtn" data-view="settings">
           <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>
@@ -101,17 +101,16 @@
 
     <main class="main" id="main" tabindex="-1">
       <header class="studio-topbar">
-        <a class="studio-brand" href="#desk" id="studio-brand" aria-label="Sopify Tab 工作台">
+        <a class="studio-brand" href="#desk" id="studio-brand" aria-label="回到工作台">
           <span class="studio-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <span class="studio-brand-name">Sopify<span>Tab</span></span>
         </a>
         <nav class="studio-nav" aria-label="主导览">
-          <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">当前标签〔<span id="c-tabs-nav">0</span>〕</button>
-          <button type="button" class="studio-navbtn" data-view="desk" aria-current="page">工作集〔<span id="c-worksets-desk">0</span>〕</button>
-          <button type="button" class="studio-navbtn" data-view="settings">设置</button>
+          <button type="button" class="studio-navbtn" data-view="desk" id="studio-nav-desk" aria-current="page">工作台</button>
+          <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">当前标签</button>
+          <button type="button" class="studio-navbtn" data-view="settings" id="studio-nav-settings">设置</button>
         </nav>
         <div class="studio-tools">
-          <p class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></p>
           <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
             <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
           </button>
@@ -125,7 +124,10 @@
       <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
         <section class="studio-greeting">
           <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true">.</span></h1>
-          <p class="studio-date" id="date-line"></p>
+          <p class="studio-when">
+            <span class="studio-date" id="date-line"></span>
+            <span class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></span>
+          </p>
         </section>
 
         <div class="studio-body">
@@ -138,18 +140,19 @@
               </div>
               <p class="resume-title" id="resume-title">还没有下一件事</p>
               <div class="ops-row">
-                <button type="button" class="btn ops-primary" id="resume-act">添加待办</button>
+                <button type="button" class="ops-subtle" id="resume-act">添加待办</button>
                 <button type="button" class="ops-subtle" id="todos-open">全部待办</button>
               </div>
             </section>
 
             <section class="ops-panel ops-window" id="ops-window" aria-labelledby="h-tabs">
               <div class="ops-panel-head">
-                <h2 class="ops-panel-title" id="h-tabs">保存当前窗口为工作集</h2>
-                <span class="ops-meta"><span id="c-tabs">0</span> 个标签</span>
+                <h2 class="ops-panel-title" id="h-tabs">保存当前窗口为工作集，下次继续</h2>
               </div>
+              <p class="ops-tab-count" id="ops-tab-count">当前标签 0 / 可保存网页 0</p>
+              <span class="sr-only" id="c-tabs">0</span>
               <div class="ops-actions" role="group" aria-label="当前窗口操作">
-                <button type="button" class="btn ops-save" id="workset-save">保存为工作集</button>
+                <button type="button" class="btn ops-primary" id="workset-save">保存为工作集</button>
                 <button type="button" class="ops-subtle" id="workset-view">查看当前标签</button>
               </div>
               <div class="ops-recent">
@@ -157,7 +160,7 @@
                 <button type="button" class="ops-restore" id="workset-restore-recent" hidden>恢复</button>
               </div>
               <span class="sr-only" id="c-tabs-sub"></span>
-              <button type="button" class="sr-only" id="desk-organize" data-goto="tabs">全部工作集</button>
+              <button type="button" class="sr-only" id="desk-organize">已保存的工作集</button>
             </section>
           </aside>
 
@@ -184,6 +187,14 @@
             </form>
           </div>
           <span class="sr-only count" id="c-sites">0</span>
+        </section>
+
+        <section class="studio-saved" id="desk-workset-list" aria-labelledby="desk-worksets-h" hidden tabindex="-1">
+          <div class="ops-panel-head">
+            <h2 class="ops-panel-title" id="desk-worksets-h">已保存的工作集</h2>
+            <span class="ops-meta" id="c-worksets-desk">0</span>
+          </div>
+          <div class="savedsets" id="desk-workset-entries"></div>
         </section>
 
         <!-- 离屏保留：既有 JS 依赖的列表／表单，不进首屏 -->
@@ -229,8 +240,8 @@
 
       <section class="view" data-view="tabs" hidden aria-labelledby="tabs-h">
         <header class="viewhead">
-          <h1 id="tabs-h">标签</h1>
-          <p id="tabs-sub">只看当前窗口，按域名折叠，localhost 端口只是标签。</p>
+          <h1 id="tabs-h">当前标签</h1>
+          <p id="tabs-sub">当前标签与可保存网页分开计。按域名折叠，localhost 端口只是标签。</p>
         </header>
         <div class="tabtools">
           <label class="sr-only" for="tab-filter">筛选标签</label>

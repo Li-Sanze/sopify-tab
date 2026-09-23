@@ -48,7 +48,7 @@ chromium --user-data-dir="$HOME/sopify-tab-clean-profile" \
 
 - 「下一件事」是 `#resume`，纯 DOM，不经 3D。面板用 `--next-h` / `--resume-bottom`（ResizeObserver）避开它。
 - 默认「空间视图」打开。关掉后「简洁视图」静态 DOM 桌面仍可用。
-- 桌面最多 **两个** 工作集物件（屏幕 + 资料夹）；多余在侧栏列表 / 「查看全部工作集」进标签页。
+- 桌面最多 **两个** 工作集物件（屏幕 + 资料夹）；「查看全部工作集」落到工作台里已保存的工作集列表。没有保存时这个入口隐藏。
 - 随手记 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。
 - 点击物件打开工作集面板或便签；「恢复」走 newtab 注入的 `restoreWorksetById`。
 - desk-3d 自己不读 `chrome.storage` / `chrome.tabs`。只吃 `window.SopifyDesk3d` 回调。
