@@ -73,7 +73,9 @@ export class DeskUI {
   }
 
   /**
-   * Keep --next-h / --resume-bottom in sync so panels cannot cover 下一件事.
+   * Keep --next-h / --resume-bottom measured for layout hooks.
+   * Sheets themselves are centered opaque modals (see desk-3d.css) so a tall
+   * 下一件事 cannot push the sheet off-screen or over the 3D desk.
    * On NTP this is #resume; standalone prototype may use #next-thing.
    */
   _observeResumeHeight() {

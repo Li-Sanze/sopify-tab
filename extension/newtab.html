@@ -72,7 +72,7 @@
   </div>
 
   <div class="shell" id="shell">
-    <aside class="rail" aria-label="侧栏">
+    <aside class="rail" aria-label="侧栏" hidden>
       <div class="brand" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M3.5 12h12M11.5 8l4 4-4 4M20 6.5v11"/></svg>
       </div>
@@ -100,29 +100,29 @@
     </aside>
 
     <main class="main" id="main" tabindex="-1">
-      <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
-        <header class="studio-topbar">
-          <a class="studio-brand" href="#desk" id="studio-brand" aria-label="Sopify Tab 工作台">
-            <span class="studio-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <span class="studio-brand-name">Sopify<span>Tab</span></span>
-          </a>
-          <nav class="studio-nav" aria-label="主导览">
-            <button type="button" class="studio-navbtn" data-view="desk" aria-current="page">书桌</button>
-            <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">工作集 <span id="c-worksets-desk">0</span></button>
-            <button type="button" class="studio-navbtn" data-view="settings">设置</button>
-          </nav>
-          <div class="studio-tools">
-            <p class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></p>
-            <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
-              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
-            </button>
-          </div>
-          <label class="sr-only" for="name">称呼</label>
-          <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
-          <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
-          <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
-        </header>
+      <header class="studio-topbar">
+        <a class="studio-brand" href="#desk" id="studio-brand" aria-label="Sopify Tab 工作台">
+          <span class="studio-brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="studio-brand-name">Sopify<span>Tab</span></span>
+        </a>
+        <nav class="studio-nav" aria-label="主导览">
+          <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">当前标签〔<span id="c-tabs-nav">0</span>〕</button>
+          <button type="button" class="studio-navbtn" data-view="desk" aria-current="page">工作集〔<span id="c-worksets-desk">0</span>〕</button>
+          <button type="button" class="studio-navbtn" data-view="settings">设置</button>
+        </nav>
+        <div class="studio-tools">
+          <p class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></p>
+          <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+          </button>
+        </div>
+        <label class="sr-only" for="name">称呼</label>
+        <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
+        <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
+        <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
+      </header>
 
+      <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
         <section class="studio-greeting">
           <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true">.</span></h1>
           <p class="studio-date" id="date-line"></p>
@@ -138,20 +138,19 @@
               </div>
               <p class="resume-title" id="resume-title">还没有下一件事</p>
               <div class="ops-row">
-                <button type="button" class="btn ops-primary" id="resume-act">写一条</button>
+                <button type="button" class="btn ops-primary" id="resume-act">添加待办</button>
                 <button type="button" class="ops-subtle" id="todos-open">全部待办</button>
               </div>
             </section>
 
             <section class="ops-panel ops-window" id="ops-window" aria-labelledby="h-tabs">
               <div class="ops-panel-head">
-                <h2 class="ops-panel-title" id="h-tabs">当前窗口</h2>
-                <span class="ops-meta">随时收好</span>
+                <h2 class="ops-panel-title" id="h-tabs">保存当前窗口为工作集</h2>
+                <span class="ops-meta"><span id="c-tabs">0</span> 个标签</span>
               </div>
-              <p class="ops-window-copy"><span id="c-tabs">0</span> 个标签，留住此刻的进度</p>
               <div class="ops-actions" role="group" aria-label="当前窗口操作">
-                <button type="button" class="btn ops-save" id="workset-save">保存</button>
-                <button type="button" class="ops-subtle" id="workset-view">查看</button>
+                <button type="button" class="btn ops-save" id="workset-save">保存为工作集</button>
+                <button type="button" class="ops-subtle" id="workset-view">查看当前标签</button>
               </div>
               <div class="ops-recent">
                 <span class="muted" id="ops-recent-label">还没有保存的工作集</span>
@@ -195,7 +194,7 @@
           <ul class="todos" id="todos"></ul>
           <form class="todoadd" id="todo-form">
             <label class="sr-only" for="todo-input">新待办，回车添加</label>
-            <input class="field" id="todo-input" placeholder="写一条，回车添加" autocomplete="off">
+            <input class="field" id="todo-input" placeholder="待办内容，回车添加" autocomplete="off">
           </form>
           <span class="muted" id="todo-done"></span>
           <button type="button" class="linkbtn" id="todo-clear">清除已完成</button>
@@ -208,27 +207,27 @@
         </div>
 
         <dialog id="ops-window-dialog" class="ops-dialog" aria-labelledby="ops-window-dialog-title">
-          <form method="dialog" class="ops-dialog-inner">
+          <div class="ops-dialog-inner">
             <header class="ops-dialog-head">
               <h2 id="ops-window-dialog-title">当前窗口</h2>
-              <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭">×</button>
+              <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
             </header>
             <div class="ops-dialog-body" id="ops-window-dialog-body"></div>
-          </form>
+          </div>
         </dialog>
 
         <dialog id="ops-todos-dialog" class="ops-dialog" aria-labelledby="ops-todos-dialog-title">
-          <form method="dialog" class="ops-dialog-inner">
+          <div class="ops-dialog-inner">
             <header class="ops-dialog-head">
               <h2 id="ops-todos-dialog-title">全部待办</h2>
-              <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭">×</button>
+              <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
             </header>
             <div class="ops-dialog-body" id="ops-todos-dialog-body"></div>
-          </form>
+          </div>
         </dialog>
       </section>
 
-      <section class="view" data-view="tabs" aria-labelledby="tabs-h">
+      <section class="view" data-view="tabs" hidden aria-labelledby="tabs-h">
         <header class="viewhead">
           <h1 id="tabs-h">标签</h1>
           <p id="tabs-sub">只看当前窗口，按域名折叠，localhost 端口只是标签。</p>
@@ -240,7 +239,7 @@
         <div class="groups" id="groups"></div>
       </section>
 
-      <section class="view" data-view="settings" aria-labelledby="settings-h">
+      <section class="view" data-view="settings" hidden aria-labelledby="settings-h">
         <header class="viewhead">
           <h1 id="settings-h">设置</h1>
           <p>外观随时可改，书桌不依赖 Host。</p>
@@ -277,7 +276,7 @@
               <span class="count" id="c-worksets">0</span>
             </div>
             <div class="cardbody">
-              <p class="help">只有点「保存这个窗口」才写入本机，最多 5 个。每个最多 50 个网页。关窗口不会自动存。</p>
+              <p class="help">只有点「保存为工作集」才写入本机，最多 5 个。每个最多 50 个网页。关窗口不会自动存。</p>
               <div class="savedsets" id="saved-worksets"></div>
             </div>
             <div class="cardfoot">
@@ -285,6 +284,9 @@
             </div>
           </section>
 
+          <details class="advanced" id="settings-advanced">
+            <summary>高级</summary>
+            <div class="advanced-body">
           <section class="card" aria-labelledby="s-host">
             <div class="cardhead">
               <h2 id="s-host"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>连接本机</h2>
@@ -333,6 +335,8 @@
               </div>
             </div>
           </section>
+            </div>
+          </details>
         </div>
       </section>
     </main>

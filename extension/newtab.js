@@ -156,7 +156,7 @@
       kind: 'empty',
       title: '还没有下一件事',
       meta: '',
-      action: '写一条',
+      action: '添加待办',
     };
   }
 
@@ -405,7 +405,7 @@
         <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
-      </li>`).join('') : `<li class="empty">还没有待办，下面写一条。</li>`;
+      </li>`).join('') : `<li class="empty">还没有待办。</li>`;
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
     $('#c-todo').textContent = String(left);
@@ -554,6 +554,8 @@
     bindFaviconFallback(box);
     $('#c-tabs').textContent = String(eligible.length);
     $('#c-tabs').setAttribute('aria-label', `${eligible.length} 个网页`);
+    const tabNav = $('#c-tabs-nav');
+    if (tabNav) tabNav.textContent = String((state.tabs || []).length);
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
       : (filtered.length ? `${filtered.length} 个网页` : '');
@@ -803,7 +805,16 @@
   function setView(v, opts) {
     if (v !== 'desk' && v !== 'tabs' && v !== 'settings') return;
     state.view = v;
-    $$('.view').forEach((el) => el.classList.toggle('active', el.dataset.view === v));
+    $$('.view').forEach((el) => {
+      const on = el.dataset.view === v;
+      el.classList.toggle('active', on);
+      el.hidden = !on;
+      if (on) el.style.removeProperty('display');
+      else el.style.setProperty('display', 'none', 'important');
+    });
+    const main = $('#main');
+    if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
     $$('.navbtn, .studio-navbtn').forEach((b) => {
       if (b.dataset.view === v) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
@@ -1005,12 +1016,13 @@
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </li>`).join('') : '<li class="empty">还没有待办，下面写一条。</li>'}
+          </li>`).join('') : '<li class="empty">还没有待办。</li>'}
       </ul>
-      <form class="todoadd" id="todo-form-dialog">
+      <div class="todoadd" id="todo-add-dialog">
         <label class="sr-only" for="todo-input-dialog">新待办</label>
-        <input class="field" id="todo-input-dialog" placeholder="写一条，回车添加" autocomplete="off">
-      </form>
+        <input class="field" id="todo-input-dialog" placeholder="待办内容，回车添加" autocomplete="off">
+        <button type="button" class="btn" id="todo-add-btn">添加待办</button>
+      </div>
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
     body.onclick = (e) => {
@@ -1031,19 +1043,6 @@
       saveDesk({ todos: state.todos });
       openTodosDialog();
     };
-    const form = body.querySelector('#todo-form-dialog');
-    if (form) {
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        const input = body.querySelector('#todo-input-dialog');
-        const text = (input && input.value || '').trim();
-        if (!text) return;
-        state.todos.push({ id: uid(), text, done: false });
-        renderTodos();
-        saveDesk({ todos: state.todos });
-        openTodosDialog();
-      };
-    }
     if (!dialog.open) dialog.showModal();
     const focusInput = body.querySelector('#todo-input-dialog');
     if (focusInput) focusInput.focus();
@@ -1191,7 +1190,30 @@
     const todosOpen = $('#todos-open');
     if (todosOpen) todosOpen.addEventListener('click', () => openTodosDialog());
     const worksetView = $('#workset-view');
-    if (worksetView) worksetView.addEventListener('click', () => openWindowDialog());
+    if (worksetView) worksetView.addEventListener('click', () => setView('tabs'));
+    $$('[data-dialog-close]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dialog = btn.closest('dialog');
+        if (dialog) dialog.close();
+      });
+    });
+    const todosDialog = $('#ops-todos-dialog');
+    if (todosDialog) {
+      todosDialog.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const input = todosDialog.querySelector('#todo-input-dialog');
+        if (!input || e.target !== input) return;
+        e.preventDefault();
+        e.stopPropagation();
+        commitTodoFromDialog(input);
+      });
+      todosDialog.addEventListener('click', (e) => {
+        if (!e.target.closest('#todo-add-btn')) return;
+        e.preventDefault();
+        const input = todosDialog.querySelector('#todo-input-dialog');
+        if (input) commitTodoFromDialog(input);
+      });
+    }
     $('#workset-filter').addEventListener('input', (e) => {
       state.worksetFilter = e.target.value;
       renderWorkset();
@@ -1336,6 +1358,14 @@
     }));
   }
 
+  let noteSaveGen = 0;
+  let noteFlashTimer;
+  function paintNoteStatus(text, saved) {
+    const status = $('#desk3d-note-status');
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('is-saved', !!saved);
+  }
   function saveDeskNoteFrom3d(text) {
     state.notes = typeof text === 'string' ? text : '';
     const ta = $('#notes');
@@ -1343,12 +1373,29 @@
     renderNotes();
     const saved = $('#notes-saved');
     if (saved) saved.textContent = '保存中…';
+    paintNoteStatus('保存中…', false);
+    const gen = ++noteSaveGen;
     clearTimeout(notesTimer);
+    clearTimeout(noteFlashTimer);
     notesTimer = setTimeout(() => {
       saveDesk({ notes: state.notes }).then(() => {
+        if (gen !== noteSaveGen) return;
         if (saved) saved.textContent = '已保存';
+        paintNoteStatus('已保存', true);
+        noteFlashTimer = setTimeout(() => {
+          if (gen !== noteSaveGen) return;
+          paintNoteStatus('输入即保存到书桌便签。', false);
+        }, 1400);
       });
     }, 400);
+  }
+  function commitTodoFromDialog(input) {
+    const text = input.value.trim();
+    if (!text) return;
+    state.todos.push({ id: uid(), text, done: false });
+    renderTodos();
+    saveDesk({ todos: state.todos });
+    openTodosDialog();
   }
 
   const desk3dHost = {
