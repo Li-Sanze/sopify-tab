@@ -1376,18 +1376,40 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   opacity: 0;
   background:
-    radial-gradient(1px 1px at 14% 5%, rgba(236, 242, 252, 0.42), transparent),
-    radial-gradient(0.8px 0.8px at 27% 9%, rgba(236, 242, 252, 0.32), transparent),
-    radial-gradient(1.1px 1.1px at 41% 4%, rgba(236, 242, 252, 0.38), transparent),
-    radial-gradient(0.8px 0.8px at 55% 8%, rgba(236, 242, 252, 0.28), transparent),
-    radial-gradient(1px 1px at 68% 5%, rgba(236, 242, 252, 0.4), transparent),
-    radial-gradient(0.8px 0.8px at 82% 10%, rgba(236, 242, 252, 0.3), transparent),
-    radial-gradient(0.9px 0.9px at 91% 4%, rgba(236, 242, 252, 0.34), transparent),
-    radial-gradient(ellipse 42% 10% at 72% 6%, rgba(140, 168, 230, 0.08), transparent 70%),
-    radial-gradient(0.7px 0.7px at 48px 28px, rgba(236, 242, 252, 0.32) 50%, transparent 100%) 0 0 / 640px 220px,
-    radial-gradient(0.6px 0.6px at 210px 64px, rgba(236, 242, 252, 0.24) 50%, transparent 100%) 0 0 / 640px 220px;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 8%, transparent 18%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 8%, transparent 18%);
+    /* 3 颗稍亮带晕 */
+    radial-gradient(circle 10px at 11% 7%, rgba(210, 225, 255, 0.22), transparent 70%),
+    radial-gradient(2.2px 2.2px at 11% 7%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(circle 9px at 78% 5%, rgba(200, 220, 255, 0.2), transparent 70%),
+    radial-gradient(2px 2px at 78% 5%, rgba(255, 255, 255, 0.92), transparent),
+    radial-gradient(circle 8px at 92% 14%, rgba(190, 210, 245, 0.18), transparent 70%),
+    radial-gradient(1.8px 1.8px at 92% 14%, rgba(255, 255, 255, 0.88), transparent),
+    /* 普通淡星（上半屏） */
+    radial-gradient(1.2px 1.2px at 4% 12%, rgba(236, 242, 252, 0.72), transparent),
+    radial-gradient(1px 1px at 18% 4%, rgba(236, 242, 252, 0.68), transparent),
+    radial-gradient(1.1px 1.1px at 26% 16%, rgba(236, 242, 252, 0.55), transparent),
+    radial-gradient(0.9px 0.9px at 34% 8%, rgba(236, 242, 252, 0.62), transparent),
+    radial-gradient(1px 1px at 42% 3%, rgba(236, 242, 252, 0.7), transparent),
+    radial-gradient(0.8px 0.8px at 48% 18%, rgba(236, 242, 252, 0.45), transparent),
+    radial-gradient(1.1px 1.1px at 55% 6%, rgba(236, 242, 252, 0.66), transparent),
+    radial-gradient(0.9px 0.9px at 63% 15%, rgba(236, 242, 252, 0.5), transparent),
+    radial-gradient(1px 1px at 71% 9%, rgba(236, 242, 252, 0.64), transparent),
+    radial-gradient(0.8px 0.8px at 85% 3%, rgba(236, 242, 252, 0.58), transparent),
+    radial-gradient(1px 1px at 96% 8%, rgba(236, 242, 252, 0.6), transparent),
+    radial-gradient(0.9px 0.9px at 8% 22%, rgba(236, 242, 252, 0.48), transparent),
+    radial-gradient(1px 1px at 22% 28%, rgba(236, 242, 252, 0.42), transparent),
+    radial-gradient(0.8px 0.8px at 67% 24%, rgba(236, 242, 252, 0.4), transparent),
+    radial-gradient(1px 1px at 88% 22%, rgba(236, 242, 252, 0.46), transparent),
+    radial-gradient(0.9px 0.9px at 15% 36%, rgba(236, 242, 252, 0.35), transparent),
+    radial-gradient(0.8px 0.8px at 81% 34%, rgba(236, 242, 252, 0.32), transparent),
+    radial-gradient(1px 1px at 58% 32%, rgba(236, 242, 252, 0.3), transparent),
+    radial-gradient(0.7px 0.7px at 39% 26%, rgba(236, 242, 252, 0.38), transparent),
+    radial-gradient(ellipse 48% 14% at 70% 8%, rgba(130, 160, 220, 0.1), transparent 70%),
+    radial-gradient(0.8px 0.8px at 52px 40px, rgba(235, 240, 248, 0.55) 50%, transparent 100%) 0 0 / 640px 360px,
+    radial-gradient(0.7px 0.7px at 220px 110px, rgba(235, 240, 248, 0.42) 50%, transparent 100%) 0 0 / 640px 360px,
+    radial-gradient(0.8px 0.8px at 410px 28px, rgba(235, 240, 248, 0.48) 50%, transparent 100%) 0 0 / 640px 360px,
+    radial-gradient(0.7px 0.7px at 540px 160px, rgba(235, 240, 248, 0.36) 50%, transparent 100%) 0 0 / 640px 360px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 52%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 52%);
 }
 html[data-sky="night"] .studio-desk.active .stars-layer { opacity: 1; }
 .studio-screen, .studio-topbar { position: relative; z-index: 1; }
