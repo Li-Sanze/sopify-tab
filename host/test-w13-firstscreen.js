@@ -90,6 +90,19 @@ for (const name of shared) {
   assert.strictEqual((css.match(re) || []).length, 0, `newtab.css must not assign ${name}`);
 }
 
+assert.ok(/id="resume"[^>]*data-has="pending"/.test(html), 'resume starts pending');
+assert.ok(css.includes('.next[data-has="pending"] .next-compose { display: none; }'));
+assert.ok(css.includes('.next[data-has="pending"] .next-filled { visibility: hidden; }'));
+assert.ok(/root\.dataset\.has = has \? '1' : '0'/.test(js), 'renderResume writes 0 or 1');
+assert.ok(css.includes('.studio-desk .shelf textarea.note'));
+assert.ok(!/\.studio-desk \.note \{/.test(css), 'note field styles must not match the 3D label');
+
+const firstScreen = css.slice(css.indexOf('v3 first screen'));
+assert.ok(firstScreen.includes('18% 40%'));
+assert.ok(!firstScreen.includes('42% 42%'), 'first screen chips must not use 42% 42%');
+assert.ok(firstScreen.includes('max-width: calc(1040px + 64px)'));
+assert.ok(/body\.studio-home:not\(\.sidepanel\) \.main/.test(firstScreen));
+
 const starsAt = css.indexOf('.stars-layer {');
 assert.ok(starsAt !== -1);
 const starsRule = css.slice(starsAt, css.indexOf('}', starsAt));
