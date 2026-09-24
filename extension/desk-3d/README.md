@@ -6,7 +6,7 @@ Path 3：固定视角空间桌嵌在新标签页主书桌。视觉收敛为简�
 
 ## 干净配置加载（给 Rick / 验收官）
 
-**Google Chrome 148+ 会忽略 `--load-extension`（日志：`not allowed in Google Chrome, ignoring`）。验收必须用「加载已解压」，不要空转 CLI。**
+**品牌版 Google Chrome 已不支持 `--load-extension`（官方自 137 起移除）。验收必须用「加载已解压的扩展程序」，不要空转 CLI。**
 
 ### 推荐（可复现 · 验收用）
 
@@ -47,8 +47,9 @@ chromium --user-data-dir="$HOME/sopify-tab-clean-profile" \
 ## 行为
 
 - 「下一件事」是 `#resume`，纯 DOM，不经 3D。面板用 `--next-h` / `--resume-bottom`（ResizeObserver）避开它。
-- 默认「空间视图」打开。关掉后「简洁视图」静态 DOM 桌面仍可用。
-- 桌面最多 **两个** 工作集物件（屏幕 + 资料夹）；「查看全部工作集」落到工作台里已保存的工作集列表。没有保存时这个入口隐藏。
+- **默认关闭。** 开关只在设置页「空间视图（实验）」，键是 `chrome.storage.local` 的 `spaceView`。关着时 `boot.js` 不 `import()` `embed.js`，因此不加载 `scene.js` 和 `vendor/three/three.module.js`。
+- 打开后舞台出现在常用站下方。关掉调用 `dispose()`：断开观察器和监听、清掉舞台和面板。反复开关不会叠两套监听。加载过程中关掉，动态 import 完成后不再挂载。
+- 桌面最多 **两个** 存下的窗口（屏幕 + 资料夹）；「查看全部存下的窗口」去设置页。没有保存时这个入口隐藏。
 - 随手记 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。
 - 点击物件打开工作集面板或便签；「恢复」走 newtab 注入的 `restoreWorksetById`。
 - desk-3d 自己不读 `chrome.storage` / `chrome.tabs`。只吃 `window.SopifyDesk3d` 回调。

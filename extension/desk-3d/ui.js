@@ -55,6 +55,13 @@ export class DeskUI {
     /** @type {string | null} */
     this._activeWorksetId = null;
 
+    this._disposed = false;
+    this._ro = null;
+    this._onScroll = null;
+    this._onKeydown = null;
+    this._onRootClick = null;
+    this._onWorksetClose = null;
+    this._onNoteClose = null;
     this._bindPanels();
     this._bindEntries();
     this._bindLabels();
@@ -90,24 +97,23 @@ export class DeskUI {
     };
     apply();
     if (typeof ResizeObserver === 'function') {
-      const ro = new ResizeObserver(() => apply());
-      ro.observe(el);
+      this._ro = new ResizeObserver(() => apply());
+      this._ro.observe(el);
     }
-    document.addEventListener('scroll', apply, { capture: true, passive: true });
+    this._onScroll = apply;
+    document.addEventListener('scroll', this._onScroll, { capture: true, passive: true });
   }
 
   _bindPanels() {
-    if (this.panelWorkset) {
-      this.panelWorkset.addEventListener('close', () => this._onPanelClosed());
-    }
-    if (this.panelNote) {
-      this.panelNote.addEventListener('close', () => {
-        this._persistNote();
-        this._onPanelClosed();
-      });
-    }
+    this._onWorksetClose = () => this._onPanelClosed();
+    this._onNoteClose = () => {
+      this._persistNote();
+      this._onPanelClosed();
+    };
+    if (this.panelWorkset) this.panelWorkset.addEventListener('close', this._onWorksetClose);
+    if (this.panelNote) this.panelNote.addEventListener('close', this._onNoteClose);
 
-    document.addEventListener('keydown', (e) => {
+    this._onKeydown = (e) => {
       if (e.key !== 'Escape') return;
       if (this.panelWorkset && this.panelWorkset.open) {
         e.preventDefault();
@@ -116,7 +122,8 @@ export class DeskUI {
         e.preventDefault();
         this.panelNote.close();
       }
-    });
+    };
+    document.addEventListener('keydown', this._onKeydown);
 
     if (this.restoreBtn) {
       this.restoreBtn.hidden = !this.host.restoreWorkset;
@@ -138,13 +145,43 @@ export class DeskUI {
       else this.openNote();
     };
     const root = this.root instanceof Element || this.root === document ? this.root : document;
-    root.addEventListener('click', (e) => {
+    this._clickRoot = root;
+    this._onRootClick = (e) => {
       const target = /** @type {HTMLElement} */ (e.target);
       const ws = target.closest && target.closest('[data-desk3d-workset]');
       const note = target.closest && target.closest('[data-desk3d-note]');
       if (ws) onClick(ws, 'workset');
       else if (note) onClick(note, 'note');
-    });
+    };
+    root.addEventListener('click', this._onRootClick);
+  }
+
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+    if (this._ro) {
+      this._ro.disconnect();
+      this._ro = null;
+    }
+    if (this._onScroll) {
+      document.removeEventListener('scroll', this._onScroll, { capture: true });
+      this._onScroll = null;
+    }
+    if (this._onKeydown) {
+      document.removeEventListener('keydown', this._onKeydown);
+      this._onKeydown = null;
+    }
+    if (this.panelWorkset && this._onWorksetClose) {
+      this.panelWorkset.removeEventListener('close', this._onWorksetClose);
+    }
+    if (this.panelNote && this._onNoteClose) {
+      this.panelNote.removeEventListener('close', this._onNoteClose);
+    }
+    if (this._clickRoot && this._onRootClick) {
+      this._clickRoot.removeEventListener('click', this._onRootClick);
+    }
+    const panels = document.getElementById('desk3d-panels');
+    if (panels) panels.remove();
   }
 
   _bindLabels() {
@@ -172,22 +209,8 @@ export class DeskUI {
         if (save && typeof save.focus === 'function') save.focus();
         return;
       }
-      const jump = document.getElementById('desk-organize');
-      if (jump && typeof jump.click === 'function') {
-        jump.click();
-        return;
-      }
-      const target = document.getElementById('desk-workset-list');
-      if (target && typeof target.showModal === 'function') {
-        target.hidden = false;
-        if (!target.open) target.showModal();
-        return;
-      }
-      if (target) {
-        target.hidden = false;
-        target.scrollIntoView({ block: 'start' });
-        if (typeof target.focus === 'function') target.focus();
-      }
+      const host = typeof window !== 'undefined' ? window.SopifyDesk3d : null;
+      if (host && typeof host.openAllSaved === 'function') host.openAllSaved();
     });
   }
 
@@ -244,12 +267,12 @@ export class DeskUI {
     const catalog = this.readCatalog();
     this._renderEntries(catalog);
     if (this.worksetCount) {
-      this.worksetCount.textContent = `${catalog.worksets.length} 个工作集`;
+      this.worksetCount.textContent = `${catalog.worksets.length} 个窗口`;
     }
     if (this.allWorksetsBtn) {
       const empty = catalog.worksets.length === 0;
       this.allWorksetsBtn.hidden = empty;
-      this.allWorksetsBtn.textContent = empty ? '保存当前窗口' : '查看全部工作集 ↗';
+      this.allWorksetsBtn.textContent = empty ? '保存当前窗口' : '查看全部存下的窗口 ↗';
       const foot = this.allWorksetsBtn.closest('.desk-stage-foot');
       if (foot) foot.hidden = empty;
     }
@@ -275,11 +298,11 @@ export class DeskUI {
       if (!onDesk.length) {
         const empty = document.createElement('p');
         empty.className = 'desk3d-empty';
-        empty.textContent = '还没有保存的工作集。保存当前窗口后会出现在这里。';
+        empty.textContent = '还没有存下的窗口。保存这个窗口后会出现在这里。';
         this.surface.appendChild(empty);
       }
       onDesk.forEach((w, i) => {
-        this.surface.appendChild(fallbackCard('workset', w.id, w.name || '工作集', `${(w.tabs || []).length} 个标签`, i));
+        this.surface.appendChild(fallbackCard('workset', w.id, w.name || '窗口', `${(w.tabs || []).length} 个网页`, i));
       });
       this.surface.appendChild(fallbackCard('note', NOTE_ID, '随手记', data.noteLabel === '随手记' ? '记录一个想法' : data.noteLabel, 0));
     }
@@ -288,7 +311,7 @@ export class DeskUI {
       // Visually hidden keyboard twins — no "打开：" chip wall on screen.
       this.railEntries.innerHTML = '';
       onDesk.forEach((w) => {
-        this.railEntries.appendChild(railButton('workset', w.id, w.name || '工作集'));
+        this.railEntries.appendChild(railButton('workset', w.id, w.name || '窗口'));
       });
       this.railEntries.appendChild(railButton('note', NOTE_ID, '随手记'));
     }
@@ -321,8 +344,8 @@ export class DeskUI {
     }
     const strong = el.querySelector('strong');
     const small = el.querySelector('small');
-    if (strong) strong.textContent = workset.name || '工作集';
-    if (small) small.textContent = `${(workset.tabs || []).length} 个标签`;
+    if (strong) strong.textContent = workset.name || '窗口';
+    if (small) small.textContent = `${(workset.tabs || []).length} 个网页`;
     el.hidden = !spatialOn;
   }
 
@@ -347,14 +370,14 @@ export class DeskUI {
       this.restoreMsg.hidden = true;
       this.restoreMsg.textContent = '';
     }
-    if (this.worksetName) this.worksetName.textContent = data.name || '工作集';
+    if (this.worksetName) this.worksetName.textContent = data.name || '窗口';
     if (this.worksetPages) {
       this.worksetPages.innerHTML = '';
       const pages = Array.isArray(data.tabs) ? data.tabs : [];
       if (!pages.length) {
         const li = document.createElement('li');
         li.className = 'desk3d-empty';
-        li.textContent = '这个工作集没有网页。';
+        li.textContent = '这个窗口没有网页。';
         this.worksetPages.appendChild(li);
       } else {
         for (const p of pages) {

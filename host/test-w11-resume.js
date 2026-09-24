@@ -7,7 +7,7 @@ const assert = require('assert');
 const EXT = path.join(__dirname, '..', 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
-  'worksets',
+  'worksets', 'spaceView',
 ];
 
 function read(name) {
@@ -18,18 +18,16 @@ const html = read('newtab.html');
 const css = read('newtab.css');
 const js = read('newtab.js');
 const manifest = JSON.parse(read('manifest.json'));
-const desk = html.slice(html.indexOf('aria-labelledby="greet-h"'), html.indexOf('aria-labelledby="tabs-h"'));
+const desk = html.slice(html.indexOf('data-view="desk"'), html.indexOf('aria-labelledby="tabs-h"'));
 const settings = html.slice(html.indexOf('aria-labelledby="settings-h"'));
 
 assert.ok(desk.includes('id="resume"'), 'desk must have the resume strip');
 assert.ok(desk.includes('下一件事'), 'resume kicker is 下一件事');
 assert.ok(desk.includes('id="resume-act"'), 'resume has a primary action');
-assert.ok(desk.includes('id="workset"') && desk.includes('id="workset-filter"'), 'workset list + filter');
-assert.ok(desk.includes('id="notes-preview"'), 'notes one-line preview on desk');
+assert.ok(desk.includes('class="hero"') && desk.includes('id="todo-input"'), 'empty next-thing input lives in the hero');
+assert.ok(desk.indexOf('id="resume"') < desk.indexOf('id="desk-3d-mount"'), 'resume sits above the space view');
+assert.ok(desk.includes('id="workset"') && desk.includes('id="workset-filter"'), 'workset list + filter stay available');
 assert.ok(!/class="card dock"/.test(desk), '常用站 is no longer a full-width dock');
-assert.ok(desk.includes('class="card c-sites"'), '常用站 stays usable as a demoted card');
-assert.ok(desk.indexOf('id="resume"') < desk.indexOf('class="deskgrid"'), 'resume sits above desk cards');
-assert.ok(desk.indexOf('c-workset') < desk.indexOf('c-sites'), 'workset is above demoted 常用站');
 
 assert.ok(!/未检测/.test(desk), 'desk empty states must not preach Host');
 assert.ok(!/Host/.test(desk), 'desk must not mention Host');
@@ -71,15 +69,10 @@ assert.ok(!/storage\.sync/.test(js));
 assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
 assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
 
-assert.ok(/\.resume\s*\{/.test(css), 'resume strip is styled');
-assert.ok(/\.card\.c-workset\s*\{\s*grid-column:\s*1\s*\/\s*-1/.test(css), 'workset is secondary full-row');
+assert.ok(/\.next-title[\s\S]*?-webkit-line-clamp:\s*2/.test(css), 'short titles clamp to 2 lines');
+assert.ok(/data-size="m"\][\s\S]*?-webkit-line-clamp:\s*3/.test(css), 'medium titles clamp to 3 lines');
+assert.ok(/data-size="l"\][\s\S]*?-webkit-line-clamp:\s*4/.test(css), 'long titles clamp to 4 lines');
 assert.ok(!/\.card\.dock\s*\{\s*grid-column/.test(css), 'dock full-width rule is gone');
-assert.ok(/\.resume-title[\s\S]*-webkit-line-clamp:\s*2/.test(css), 'resume title clamps to 2 lines');
-assert.ok(/\.notes-preview/.test(css) && /text-overflow:\s*ellipsis/.test(css), 'notes preview is one line');
-assert.ok(/@container desk \(max-width: 1019px\)/.test(css));
-assert.ok(/@container desk \(max-width: 619px\)/.test(css));
-assert.ok(/\.resume-row \.btn\s*\{\s*width:\s*100%/.test(css) || /max-width: 619px[\s\S]*resume-row/.test(css),
-  'narrow resume action stacks');
 
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');

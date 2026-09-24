@@ -110,106 +110,95 @@
           <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">当前标签</button>
           <button type="button" class="studio-navbtn" data-view="settings" id="studio-nav-settings">设置</button>
         </nav>
-        <div class="studio-tools">
-          <button type="button" class="studio-theme-btn" id="studio-theme-toggle" aria-label="切换昼夜">
-            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
-          </button>
-        </div>
         <label class="sr-only" for="name">称呼</label>
         <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
-        <span id="greet-word" class="sr-only" aria-hidden="true">你好</span>
-        <span id="greet-h" class="sr-only" aria-hidden="true">你好</span>
       </header>
 
-      <section class="view active studio-desk" data-view="desk" aria-labelledby="studio-title">
+      <section class="view active studio-desk" data-view="desk" aria-labelledby="resume-kicker">
+        <div class="stars-layer" aria-hidden="true"></div>
         <div class="studio-screen">
-        <section class="studio-greeting">
-          <h1 class="studio-title" id="studio-title">我的工作台<span class="studio-dot" aria-hidden="true">.</span></h1>
-          <p class="studio-when">
-            <span class="studio-date" id="date-line"></span>
-            <span class="studio-clock" id="clock" aria-label="当前时间"><span id="clock-hm">00:00</span><small id="clock-sec" class="sr-only">00</small></span>
-          </p>
-        </section>
-
-        <div class="studio-body">
-          <!-- DOM: ops first for narrow（下一件事→当前窗口→桌面）；宽屏 CSS 把舞台放到左侧 -->
-          <aside class="studio-ops" aria-label="操作区">
-            <section class="resume ops-panel" id="resume" aria-labelledby="resume-kicker">
-              <div class="ops-panel-head">
-                <p class="resume-kicker" id="resume-kicker">下一件事</p>
-                <span class="ops-meta" id="resume-meta"></span>
+          <section class="hero" aria-labelledby="resume-kicker">
+            <p class="eyebrow">
+              <span id="greet-word">你好</span><span class="sep" aria-hidden="true">·</span><span id="date-line"></span><span class="sep" aria-hidden="true">·</span><time id="clock-hm">00:00</time>
+            </p>
+            <div class="next" id="resume" data-has="pending">
+              <p class="kicker" id="resume-kicker"><i class="dot" aria-hidden="true"></i>下一件事</p>
+              <div class="next-filled">
+                <h1 class="next-title" id="resume-title" aria-live="polite"></h1>
+                <div class="next-actions">
+                  <button type="button" class="fs-btn primary" id="resume-act">
+                    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+                    完成
+                  </button>
+                  <button type="button" class="fs-btn text" id="todos-open">之后还有 0 条</button>
+                </div>
               </div>
-              <p class="resume-title" id="resume-title">还没有下一件事</p>
-              <div class="ops-row">
-                <button type="button" class="ops-subtle" id="resume-act">添加待办</button>
-                <button type="button" class="ops-subtle" id="todos-open">全部待办</button>
-              </div>
-            </section>
-
-            <section class="ops-panel ops-window" id="ops-window" aria-labelledby="h-tabs">
-              <div class="ops-panel-head">
-                <h2 class="ops-panel-title" id="h-tabs">保存当前窗口为工作集，下次继续</h2>
-              </div>
-              <p class="ops-tab-count" id="ops-tab-count">当前标签 0 / 可保存网页 0</p>
-              <span class="sr-only" id="c-tabs">0</span>
-              <div class="ops-actions" role="group" aria-label="当前窗口操作">
-                <button type="button" class="btn ops-primary" id="workset-save">保存为工作集</button>
-                <button type="button" class="ops-subtle" id="workset-view">查看当前标签</button>
-              </div>
-              <div class="ops-recent">
-                <span class="muted" id="ops-recent-label">还没有保存的工作集</span>
-                <button type="button" class="ops-restore" id="workset-restore-recent" hidden>恢复</button>
-              </div>
-              <span class="sr-only" id="c-tabs-sub"></span>
-              <button type="button" class="sr-only" id="desk-organize">已保存的工作集</button>
-            </section>
-          </aside>
-
-          <div class="studio-stage">
-            <section id="desk-3d-mount" class="desk-stage" aria-label="空间桌面"></section>
-          </div>
-        </div>
-
-        <section class="studio-sites c-sites" aria-labelledby="h-sites">
-          <h2 class="studio-sites-label" id="h-sites">常用站</h2>
-          <button type="button" class="studio-sites-manage" id="site-add-toggle" aria-expanded="false" aria-haspopup="dialog" aria-controls="ops-sites-dialog">全部／管理</button>
-          <div class="studio-sites-body">
-            <div class="tiles" id="sites"></div>
-          </div>
-          <span class="sr-only count" id="c-sites">0</span>
-        </section>
-        </div>
-
-        <dialog id="desk-workset-list" class="ops-dialog" aria-labelledby="desk-worksets-h" hidden>
-          <div class="ops-dialog-inner">
-            <header class="ops-dialog-head">
-              <h2 id="desk-worksets-h">已保存的工作集 <span class="ops-meta" id="c-worksets-desk">0</span></h2>
-              <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
-            </header>
-            <div class="ops-dialog-body">
-              <div class="savedsets" id="desk-workset-entries"></div>
+              <form class="next-compose" id="todo-form" autocomplete="off">
+                <label class="sr-only" for="todo-input">写下下一件事</label>
+                <input class="next-input" id="todo-input" placeholder="今天先做什么？" maxlength="80">
+                <p class="hint" id="todo-hint">写一句，按 <kbd>回车</kbd>，它就是下一件事</p>
+                <button type="button" class="fs-btn text done-history" id="todos-done-history" hidden>查看已完成 0 件</button>
+              </form>
             </div>
-          </div>
-        </dialog>
+          </section>
 
-        <!-- 离屏保留：既有 JS 依赖的列表／表单，不进首屏 -->
+          <section class="shelf" aria-label="这个窗口、接着上次、随手记">
+            <article class="col" aria-labelledby="window-h">
+              <h2 class="col-h" id="window-h">这个窗口</h2>
+              <p class="col-lead" id="window-lead"><b>0</b> 个标签</p>
+              <div class="favs" id="window-favs" aria-hidden="true"></div>
+              <p class="col-sub" id="window-sub">还没有可以保存的网页</p>
+              <div class="col-actions">
+                <button type="button" class="fs-btn secondary" id="workset-save" disabled>保存这个窗口</button>
+              </div>
+            </article>
+            <article class="col" id="last-col" aria-labelledby="last-h">
+              <h2 class="col-h" id="last-h">接着上次</h2>
+              <div id="last-empty">
+                <p class="col-lead">还没有保存过</p>
+                <p class="col-sub">存下的窗口会放在这里，一键恢复</p>
+              </div>
+              <button type="button" class="col-lead rename" id="last-name" hidden>
+                <span id="last-name-text"></span>
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"/></svg>
+              </button>
+              <div class="favs" id="last-favs" hidden aria-hidden="true"></div>
+              <p class="col-sub" id="last-meta" hidden></p>
+              <div class="col-actions" id="last-actions" hidden>
+                <button type="button" class="fs-btn secondary" id="workset-restore-recent">恢复这 0 个网页</button>
+                <button type="button" class="fs-btn text" id="last-all" hidden>全部 0 个</button>
+              </div>
+            </article>
+            <article class="col" aria-labelledby="note-h">
+              <h2 class="col-h" id="note-h"><label for="notes">随手记</label></h2>
+              <textarea class="note" id="notes" rows="4" maxlength="2000" placeholder="记点什么，自动存在本机"></textarea>
+              <p class="col-sub note-status" id="notes-saved" aria-live="polite"></p>
+            </article>
+          </section>
+
+          <section class="sites studio-sites" aria-labelledby="h-sites">
+            <h2 class="col-h" id="h-sites">常用站</h2>
+            <div class="sites-row">
+              <div class="tiles" id="sites"></div>
+              <button type="button" class="fs-btn text" id="site-add-toggle" aria-expanded="false" aria-haspopup="dialog" aria-controls="ops-sites-dialog">+ 添加</button>
+            </div>
+            <span class="sr-only count" id="c-sites">0</span>
+          </section>
+
+          <section id="desk-3d-mount" class="desk-stage" aria-label="空间桌面" hidden></section>
+        </div>
+
         <div class="desk-aux" hidden>
           <label class="sr-only" for="workset-filter">筛选这个窗口</label>
           <input class="field" id="workset-filter" placeholder="筛选标题或网址" autocomplete="off">
           <div class="workset" id="workset"></div>
           <ul class="todos" id="todos"></ul>
-          <form class="todoadd" id="todo-form">
-            <label class="sr-only" for="todo-input">新待办，回车添加</label>
-            <input class="field" id="todo-input" placeholder="待办内容，回车添加" autocomplete="off">
-          </form>
           <span class="muted" id="todo-done"></span>
           <button type="button" class="linkbtn" id="todo-clear">清除已完成</button>
           <span class="count" id="c-todo">0</span>
-          <button type="button" class="notes-preview" id="notes-preview">还没有便签。</button>
-          <label class="sr-only" for="notes">便签内容</label>
-          <textarea class="notes" id="notes" hidden placeholder="还没有便签。"></textarea>
-          <span class="saved" id="notes-saved" aria-live="polite"></span>
           <span class="count" id="c-notes">0</span>
+          <span class="sr-only" id="c-tabs">0</span>
+          <span class="sr-only" id="c-tabs-sub"></span>
         </div>
 
         <dialog id="ops-window-dialog" class="ops-dialog" aria-labelledby="ops-window-dialog-title">
@@ -293,20 +282,27 @@
                 </div>
                 <p class="help">立刻生效，书桌和侧栏同一套；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
               </div>
+              <div class="frow">
+                <label class="space-view-opt" for="space-view-toggle">
+                  <input type="checkbox" id="space-view-toggle">
+                  <span>空间视图（实验）</span>
+                </label>
+                <p class="help">在首屏下方显示 3D 书桌，默认关闭。</p>
+              </div>
             </div>
           </section>
 
           <section class="card" aria-labelledby="s-worksets">
             <div class="cardhead">
-              <h2 id="s-worksets"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>工作集</h2>
+              <h2 id="s-worksets" tabindex="-1"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>存下的窗口</h2>
               <span class="count" id="c-worksets">0</span>
             </div>
             <div class="cardbody">
-              <p class="help">只有点「保存为工作集」才写入本机，最多 5 个。每个最多 50 个网页。关窗口不会自动存。</p>
+              <p class="help">只有点『保存这个窗口』才写入本机，最多 5 个，每个最多 50 个网页。关窗口不会自动存。</p>
               <div class="savedsets" id="saved-worksets"></div>
             </div>
             <div class="cardfoot">
-              <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部工作集</button>
+              <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部存下的窗口</button>
             </div>
           </section>
 

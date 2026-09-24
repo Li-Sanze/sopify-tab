@@ -148,7 +148,7 @@
         kind: 'todo',
         title: todo.text.trim(),
         meta: '待办',
-        action: '标记完成',
+        action: '完成',
         todoId: todo.id,
       };
     }
@@ -156,7 +156,7 @@
       kind: 'empty',
       title: '还没有下一件事',
       meta: '',
-      action: '添加待办',
+      action: '写一条',
     };
   }
 
@@ -289,8 +289,31 @@
   function formatWorksetWhen(savedAt) {
     const d = new Date(savedAt);
     if (Number.isNaN(d.getTime())) return '';
-    const p2 = function (n) { return String(n).padStart(2, '0'); };
-    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+    const n = new Date();
+    const p2 = function (n0) { return String(n0).padStart(2, '0'); };
+    const hm = p2(d.getHours()) + ':' + p2(d.getMinutes());
+    if (n.getTime() >= d.getTime() && n.getTime() - d.getTime() < 60000) return '刚刚';
+    const day = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    const diff = Math.round((day(n) - day(d)) / 86400000);
+    if (diff <= 0) return '今天 ' + hm;
+    if (diff === 1) return '昨天 ' + hm;
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function savedWindowTitle(tabs, now) {
+    const savable = (tabs || []).filter(function (t) { return t && isDeskSummaryUrl(t.url || ''); });
+    let best = null;
+    for (let i = 0; i < savable.length; i += 1) {
+      const t = savable[i];
+      if (typeof t.lastAccessed !== 'number' || !Number.isFinite(t.lastAccessed)) continue;
+      if (!best || t.lastAccessed > best.lastAccessed) best = t;
+    }
+    if (!best) return defaultWorksetName(now instanceof Date ? now : new Date());
+    const title = String(best.title || '').trim();
+    if (!title) return defaultWorksetName(now instanceof Date ? now : new Date());
+    const chars = [...title];
+    if (chars.length > 30) return chars.slice(0, 30).join('') + '…';
+    return title;
   }
 
   async function loadDesk() {
@@ -305,6 +328,30 @@
     }
     if (!Object.keys(payload).length) return;
     if (hasStorage) await chrome.storage.local.set(payload);
+  }
+
+  let spaceViewOn = false;
+
+  function publishSpaceView() {
+    document.dispatchEvent(new CustomEvent('sopify-spaceview', { detail: spaceViewOn === true }));
+  }
+
+  async function loadSpaceView() {
+    spaceViewOn = false;
+    if (!hasStorage) return false;
+    try {
+      const data = await chrome.storage.local.get({ spaceView: false });
+      spaceViewOn = data.spaceView === true;
+    } catch {
+      spaceViewOn = false;
+    }
+    return spaceViewOn;
+  }
+
+  async function saveSpaceView(on) {
+    spaceViewOn = on === true;
+    if (hasStorage) await chrome.storage.local.set({ spaceView: spaceViewOn });
+    publishSpaceView();
   }
 
   async function loadWorksets() {
@@ -360,11 +407,13 @@
   function tick() {
     const d = new Date();
     const p2 = (n) => String(n).padStart(2, '0');
-    $('#clock-hm').textContent = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
-    $('#clock-sec').textContent = p2(d.getSeconds());
     const wd = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
-    $('#date-line').textContent = `${d.getMonth() + 1}月${d.getDate()}日 · 星期${wd}`;
-    $('#greet-word').textContent = greetingOf(d.getHours()) + (state.name.trim() ? '，' : '');
+    const greet = $('#greet-word');
+    const date = $('#date-line');
+    const clock = $('#clock-hm');
+    if (greet) greet.textContent = greetingOf(d.getHours()) + (state.name.trim() ? `，${state.name.trim()}` : '');
+    if (date) date.textContent = `${d.getMonth() + 1}月${d.getDate()}日 星期${wd}`;
+    if (clock) clock.textContent = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
   }
 
   function siteTilesHtml() {
@@ -427,57 +476,67 @@
   }
 
   function renderNotes() {
-    const preview = $('#notes-preview');
     const ta = $('#notes');
-    const line = noteOneLiner(state.notes);
-    if (ta !== document.activeElement) ta.value = state.notes;
-    if (preview) {
-      preview.textContent = line || '还没有便签。';
-      preview.classList.toggle('is-empty', !line);
-      preview.hidden = document.activeElement === ta && !ta.hidden;
-    }
+    if (ta && ta !== document.activeElement) ta.value = state.notes;
     const n = [...state.notes.replace(/\s/g, '')].length;
     $('#c-notes').textContent = String(n);
     $('#c-notes').setAttribute('aria-label', `${n} 字`);
     renderResume();
   }
 
-  function openNotesEditor() {
-    const preview = $('#notes-preview');
-    const ta = $('#notes');
-    if (preview) preview.hidden = true;
-    ta.hidden = false;
-    ta.value = state.notes;
-    ta.focus();
-  }
-
-  function closeNotesEditor() {
-    const preview = $('#notes-preview');
-    const ta = $('#notes');
-    ta.hidden = true;
-    if (preview) {
-      preview.hidden = false;
-      const line = noteOneLiner(state.notes);
-      preview.textContent = line || '还没有便签。';
-      preview.classList.toggle('is-empty', !line);
-    }
+  function titleSize(text) {
+    const n = [...String(text || '')].length;
+    if (n <= 22) return 's';
+    if (n <= 44) return 'm';
+    return 'l';
   }
 
   function renderResume() {
     const next = pickResume(state.todos);
     const root = $('#resume');
     const title = $('#resume-title');
-    const meta = $('#resume-meta');
     const act = $('#resume-act');
-    if (!root || !title || !meta || !act) return;
-    root.classList.toggle('is-empty', next.kind === 'empty');
-    title.textContent = next.title;
-    title.title = next.kind === 'todo' ? next.title : '';
-    meta.textContent = next.meta;
-    act.textContent = next.action;
-    act.dataset.kind = next.kind;
-    if (next.todoId) act.dataset.todoId = next.todoId;
-    else delete act.dataset.todoId;
+    if (!root || !title || !act) return;
+    const done = state.todos.filter((t) => t && t.done).length;
+    const has = next.kind === 'todo';
+    root.dataset.has = has ? '1' : '0';
+    root.classList.toggle('is-empty', !has);
+    if (has) {
+      title.textContent = next.title;
+      title.title = next.title;
+      title.dataset.size = titleSize(next.title);
+      act.dataset.kind = 'todo';
+      act.dataset.todoId = next.todoId;
+    } else {
+      title.textContent = '';
+      title.removeAttribute('title');
+      delete title.dataset.size;
+      act.dataset.kind = 'empty';
+      delete act.dataset.todoId;
+    }
+    const open = $('#todos-open');
+    if (open && has) {
+      const openCount = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
+      const rest = Math.max(0, openCount - 1);
+      const parts = [rest ? `之后还有 ${rest} 条` : '这是最后一条'];
+      if (done > 0) parts.push(`已完成 ${done} 件`);
+      open.textContent = parts.join(' · ');
+    }
+    const input = $('#todo-input');
+    const hint = $('#todo-hint');
+    const history = $('#todos-done-history');
+    if (!has) {
+      if (input) input.placeholder = done > 0 ? '都做完了，还有什么？' : '今天先做什么？';
+      if (hint) {
+        hint.innerHTML = done > 0
+          ? `刚完成了 ${done} 件。想到下一件就写下来，按 <kbd>回车</kbd>`
+          : '写一句，按 <kbd>回车</kbd>，它就是下一件事';
+      }
+    }
+    if (history) {
+      history.hidden = !(done > 0);
+      history.textContent = `查看已完成 ${done} 件`;
+    }
   }
 
   function renderSavedWorksets() {
@@ -488,25 +547,10 @@
       if (list[0]) recentBtn.title = list[0].name;
       else recentBtn.removeAttribute('title');
     }
-    const recentLabel = $('#ops-recent-label');
-    if (recentLabel) {
-      recentLabel.textContent = list[0] ? `最近：${list[0].name}` : '还没有保存的工作集';
-    }
     const countEl = $('#c-worksets');
     if (countEl) {
       countEl.textContent = String(list.length);
-      countEl.setAttribute('aria-label', `${list.length} 个工作集`);
-    }
-    const deskCount = $('#c-worksets-desk');
-    if (deskCount) {
-      deskCount.textContent = `${list.length} 个`;
-      deskCount.setAttribute('aria-label', `${list.length} 个工作集`);
-    }
-    const deskList = $('#desk-workset-list');
-    if (deskList) {
-      if (!list.length && deskList.open) deskList.close();
-      /* Closed dialog stays out of the page. Do not append the full list under the desk. */
-      if (!deskList.open) deskList.hidden = list.length === 0;
+      countEl.setAttribute('aria-label', `${list.length} 个窗口`);
     }
     const clearBtn = $('#worksets-clear');
     if (clearBtn) clearBtn.disabled = !list.length;
@@ -517,33 +561,153 @@
           <span class="url">${w.tabs.length} 个网页 · ${esc(formatWorksetWhen(w.savedAt))}</span>
         </div>
         <button type="button" class="linkbtn" data-restore-workset="${esc(w.id)}">恢复</button>
-        <button type="button" class="iconbtn" data-del-workset="${esc(w.id)}" aria-label="删除工作集：${esc(w.name)}">
+        <button type="button" class="iconbtn" data-del-workset="${esc(w.id)}" aria-label="删除窗口：${esc(w.name)}">
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
-      </div>`).join('') : `<p class="empty">还没有保存的工作集。</p>`;
+      </div>`).join('') : `<p class="empty">还没有存下的窗口。</p>`;
     const box = $('#saved-worksets');
     if (box) box.innerHTML = entryHtml;
-    const deskEntries = $('#desk-workset-entries');
-    if (deskEntries) deskEntries.innerHTML = list.length ? entryHtml : '';
+    renderLastSaved();
+  }
+
+  function ensureLastNameButton() {
+    let btn = $('#last-name');
+    if (btn) return btn;
+    const col = $('#last-col');
+    if (!col) return null;
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'col-lead rename';
+    btn.id = 'last-name';
+    btn.innerHTML = '<span id="last-name-text"></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"/></svg>';
+    const input = col.querySelector('.rename-input');
+    const favs = $('#last-favs');
+    if (input) input.replaceWith(btn);
+    else if (favs) col.insertBefore(btn, favs);
+    else col.append(btn);
+    return btn;
+  }
+
+  function renderLastSaved() {
+    const list = Array.isArray(state.worksets) ? state.worksets : [];
+    const ws = list[0];
+    const empty = $('#last-empty');
+    const favs = $('#last-favs');
+    const meta = $('#last-meta');
+    const actions = $('#last-actions');
+    const restore = $('#workset-restore-recent');
+    const all = $('#last-all');
+    if (!ws) {
+      const stray = $('#last-col') && $('#last-col').querySelector('.rename-input');
+      if (stray) ensureLastNameButton();
+      const nameBtn = $('#last-name');
+      if (empty) empty.hidden = false;
+      if (nameBtn) nameBtn.hidden = true;
+      if (favs) favs.hidden = true;
+      if (meta) meta.hidden = true;
+      if (actions) actions.hidden = true;
+      if (restore) restore.hidden = true;
+      if (all) all.hidden = true;
+      return;
+    }
+    const nameBtn = ensureLastNameButton();
+    const nameText = $('#last-name-text');
+    if (empty) empty.hidden = true;
+    if (nameBtn) {
+      nameBtn.hidden = false;
+      nameBtn.setAttribute('aria-label', `改名：${ws.name}`);
+    }
+    if (nameText) nameText.textContent = ws.name;
+    if (favs) {
+      const hosts = [];
+      const seen = new Set();
+      for (const t of ws.tabs || []) {
+        let host = '';
+        try { host = new URL(t.url).hostname; } catch { host = ''; }
+        if (!host || seen.has(host)) continue;
+        seen.add(host);
+        hosts.push(host);
+      }
+      const shown = hosts.slice(0, 6);
+      favs.hidden = false;
+      favs.innerHTML = shown.map((host) => `<span class="fav" style="--h:${hue(host)}">${esc(mono(host))}</span>`).join('')
+        + (hosts.length > 6 ? `<span class="fav more">+${hosts.length - 6}</span>` : '');
+    }
+    if (meta) {
+      meta.hidden = false;
+      meta.textContent = `${(ws.tabs || []).length} 个网页 · ${formatWorksetWhen(ws.savedAt)}`;
+    }
+    if (actions) actions.hidden = false;
+    if (restore) {
+      restore.hidden = false;
+      restore.textContent = `恢复这 ${(ws.tabs || []).length} 个网页`;
+      restore.title = ws.name;
+    }
+    if (all) {
+      all.hidden = list.length <= 1;
+      all.textContent = `全部 ${list.length} 个`;
+    }
+  }
+
+  function openAllSaved() {
+    setView('settings');
+    const head = $('#s-worksets');
+    if (!head) return;
+    head.scrollIntoView({ block: 'start' });
+    head.focus();
   }
 
   function revealDeskWorksets() {
-    if (state.view !== 'desk') setView('desk');
-    const list = state.worksets || [];
-    const target = $('#desk-workset-list');
-    if (!list.length || !target) {
-      const save = $('#workset-save');
-      if (save) save.focus();
-      return;
-    }
-    target.hidden = false;
-    if (typeof target.showModal === 'function') {
-      if (!target.open) target.showModal();
-      return;
-    }
-    requestAnimationFrame(() => {
-      target.scrollIntoView({ block: 'start' });
-      target.focus({ preventScroll: true });
+    openAllSaved();
+  }
+
+  function startRename(id) {
+    const ws = (state.worksets || []).find((w) => w.id === id);
+    const btn = $('#last-name');
+    if (!ws || !btn) return;
+    const input = document.createElement('input');
+    input.className = 'col-lead rename-input';
+    input.value = ws.name;
+    input.maxLength = 40;
+    input.setAttribute('aria-label', '新名字');
+    btn.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (commit, refocus) => {
+      if (done) return;
+      done = true;
+      const next = input.value.trim();
+      const write = commit && next && next !== ws.name;
+      if (!write) {
+        renderLastSaved();
+        if (refocus) {
+          const again = $('#last-name');
+          if (again) again.focus();
+        }
+        return;
+      }
+      const list = (state.worksets || []).map((w) => (
+        w.id === id ? { id: w.id, name: next, savedAt: w.savedAt, tabs: w.tabs } : w
+      ));
+      persistWorksets(list).then(() => {
+        toast('已改名');
+        if (refocus) {
+          const again = $('#last-name');
+          if (again) again.focus();
+        }
+      });
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.key === 'Process') return;
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      e.preventDefault();
+      finish(e.key === 'Enter', true);
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (input.isConnected && document.activeElement !== input) finish(true, false);
+      }, 0);
     });
   }
 
@@ -608,8 +772,29 @@
       tabCount.textContent = String(savable);
       tabCount.setAttribute('aria-label', `可保存网页 ${savable}`);
     }
-    const countLine = $('#ops-tab-count');
-    if (countLine) countLine.textContent = `当前标签 ${allCount} / 可保存网页 ${savable}`;
+    const lead = $('#window-lead');
+    if (lead) lead.innerHTML = `<b>${allCount}</b> 个标签`;
+    const favs = $('#window-favs');
+    if (favs) {
+      const shownFavs = eligible.slice(0, 6);
+      const extra = eligible.length - shownFavs.length;
+      favs.innerHTML = shownFavs.map((t) => {
+        const host = domainOf(t.url || '');
+        const icon = faviconOf([t]);
+        const letter = esc(mono(host));
+        const img = icon ? `<img class="fav" src="${esc(icon)}" alt="">` : '';
+        return `<span class="fav" style="--h:${hue(host)}">${img}<span class="fav-letter">${letter}</span></span>`;
+      }).join('') + (extra > 0 ? `<span class="fav more">+${extra}</span>` : '');
+      bindFaviconFallback(favs);
+    }
+    const sub = $('#window-sub');
+    if (sub) {
+      sub.textContent = savable
+        ? `${savable} 个网页可以存下，回头一键恢复`
+        : '还没有可以保存的网页';
+    }
+    const saveBtn = $('#workset-save');
+    if (saveBtn) saveBtn.disabled = savable === 0;
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
       : (filtered.length ? `${filtered.length} 个网页` : '');
@@ -701,14 +886,8 @@
     $$('input[name="themePreset"]').forEach((el) => {
       el.checked = el.value === preset;
     });
-    const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
-    const themeBtn = $('#studio-theme-toggle');
-    if (themeBtn) {
-      themeBtn.setAttribute('aria-label', sky === 'night' ? '切换到白天' : '切换到夜间');
-      themeBtn.innerHTML = sky === 'night'
-        ? '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>'
-        : '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>';
-    }
+    const box = $('#space-view-toggle');
+    if (box && box !== document.activeElement) box.checked = spaceViewOn === true;
   }
 
   function renderHost() {
@@ -888,8 +1067,7 @@
       ? ($(`.studio-navbtn[data-view="${v}"]`) || $(`.navbtn[data-view="${v}"]`))
       : null;
     if (v === 'desk' && !focusNav) {
-      const act = $('#resume-act');
-      (act || $('#main')).focus({ preventScroll: true });
+      focusDeskPrimary();
       return;
     }
     (nav || $('#main')).focus({ preventScroll: true });
@@ -947,10 +1125,18 @@
     }
   }
 
+  function flashLastSaved() {
+    const col = $('#last-col');
+    if (!col) return;
+    col.classList.remove('flash');
+    void col.offsetWidth;
+    col.classList.add('flash');
+  }
+
   async function saveThisWindow() {
     const proposal = proposeSaveWorkset(state.worksets, state.tabs, {
       id: uid(),
-      name: defaultWorksetName(new Date()),
+      name: savedWindowTitle(state.tabs, new Date()),
       savedAt: Date.now(),
     });
     if (proposal.reason === 'empty') {
@@ -968,7 +1154,7 @@
     if (proposal.reason === 'full') {
       const oldest = proposal.oldest;
       const label = oldest && oldest.name ? oldest.name : '最早的一条';
-      const ok = window.confirm(`已有 ${WORKSET_STORE_CAP} 个工作集。覆盖最早的「${label}」？`);
+      const ok = window.confirm(`已存了 ${WORKSET_STORE_CAP} 个窗口，覆盖最早的『${label}』？`);
       if (!ok) {
         toast('未保存');
         return;
@@ -979,19 +1165,20 @@
         return;
       }
       await persistWorksets(next.worksets);
-      toast(`已覆盖「${label}」`);
+      flashLastSaved();
+      toast(`已覆盖『${label}』`);
       return;
     }
     await persistWorksets(proposal.worksets);
-    const n = proposal.incoming && proposal.incoming.tabs ? proposal.incoming.tabs.length : 0;
-    toast(`已保存 ${n} 个网页`);
+    flashLastSaved();
+    toast('已存下这个窗口');
   }
 
   async function restoreWorksetById(id) {
     const list = state.worksets || [];
     const w = id ? list.find((x) => x.id === id) : list[0];
     if (!w) {
-      toast('没有可恢复的工作集');
+      toast('没有可恢复的窗口');
       return;
     }
     let open = [];
@@ -1015,30 +1202,62 @@
     if (!id) return;
     const current = (state.worksets || []).find((w) => w.id === id);
     await persistWorksets(removeWorksetById(state.worksets, id));
-    toast(current ? `已删除「${current.name}」` : '已删除工作集');
+    toast(current ? `已删除『${current.name}』` : '已删除');
   }
 
   async function clearAllWorksets() {
     if (!(state.worksets || []).length) return;
-    const ok = window.confirm('清空全部工作集？只影响本机已保存的窗口，不可撤销。');
+    const ok = window.confirm('清空全部存下的窗口？只影响本机，不可撤销。');
     if (!ok) return;
     await persistWorksets([]);
-    toast('已清空工作集');
+    toast('已清空');
   }
 
+  function focusDeskPrimary() {
+    const next = pickResume(state.todos);
+    const act = next.kind === 'todo' ? $('#resume-act') : $('#todo-input');
+    if (act) act.focus({ preventScroll: true });
+  }
+
+  let completingId = null;
   function runResumeAction() {
+    if (completingId) return;
     const act = $('#resume-act');
-    if (!act) return;
-    const kind = act.dataset.kind;
-    if (kind === 'todo' && act.dataset.todoId) {
-      const item = state.todos.find((t) => t.id === act.dataset.todoId);
-      if (!item) return;
-      item.done = true;
+    if (!act || act.dataset.kind !== 'todo' || !act.dataset.todoId) return;
+    const id = act.dataset.todoId;
+    const item = state.todos.find((t) => t.id === id && !t.done);
+    if (!item) return;
+    completingId = id;
+    const title = $('#resume-title');
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const finish = () => {
+      if (completingId !== id) return;
+      completingId = null;
+      if (title) title.classList.remove('leaving');
+      const target = state.todos.find((t) => t.id === id);
+      if (!target || target.done) {
+        renderResume();
+        return;
+      }
+      const openBefore = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
+      target.done = true;
       renderTodos();
       saveDesk({ todos: state.todos });
+      if (openBefore <= 1) {
+        const input = $('#todo-input');
+        if (input) input.focus();
+      } else if (title) {
+        title.classList.remove('entering');
+        void title.offsetWidth;
+        title.classList.add('entering');
+      }
+    };
+    if (reduced || !title) {
+      finish();
       return;
     }
-    openTodosDialog();
+    title.classList.add('leaving');
+    setTimeout(finish, 320);
   }
 
   function openWindowDialog() {
@@ -1117,6 +1336,36 @@
   }
 
   let notesTimer;
+  let notesClearTimer;
+  let noteSaveGen = 0;
+  function setNotesSavedStatus(text) {
+    const saved = $('#notes-saved');
+    if (saved) saved.textContent = text;
+    const desk = $('#desk3d-note-status');
+    if (desk) {
+      desk.textContent = text || '输入即保存到书桌便签。';
+      desk.classList.toggle('is-saved', text === '已存在本机');
+    }
+  }
+  function queueNoteSave() {
+    const gen = ++noteSaveGen;
+    setNotesSavedStatus('保存中…');
+    clearTimeout(notesTimer);
+    clearTimeout(notesClearTimer);
+    notesTimer = setTimeout(() => {
+      Promise.resolve(saveDesk({ notes: state.notes })).then(() => {
+        if (gen !== noteSaveGen) return;
+        setNotesSavedStatus('已存在本机');
+        notesClearTimer = setTimeout(() => {
+          if (gen !== noteSaveGen) return;
+          setNotesSavedStatus('');
+        }, 1600);
+      }).catch(() => {
+        if (gen !== noteSaveGen) return;
+        setNotesSavedStatus('没存上，稍后再试');
+      });
+    }, 400);
+  }
   function bind() {
     $$('.navbtn, .studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
     const studioBrand = $('#studio-brand');
@@ -1124,15 +1373,6 @@
       studioBrand.addEventListener('click', (e) => {
         e.preventDefault();
         setView('desk');
-      });
-    }
-    const themeToggle = $('#studio-theme-toggle');
-    if (themeToggle) {
-      themeToggle.addEventListener('click', () => {
-        if (!window.SopifyTheme) return;
-        const sky = document.documentElement.dataset.sky === 'night' ? 'night' : 'day';
-        window.SopifyTheme.setPreset(sky === 'night' ? 'day' : 'night');
-        renderTheme();
       });
     }
     const chatBtn = $('#open-chat');
@@ -1209,6 +1449,8 @@
       $('#todo-input').value = '';
       renderTodos();
       saveDesk({ todos: state.todos });
+      const act = $('#resume-act');
+      if (act) act.focus();
     });
     $('#todos').addEventListener('change', (e) => {
       const id = e.target.dataset.todoId;
@@ -1234,28 +1476,36 @@
       toast('已清除完成项');
     });
 
-    $('#notes-preview').addEventListener('click', () => openNotesEditor());
     $('#notes').addEventListener('input', (e) => {
       state.notes = e.target.value;
       const n = [...state.notes.replace(/\s/g, '')].length;
       $('#c-notes').textContent = String(n);
       $('#c-notes').setAttribute('aria-label', `${n} 字`);
-      $('#notes-saved').textContent = '保存中…';
       renderResume();
-      clearTimeout(notesTimer);
-      notesTimer = setTimeout(() => {
-        saveDesk({ notes: state.notes }).then(() => {
-          $('#notes-saved').textContent = '已保存';
-        });
-      }, 400);
+      queueNoteSave();
     });
-    $('#notes').addEventListener('blur', () => closeNotesEditor());
 
     $('#resume-act').addEventListener('click', () => runResumeAction());
     const todosOpen = $('#todos-open');
     if (todosOpen) todosOpen.addEventListener('click', () => openTodosDialog());
-    const worksetView = $('#workset-view');
-    if (worksetView) worksetView.addEventListener('click', () => setView('tabs'));
+    const doneHistory = $('#todos-done-history');
+    if (doneHistory) doneHistory.addEventListener('click', () => openTodosDialog());
+    const lastCol = $('#last-col');
+    if (lastCol) {
+      lastCol.addEventListener('click', (e) => {
+        if (!e.target.closest('#last-name')) return;
+        const current = (state.worksets || [])[0];
+        if (current) startRename(current.id);
+      });
+    }
+    const lastAll = $('#last-all');
+    if (lastAll) lastAll.addEventListener('click', () => openAllSaved());
+    const spaceToggle = $('#space-view-toggle');
+    if (spaceToggle) {
+      spaceToggle.addEventListener('change', () => {
+        saveSpaceView(spaceToggle.checked === true);
+      });
+    }
     $$('[data-dialog-close]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const dialog = btn.closest('dialog');
@@ -1289,10 +1539,6 @@
     });
     $('#workset-save').addEventListener('click', () => { saveThisWindow(); });
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
-    const organize = $('#desk-organize');
-    if (organize) organize.addEventListener('click', () => revealDeskWorksets());
-    const deskSaved = $('#desk-workset-entries');
-    if (deskSaved) deskSaved.addEventListener('click', onSavedWorksetClick);
     $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 
@@ -1311,6 +1557,12 @@
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local') return;
         if ('themePreset' in changes) renderTheme();
+        if ('spaceView' in changes) {
+          spaceViewOn = changes.spaceView.newValue === true;
+          const box = $('#space-view-toggle');
+          if (box) box.checked = spaceViewOn;
+          publishSpaceView();
+        }
         if ('cwd' in changes && typeof changes.cwd.newValue === 'string') {
           state.cwd = changes.cwd.newValue;
           const input = $('#cwd');
@@ -1397,14 +1649,16 @@
     notifyDesk3d();
     tick();
     setInterval(tick, 1000);
-    if (state.notes) $('#notes-saved').textContent = '已保存';
     if (location.hash === '#settings') setView('settings');
     else {
       document.body.classList.add('studio-home');
-      const act = $('#resume-act');
-      if (act) act.focus({ preventScroll: true });
+      focusDeskPrimary();
     }
     await refreshTabs();
+    await loadSpaceView();
+    const spaceBox = $('#space-view-toggle');
+    if (spaceBox) spaceBox.checked = spaceViewOn === true;
+    if (spaceViewOn) publishSpaceView();
   }
 
   function notifyDesk3d() {
@@ -1422,36 +1676,12 @@
     }));
   }
 
-  let noteSaveGen = 0;
-  let noteFlashTimer;
-  function paintNoteStatus(text, saved) {
-    const status = $('#desk3d-note-status');
-    if (!status) return;
-    status.textContent = text;
-    status.classList.toggle('is-saved', !!saved);
-  }
   function saveDeskNoteFrom3d(text) {
     state.notes = typeof text === 'string' ? text : '';
     const ta = $('#notes');
     if (ta && ta !== document.activeElement) ta.value = state.notes;
     renderNotes();
-    const saved = $('#notes-saved');
-    if (saved) saved.textContent = '保存中…';
-    paintNoteStatus('保存中…', false);
-    const gen = ++noteSaveGen;
-    clearTimeout(notesTimer);
-    clearTimeout(noteFlashTimer);
-    notesTimer = setTimeout(() => {
-      saveDesk({ notes: state.notes }).then(() => {
-        if (gen !== noteSaveGen) return;
-        if (saved) saved.textContent = '已保存';
-        paintNoteStatus('已保存', true);
-        noteFlashTimer = setTimeout(() => {
-          if (gen !== noteSaveGen) return;
-          paintNoteStatus('输入即保存到书桌便签。', false);
-        }, 1400);
-      });
-    }, 400);
+    queueNoteSave();
   }
   function commitTodoFromDialog(input) {
     const text = input.value.trim();
@@ -1464,6 +1694,8 @@
 
   const desk3dHost = {
     defaultWant3d: true,
+    getSpaceView: function () { return spaceViewOn === true; },
+    openAllSaved: function () { openAllSaved(); },
     getWorksets: function () { return cloneDesk3dWorksets(); },
     getNote: function () { return typeof state.notes === 'string' ? state.notes : ''; },
     saveNote: function (text) { saveDeskNoteFrom3d(text); },

@@ -7,8 +7,8 @@
 export function stageInnerHTML() {
   return `
     <div class="desk-stage-bar">
-      <p class="desk-stage-kicker"><span id="desk3d-workset-count">0 个工作集</span></p>
-      <label class="desk-stage-toggle" for="desk3d-toggle" title="空间视图 / 简洁视图">
+      <p class="desk-stage-kicker"><span id="desk3d-workset-count">0 个窗口</span></p>
+      <label class="desk-stage-toggle" for="desk3d-toggle" title="空间视图 / 简洁视图" hidden>
         <input type="checkbox" id="desk3d-toggle" />
         <span class="desk-stage-toggle-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 3.2 3.5 8v8L12 20.8 20.5 16V8L12 3.2zm0 2.3 6.2 3.4v.1L12 12.4 5.8 8.9v-.1L12 5.5zm-6.7 5.3L12 14.3l6.7-3.5v5.1L12 19.4l-6.7-3.5V10.8z"/></svg>
@@ -40,7 +40,7 @@ export function stageInnerHTML() {
       <p id="desk3d-banner" class="desk3d-banner" hidden role="status"></p>
     </div>
     <div class="desk-stage-foot">
-      <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部工作集 ↗</button>
+      <button type="button" class="desk3d-rail-link" id="desk3d-all-worksets">查看全部存下的窗口 ↗</button>
     </div>
     <!-- Keyboard twins: same route as 3D / labels; visually hidden, no chip wall -->
     <div id="desk3d-rail-entries" class="sr-only" aria-label="桌面键盘入口"></div>
@@ -52,7 +52,7 @@ export function panelsInnerHTML() {
     <dialog id="desk3d-panel-workset" class="desk3d-panel" aria-labelledby="desk3d-workset-title">
       <form method="dialog" class="desk3d-panel-inner">
         <header class="desk3d-panel-head">
-          <h2 id="desk3d-workset-title">工作集</h2>
+          <h2 id="desk3d-workset-title">存下的窗口</h2>
           <button type="submit" class="desk3d-icon-close" value="cancel" aria-label="关闭面板">×</button>
         </header>
         <div class="desk3d-panel-body">

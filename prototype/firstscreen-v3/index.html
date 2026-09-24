@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-sky="day" data-state="filled" data-layout="content">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Sopify Tab · 首屏 v3 原型</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="stars-layer" aria-hidden="true"></div>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Sopify Tab">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="brand-name">Sopify<span>Tab</span></span>
+      </a>
+      <nav class="nav" aria-label="主导览">
+        <button type="button" aria-current="page">工作台</button>
+        <button type="button">当前标签</button>
+        <button type="button">设置</button>
+      </nav>
+    </header>
+
+    <main class="home">
+      <section class="hero" aria-labelledby="next-kicker">
+        <p class="eyebrow">
+          <span id="greet">下午好</span><span class="sep" aria-hidden="true">·</span><span id="date"></span><span class="sep" aria-hidden="true">·</span><time id="clock"></time>
+        </p>
+
+        <div class="next" id="next" data-has="1">
+          <p class="kicker" id="next-kicker"><i class="dot" aria-hidden="true"></i>下一件事</p>
+
+          <div class="next-filled">
+            <h1 class="next-title" id="next-title" aria-live="polite"></h1>
+            <div class="next-actions">
+              <button type="button" class="btn primary" id="next-done">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+                完成
+              </button>
+              <button type="button" class="btn text" id="next-all"></button>
+            </div>
+          </div>
+
+          <form class="next-compose" id="compose" autocomplete="off">
+            <label class="sr-only" for="compose-input">写下下一件事</label>
+            <input class="next-input" id="compose-input" placeholder="今天先做什么？" maxlength="80">
+            <p class="hint" id="compose-hint">写一句，按 <kbd>回车</kbd>，它就是下一件事</p>
+            <button type="button" class="btn text done-history" id="done-history" hidden></button>
+          </form>
+        </div>
+      </section>
+
+      <!-- 版式 A：内容排版 -->
+      <section class="shelf" aria-label="接着上次">
+        <article class="col" aria-labelledby="win-h">
+          <h2 class="col-h" id="win-h">这个窗口</h2>
+          <p class="col-lead" id="win-lead"></p>
+          <div class="favs" id="win-favs" aria-hidden="true"></div>
+          <p class="col-sub" id="win-sub"></p>
+          <div class="col-actions">
+            <button type="button" class="btn secondary" data-save>保存这个窗口</button>
+          </div>
+        </article>
+
+        <article class="col" aria-labelledby="last-h">
+          <h2 class="col-h" id="last-h">接着上次</h2>
+          <div id="last"></div>
+        </article>
+
+        <article class="col" aria-labelledby="note-h">
+          <h2 class="col-h" id="note-h"><label for="note">随手记</label></h2>
+          <textarea class="note" id="note" rows="4" maxlength="2000" placeholder="记点什么，自动存在本机"></textarea>
+          <p class="col-sub note-status" id="note-status" aria-live="polite"></p>
+        </article>
+      </section>
+
+      <!-- 版式 B：照片墙 -->
+      <section class="wall" aria-labelledby="wall-h">
+        <header class="wall-head">
+          <h2 class="col-h" id="wall-h">接着上次</h2>
+          <p class="col-sub">存下的窗口，一键恢复</p>
+        </header>
+        <div class="wall-grid" id="wall-grid"></div>
+      </section>
+
+      <section class="sites" aria-labelledby="sites-h">
+        <h2 class="col-h" id="sites-h">常用站</h2>
+        <div class="sites-row" id="sites-row"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="proto-bar" role="group" aria-label="原型控制">
+    <span class="proto-tag">原型</span>
+    <div class="seg" data-seg="layout">
+      <button type="button" data-val="content">内容排版</button>
+      <button type="button" data-val="wall">照片墙</button>
+    </div>
+    <div class="seg" data-seg="state">
+      <button type="button" data-val="filled">有数据</button>
+      <button type="button" data-val="empty">新用户</button>
+      <button type="button" data-val="bare">空窗口</button>
+    </div>
+    <div class="seg" data-seg="sky">
+      <button type="button" data-val="day">白天</button>
+      <button type="button" data-val="night">夜晚</button>
+    </div>
+    <div class="seg" data-seg="stars" title="只在夜晚生效">
+      <button type="button" data-val="off">无星空</button>
+      <button type="button" data-val="on">淡星空</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toast-text"></span>
+    <span class="toast-actions" id="toast-actions"></span>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
