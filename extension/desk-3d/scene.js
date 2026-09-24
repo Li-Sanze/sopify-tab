@@ -462,7 +462,7 @@ export class DeskScene {
       const w = worksets[0];
       this._monitor.group.visible = !!w;
       this._monitor.id = w ? w.id : '';
-      this._monitor.label = w ? String(w.name || '工作集') : '';
+      this._monitor.label = w ? String(w.name || '存下的窗口') : '';
       if (w && this.displayMat) {
         const old = this.displayMat.map;
         this.displayMat.map = this.screenTexture(w.name || '工作台');
@@ -478,7 +478,7 @@ export class DeskScene {
       const w = worksets[1];
       this._folder.group.visible = !!w;
       this._folder.id = w ? w.id : '';
-      this._folder.label = w ? String(w.name || '工作集') : '';
+      this._folder.label = w ? String(w.name || '存下的窗口') : '';
     }
 
     if (this._note) {
@@ -568,7 +568,7 @@ export class DeskScene {
         if (meta) meta.textContent = '';
       } else {
         const ws = (this._catalog.worksets || []).find((x) => x.id === obj.id);
-        const name = (ws && ws.name) || obj.label || '工作集';
+        const name = (ws && ws.name) || obj.label || '存下的窗口';
         const n = ws && Array.isArray(ws.tabs) ? ws.tabs.length : 0;
         if (title) title.textContent = name;
         if (meta) meta.textContent = `${n} 个标签`;

@@ -14,7 +14,7 @@
 1. chrome://extensions → 打开「开发者模式」
 2. 「加载已解压的扩展程序」→ 本仓库 extension/（内含 manifest.json，不要选仓库根）
 3. 确认卡片「Sopify Tab」，ID cgkhllpelkjmfamddkjpnmchjikdcbgp
-4. Ctrl/Cmd+T → 真扩展 NTP（我的工作台），不是 Google 默认页
+4. Ctrl/Cmd+T → 真扩展的新标签页首屏（先看到「下一件事」），不是 Google 默认页
 ```
 
 **干净配置（Rick / 验收）**：空用户目录，只装这一份扩展：
@@ -45,7 +45,7 @@
 
 本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，`worksets`，以及空间视图开关 `spaceView`（boolean，缺省关闭）。
 
-`worksets` 形状：`[{ id, name, savedAt, tabs:[{ title, url }] }]`。不存 favicon、不存 tabId。只收 http(s) 和 localhost。只在明确保存时写入。最多 5 个工作集；每个最多 50 个网页。可删、可清空。不用 `storage.sync`。不用 sessions / history / bookmarks。
+`worksets` 形状：`[{ id, name, savedAt, tabs:[{ title, url }] }]`。不存 favicon、不存 tabId。只收 http(s) 和 localhost。只在明确保存时写入。最多 5 个存下的窗口；每个最多 50 个网页。可删、可清空。不用 `storage.sync`。不用 sessions / history / bookmarks。
 
 空间视图复用现有 `worksets` / `notes` / 待办，只多一个 `spaceView` 键。恢复走书桌已有 `restoreWorksetById`。
 
