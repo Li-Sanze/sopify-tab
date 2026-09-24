@@ -206,7 +206,11 @@ body:has(.studio-desk.active)::before {
     radial-gradient(ellipse at 12% 40%, var(--studio-wash-a), transparent 45%),
     radial-gradient(ellipse at 72% 0%, var(--studio-wash-b), transparent 40%);
 }
-body:has(.studio-desk.active) .sky { opacity: 0.18; pointer-events: none; }
+body:has(.studio-desk.active) .sky { opacity: 0.08; pointer-events: none; }
+/* Saved worksets grow the page. Reserve the gutter so 0 / 1 / 5 keep one width. */
+html:has(.studio-desk.active) {
+  scrollbar-gutter: stable;
+}
 body:has(.studio-desk.active) .shell {
   position: relative;
   z-index: 1;
@@ -265,6 +269,26 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   .studio-screen {
     height: calc(100dvh - 64px);
   }
+  /* Date sits in the right column, on the greeting line. Column track
+     matches .studio-body so the date lines up with the rail text. */
+  .studio-greeting {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    column-gap: 22px;
+    align-items: baseline;
+  }
+  .studio-when {
+    padding-left: 29px;
+    padding-bottom: 0;
+    min-width: 0;
+  }
+}
+@container desk (min-width: 801px) and (max-width: 1100px) {
+  .studio-greeting {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    column-gap: 14px;
+  }
+  .studio-when { padding-left: 21px; }
 }
 
 .studio-topbar {
@@ -291,7 +315,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   text-decoration: none;
   color: inherit;
   font-size: 17px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.03em;
   flex-shrink: 0;
 }
@@ -324,12 +348,12 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   padding: 6px 0 8px;
   color: var(--studio-muted);
   font-size: 15px;
-  font-weight: 550;
+  font-weight: 500;
   position: relative;
 }
 .studio-navbtn[aria-current="page"] {
   color: var(--studio-ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 .studio-navbtn[aria-current="page"]::after {
   content: "";
@@ -343,7 +367,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 }
 .studio-navbtn span {
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 500;
   margin-left: 1px;
 }
 
@@ -383,7 +407,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .studio-title {
   margin: 0;
   font-size: 27px;
-  font-weight: 560;
+  font-weight: 500;
   letter-spacing: -0.04em;
   line-height: 1.25;
   color: var(--studio-ink);
@@ -437,8 +461,8 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   gap: 0;
   min-width: 0;
   border-left: 1px solid var(--studio-line);
-  padding: 8px 0 8px 28px;
-  align-self: center;
+  padding: 0 0 0 28px;
+  align-self: start;
 }
 
 .ops-panel {
@@ -460,7 +484,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   flex-direction: column;
   gap: 0;
   margin: 0;
-  padding: 16px 0;
+  padding: 0 0 16px;
   background: none;
   border: 0;
   border-radius: 0;
