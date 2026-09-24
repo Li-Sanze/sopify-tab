@@ -1,67 +1,49 @@
 # Sopify Tab
 
-![书桌](prototype/firstscreen-v3/shots/content-filled-day.png)
+`sopify-tab`：安静的 Chrome 新标签页工作台。打开先看到「下一件事」。
 
-打开新标签页，先看到「下一件事」，然后是这个窗口、接着上次和随手记。
+![首屏：下一件事、这个窗口、接着上次、随手记、常用站](prototype/firstscreen-v3/shots/content-filled-day.png)
 
-<img src="prototype/shots/day.png" alt="白天" width="48%"> <img src="prototype/shots/night.png" alt="夜晚" width="48%">
+## 做什么
+
+默认首屏，从上到下：
+
+- **下一件事**：第一条未完成待办。没有待办时直接写下一句，不用标签或便签凑数。
+- **这个窗口**：当前窗口里有哪些网页。
+- **接着上次**：最近一份存下的窗口，可改名，一键恢复。多于一份时，去设置里看全部。
+- **随手记**：首屏直接写，自动存在本机。
+- **常用站**：排在三栏下面。没有照片墙。
+
+**空间视图（实验）**在设置里打开，默认关闭。关闭时不加载三维场景；打开后才出现在常用站下方。
 
 ## 快速开始
 
-**品牌版 Google Chrome 已不支持 `--load-extension`（官方自 137 起移除）。请用「加载已解压的扩展程序」。**
+品牌版 Google Chrome 用「加载已解压的扩展程序」。`--load-extension` 在品牌版上不可靠，不要依赖它。
 
-```text
-1. chrome://extensions → 打开「开发者模式」
-2. 「加载已解压的扩展程序」→ 本仓库 extension/（内含 manifest.json，不要选仓库根）
-3. 确认卡片「Sopify Tab」，ID cgkhllpelkjmfamddkjpnmchjikdcbgp
-4. Ctrl/Cmd+T → 真扩展的新标签页首屏（先看到「下一件事」），不是 Google 默认页
-```
+1. 打开 `chrome://extensions`，打开「开发者模式」。
+2. 「加载已解压的扩展程序」，选择本仓库的 `extension/`（里面有 `manifest.json`，不要选仓库根目录）。
+3. 确认卡片名称是「Sopify Tab」。
+4. Ctrl/Cmd+T 打开新标签页，应先看到「下一件事」，而不是 Google 默认页。
 
-**干净配置（Rick / 验收）**：空用户目录，只装这一份扩展：
+验收可以用空的用户目录，只装这一份扩展，仍走上面的「加载已解压」。需要命令行加载时改用 Chromium，见 [`scripts/load-extension.sh`](scripts/load-extension.sh)。
 
-```text
-# 启动干净 profile（不要指望 --load-extension 在 Chrome 148 生效）
-/usr/bin/google-chrome-stable --user-data-dir="$HOME/sopify-tab-clean-profile" --no-first-run
-# 然后：chrome://extensions → 开发者模式 → 加载已解压 → …/extension/
-```
+稳定扩展 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。
 
-若需要 CLI 自动加载：改用 **Chromium** 并加 `--disable-features=DisableLoadExtensionCommandLineSwitch`（见 `extension/desk-3d/README.md` / `scripts/load-extension.sh`）。
+## 隐私与权限
 
-稳定 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。权限见「隐私」。本 PR 只开 Draft，不合并；Rick 督手测，专项独立审计，Sanze 确认后才能合。
+必选权限：`storage`、`tabs`、`sidePanel`。没有额外的强制权限。`nativeMessaging` 只在连接可选的本机 Host 时申请。
 
-## 书桌
+没有账号，没有云同步。数据在本机 `chrome.storage.local`。当前窗口的标签只在打开时查看，不会自动落盘。对话内容不落盘。
 
-- **下一件事**：第一条未完成待办，大标题。没有待办时直接写下一句。不拿标签或便签凑数。始终是第一屏 DOM，不经 3D。
-- **这个窗口**：当前窗口有多少标签、哪些网页可以存下。点「保存这个窗口」才写入本机。
-- **接着上次**：最近一份存下的窗口，可改名，一键「恢复这 N 个网页」。多于一份时，「全部 N 个」去设置里看。
-- **随手记**：首屏直接写，自动存在本机。
-- **常用站**：排在三栏下面。
-- **空间视图（实验）**：设置里的开关，默认关闭。打开后才在常用站下方加载 Three.js 书桌；关掉不加载 `embed.js` / `scene.js` / `three.module.js`。文件夹是真实 `worksets`。便签是书桌那一条 `notes`。恢复走现有 `restoreWorksetById`（创建/激活标签，不关其它）。desk-3d 只经 newtab.js 注入的 `window.SopifyDesk3d` 回调碰真实数据，不自己读 `chrome.storage` / `chrome.tabs`。
-- 存下的窗口最多 5 个；满了会问要不要覆盖最早的，不会悄悄丢掉。每个最多 50 个网页，超过会确认后只留前 50。关窗口不会自动存。
-
-## 隐私
-
-权限：`storage`、`tabs`、`sidePanel`。无账号、无云同步、无新权限。
-
-本机 `chrome.storage.local` 现有键：常用站、待办、便签、称呼、外观、上游选择、工作目录，`worksets`，以及空间视图开关 `spaceView`（boolean，缺省关闭）。
-
-`worksets` 形状：`[{ id, name, savedAt, tabs:[{ title, url }] }]`。不存 favicon、不存 tabId。只收 http(s) 和 localhost。只在明确保存时写入。最多 5 个存下的窗口；每个最多 50 个网页。可删、可清空。不用 `storage.sync`。不用 sessions / history / bookmarks。
-
-空间视图复用现有 `worksets` / `notes` / 待办，只多一个 `spaceView` 键。恢复走书桌已有 `restoreWorksetById`。
-
-当前窗口标签现查，不自动落盘。对话不落盘。连 Host 才申请 `nativeMessaging`。出站跟本机环境（如 `HTTP_PROXY`）；扩展无代理设置。
+存下的窗口只在你明确点「保存这个窗口」时写入。最多 5 份，每份最多 50 个网页。存满或超出时会先确认，不会悄悄丢掉。关掉窗口不会自动保存。
 
 ## 可选：本机对话
 
-设置深路径。没装 Host，书桌照常用。默认仍是 Cursor。Claude 只读、Codex 只读，都要本机已装对应 CLI。不能写盘、执行或传 `--force`。
+在「设置 → 高级 → 连接本机」。没装 Host，书桌照常使用。默认上游是 Cursor，只读。Claude 与 Codex 同样只读，且本机需已安装对应 CLI。不能写盘、执行，也不能传 `--force`。需要时再装 Host，见 [`host/install-host.sh`](host/install-host.sh)。
 
 ## 非目标
 
-天气、番茄钟、壁纸商店、任意 Agent、未接线 CLI、可写执行、云同步、Agent Pocket、组件墙、书签/历史聚类。
-
-## 路线图
-
-W1–W4、W6、W9–W12 已落地。商店上架（W5）暂停。
+天气、番茄钟、壁纸商店、云同步、Agent Pocket、未接线的 CLI、可写执行、任意 Agent、组件墙、书签或历史聚类。Chrome 网上应用店上架暂缓。
 
 ## 许可
 
