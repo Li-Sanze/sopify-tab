@@ -1,0 +1,33 @@
+{
+  "tipSha": "2ade780144339fbd6160a4b04301fd18db33712f",
+  "extensionId": "cgkhllpelkjmfamddkjpnmchjikdcbgp",
+  "method": "Playwright Chromium headed。launchPersistentContext + --disable-extensions-except/--load-extension 指向仓库 extension/。临时 profile 在 /tmp，未提交。数据用扩展 service worker 的 chrome.storage.local.set 写入后打开 chrome-extension://<id>/newtab.html。截图前 blur。不是 prototype/firstscreen-v3/shots。",
+  "cause": "视口 600 时 window.innerWidth 为 600，但 visualViewport.width 约为 600.4（devicePixelRatio 略大于 1）。@media (max-width: 600px) 因此不命中，880px 规则仍是两栏。本 tip 把窄屏断点改为 max-width: 600.98px。601px 仍不命中，品牌名仍显示，棚架仍是两栏。",
+  "wideRecheck": "同一 tip、同一份有数据状态下，视口 1280 的 computed grid 为 320px 320px 320px，三列 top 同为 382，品牌 display 为 block，问候 display 为 inline。该断点不作用于 1280，未重拍 filled-day / filled-night。",
+  "shots": [
+    {
+      "file": "filled-day-w600-2ade780.png",
+      "pixels": { "width": 600, "height": 900 },
+      "viewport": { "width": 600, "height": 900 },
+      "innerWidth": 600,
+      "visualViewportWidth": 585.14,
+      "mediaMaxWidth600": false,
+      "mediaMaxWidth600_98": true,
+      "gridTemplateColumns": "532.317px",
+      "columnTops": [388, 604, 820],
+      "brandDisplay": "none",
+      "greetDisplay": "block",
+      "sky": "day",
+      "state": "有未完成待办、一份存下的窗口、随手记。单栏；品牌名 display:none（只剩 mark）；问候为 block，单独成行。",
+      "starsOpacity": "0"
+    },
+    {
+      "file": "empty-day-2ade780.png",
+      "pixels": { "width": 1280, "height": 900 },
+      "viewport": { "width": 1280, "height": 900 },
+      "sky": "day",
+      "state": "无待办、无存窗、无随手记。截图时 activeElement 为 BODY，输入框 outline-style 为 none，box-shadow 为 none。",
+      "starsOpacity": "0"
+    }
+  ]
+}
