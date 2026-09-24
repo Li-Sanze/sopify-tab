@@ -178,6 +178,11 @@ export class DeskUI {
         return;
       }
       const target = document.getElementById('desk-workset-list');
+      if (target && typeof target.showModal === 'function') {
+        target.hidden = false;
+        if (!target.open) target.showModal();
+        return;
+      }
       if (target) {
         target.hidden = false;
         target.scrollIntoView({ block: 'start' });
