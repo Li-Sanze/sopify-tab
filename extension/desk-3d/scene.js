@@ -237,7 +237,7 @@ export class DeskScene {
       c.fill();
       c.fillStyle = '#79716b';
       c.font = '18px sans-serif';
-      c.fillText('当前工作集', 62, 72);
+      c.fillText('最近存下的窗口', 62, 72);
       c.fillStyle = '#3c4144';
       c.font = '500 72px sans-serif';
       c.fillText(title, 60, 195);
@@ -394,9 +394,9 @@ export class DeskScene {
       c.fillRect(0, 0, w, h);
       c.fillStyle = '#785541';
       c.font = '500 32px sans-serif';
-      c.fillText('工作集', 28, 55);
+      c.fillText('存下的窗口', 28, 55);
       c.font = '18px sans-serif';
-      c.fillText('值得收好的灵感', 28, 95);
+      c.fillText('存下的窗口', 28, 95);
     }, 384, 128);
     const tag = new THREE.Mesh(
       new THREE.PlaneGeometry(1.02, 0.34),

@@ -449,6 +449,15 @@ html[data-sky="night"] .desk3d-banner {
   pointer-events: auto;
 }
 .desk-stage-foot[hidden] { display: none !important; }
+#desk-3d-mount.desk-stage {
+  height: 420px;
+  min-height: 420px;
+  flex: none;
+}
+#desk-3d-mount[hidden],
+label.desk-stage-toggle[hidden] {
+  display: none !important;
+}
 
 .desk3d-hint-foot {
   margin: 0;

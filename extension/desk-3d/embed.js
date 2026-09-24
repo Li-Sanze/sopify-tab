@@ -83,6 +83,21 @@ export function mountDesk3d(mount, opts) {
   let failReason = '';
   /** @type {Function|void} */
   let unsubscribe = undefined;
+  let disposed = false;
+  /** @type {IntersectionObserver | null} */
+  let observer = null;
+  const onVisibility = () => {
+    if (disposed) return;
+    if (document.visibilityState === 'hidden') {
+      if (scene) scene.stopLoop();
+      return;
+    }
+    applyMode();
+  };
+  const onTheme = () => {
+    if (disposed) return;
+    if (scene) scene.setTheme(isNightSky());
+  };
 
   const ui = new DeskUI({
     resumeSelector,
@@ -201,26 +216,19 @@ export function mountDesk3d(mount, opts) {
   visible = box.height > 0 && box.bottom > 0 && box.top < vh;
 
   if (typeof IntersectionObserver === 'function') {
-    const io = new IntersectionObserver((entries) => {
+    observer = new IntersectionObserver((entries) => {
+      if (disposed) return;
       visible = entries.some((e) => e.isIntersecting && e.intersectionRatio > 0);
       applyMode();
     }, { threshold: 0.05 });
-    io.observe(mount);
+    observer.observe(mount);
   }
 
   applyMode();
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      if (scene) scene.stopLoop();
-      return;
-    }
-    applyMode();
-  });
+  document.addEventListener('visibilitychange', onVisibility);
 
-  document.documentElement.addEventListener('sopify-theme', () => {
-    if (scene) scene.setTheme(isNightSky());
-  });
+  document.documentElement.addEventListener('sopify-theme', onTheme);
 
   if (typeof options.subscribe === 'function') {
     unsubscribe = options.subscribe(() => { syncScene(); });
@@ -239,11 +247,25 @@ export function mountDesk3d(mount, opts) {
     applyMode,
     syncScene,
     dispose() {
-      if (typeof unsubscribe === 'function') unsubscribe();
+      if (disposed) return;
+      disposed = true;
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      document.removeEventListener('visibilitychange', onVisibility);
+      document.documentElement.removeEventListener('sopify-theme', onTheme);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+        unsubscribe = undefined;
+      }
       if (scene) {
         scene.dispose();
         scene = null;
       }
+      inited = false;
+      if (ui && typeof ui.dispose === 'function') ui.dispose();
+      mount.innerHTML = '';
     },
   };
 }
