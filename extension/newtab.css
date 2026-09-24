@@ -1211,7 +1211,7 @@ body:not(.sidepanel) .view[data-view="settings"].active {
 }
 
 /* —— v3 first screen. Tokens stay on --studio-* so theme.css shared vars are untouched. —— */
-body.studio-home .main {
+body.studio-home:not(.sidepanel) .main {
   padding: 0 32px 32px;
   max-width: calc(1040px + 64px);
 }
@@ -1400,7 +1400,7 @@ html[data-sky="night"] .studio-desk.active .stars-layer { opacity: 1; }
 }
 /* 600.98px: a 600px window can report ~600.4 CSS px (fractional DPR), which misses max-width: 600px. */
 @media (max-width: 600.98px) {
-  body.studio-home .main { padding-left: 20px; padding-right: 20px; }
+  body.studio-home:not(.sidepanel) .main { padding-left: 20px; padding-right: 20px; }
   .studio-brand-name { display: none; }
   .shelf { grid-template-columns: minmax(0, 1fr); }
   .eyebrow #greet-word + .sep { display: none; }
