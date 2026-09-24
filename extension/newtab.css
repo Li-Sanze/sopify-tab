@@ -269,26 +269,6 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   .studio-screen {
     height: calc(100dvh - 64px);
   }
-  /* Date sits in the right column, on the greeting line. Column track
-     matches .studio-body so the date lines up with the rail text. */
-  .studio-greeting {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 290px;
-    column-gap: 22px;
-    align-items: baseline;
-  }
-  .studio-when {
-    padding-left: 29px;
-    padding-bottom: 0;
-    min-width: 0;
-  }
-}
-@container desk (min-width: 801px) and (max-width: 1100px) {
-  .studio-greeting {
-    grid-template-columns: minmax(0, 1fr) 260px;
-    column-gap: 14px;
-  }
-  .studio-when { padding-left: 21px; }
 }
 
 .studio-topbar {
@@ -429,6 +409,30 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   font-size: 13px;
   color: var(--studio-muted);
   flex-shrink: 0;
+}
+/* After the flex rule above so the wide grid wins on equal specificity.
+   The date shares the greeting line and sits in the rail column. */
+@container desk (min-width: 801px) {
+  .studio-greeting {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    column-gap: 22px;
+    align-items: baseline;
+    justify-content: stretch;
+  }
+  .studio-when {
+    justify-self: start;
+    padding-left: 29px;
+    padding-bottom: 0;
+    min-width: 0;
+  }
+}
+@container desk (min-width: 801px) and (max-width: 1100px) {
+  .studio-greeting {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    column-gap: 14px;
+  }
+  .studio-when { padding-left: 21px; }
 }
 
 .studio-body {
