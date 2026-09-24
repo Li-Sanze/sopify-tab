@@ -4,7 +4,7 @@
   "method": "Playwright Chromium 140 headed（非品牌 Chrome）。launchPersistentContext + --disable-extensions-except/--load-extension 指向仓库 extension/。临时 profile 在 /tmp，未提交。数据用扩展 service worker 的 chrome.storage.local.set 写入后打开 chrome-extension://<id>/newtab.html。不是 prototype/firstscreen-v3/shots。",
   "shots": [
     {
-      "file": "filled-day-390de7e.png",
+      "file": "见 PR 评论",
       "viewport": { "width": 1280, "height": 900 },
       "sky": "day",
       "themePreset": "day",
@@ -12,7 +12,7 @@
       "starsOpacity": "0"
     },
     {
-      "file": "filled-night-390de7e.png",
+      "file": "见 PR 评论",
       "viewport": { "width": 1280, "height": 900 },
       "sky": "night",
       "themePreset": "night",
@@ -21,7 +21,7 @@
       "starsNote": "上半屏有孤立亮点（抽样约 78 个相对暗底的亮像素，含接近白的星点）"
     },
     {
-      "file": "empty-day-390de7e.png",
+      "file": "见 PR 评论",
       "viewport": { "width": 1280, "height": 900 },
       "sky": "day",
       "themePreset": "day",
@@ -29,7 +29,7 @@
       "starsOpacity": "0"
     },
     {
-      "file": "bare-day-390de7e.png",
+      "file": "见 PR 评论",
       "viewport": { "width": 1280, "height": 900 },
       "sky": "day",
       "themePreset": "day",
@@ -37,7 +37,7 @@
       "starsOpacity": "0"
     },
     {
-      "file": "filled-day-w600-390de7e.png",
+      "file": "见 PR 评论",
       "viewport": { "width": 600, "height": 900 },
       "sky": "day",
       "themePreset": "day",

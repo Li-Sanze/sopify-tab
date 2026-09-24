@@ -6,7 +6,7 @@
   "wideRecheck": "同一 tip、同一份有数据状态下，视口 1280 的 computed grid 为 320px 320px 320px，三列 top 同为 382，品牌 display 为 block，问候 display 为 inline。该断点不作用于 1280，未重拍 filled-day / filled-night。",
   "shots": [
     {
-      "file": "filled-day-w600-2ade780.png",
+      "file": "见 PR 评论",
       "pixels": { "width": 600, "height": 900 },
       "viewport": { "width": 600, "height": 900 },
       "innerWidth": 600,
@@ -22,7 +22,7 @@
       "starsOpacity": "0"
     },
     {
-      "file": "empty-day-2ade780.png",
+      "file": "见 PR 评论",
       "pixels": { "width": 1280, "height": 900 },
       "viewport": { "width": 1280, "height": 900 },
       "sky": "day",
