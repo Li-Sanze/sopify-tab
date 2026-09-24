@@ -93,6 +93,7 @@ for (const name of shared) {
 assert.ok(/id="resume"[^>]*data-has="pending"/.test(html), 'resume starts pending');
 assert.ok(css.includes('.next[data-has="pending"] .next-compose { display: none; }'));
 assert.ok(css.includes('.next[data-has="pending"] .next-filled { visibility: hidden; }'));
+assert.ok(css.includes('.next[data-has="pending"] .next-title { min-height: 1.2em; }'));
 assert.ok(/root\.dataset\.has = has \? '1' : '0'/.test(js), 'renderResume writes 0 or 1');
 assert.ok(css.includes('.studio-desk .shelf textarea.note'));
 assert.ok(!/\.studio-desk \.note \{/.test(css), 'note field styles must not match the 3D label');
