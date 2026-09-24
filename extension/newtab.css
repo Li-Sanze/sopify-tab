@@ -273,8 +273,11 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   display: flex;
   align-items: center;
   gap: 18px;
-  border-bottom: 1px solid color-mix(in srgb, var(--studio-ink) 14%, transparent);
-  background: var(--studio-solid, #fffefa);
+  /* Continue the stage paper wash. A solid --studio-solid slab left a
+     white block and a hard edge (bottom rule + side seams against the
+     padded paper). Tools stay on their own chips. */
+  border-bottom: 0;
+  background: transparent;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
