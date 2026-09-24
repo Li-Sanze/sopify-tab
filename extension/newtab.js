@@ -367,8 +367,8 @@
     $('#greet-word').textContent = greetingOf(d.getHours()) + (state.name.trim() ? '，' : '');
   }
 
-  function renderSites() {
-    $('#sites').innerHTML = state.sites.map((s, i) => `
+  function siteTilesHtml() {
+    return state.sites.map((s, i) => `
       <div class="tilewrap">
         <a class="tile" href="${esc(s.url)}" title="${esc(s.name)} · ${esc(s.url)}" style="--h:${hue(s.url)}">
           <span class="glyph" aria-hidden="true">${esc(mono(s.name))}</span>
@@ -378,20 +378,31 @@
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </div>`).join('');
+  }
+
+  function renderSites() {
+    const html = siteTilesHtml();
+    $('#sites').innerHTML = html;
+    const all = $('#sites-all');
+    if (all) all.innerHTML = state.sites.length ? html : '<p class="empty">还没有常用站。</p>';
     $('#c-sites').textContent = String(state.sites.length);
     $('#c-sites').setAttribute('aria-label', `${state.sites.length} 个常用站`);
   }
 
   function toggleSiteForm(force) {
-    const f = $('#site-form');
+    const dialog = $('#ops-sites-dialog');
     const t = $('#site-add-toggle');
-    if (!f || !t) return;
-    const open = force ?? f.hidden;
-    f.hidden = !open;
-    t.setAttribute('aria-expanded', String(open));
-    const lbl = t.querySelector('.lbl');
-    if (lbl) lbl.textContent = open ? '收起' : '添加';
-    if (open) $('#site-name').focus();
+    if (!dialog || !t) return;
+    const open = force ?? !dialog.open;
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+      t.setAttribute('aria-expanded', 'true');
+      const name = $('#site-name');
+      if (name) name.focus();
+    } else {
+      if (dialog.open) dialog.close();
+      t.setAttribute('aria-expanded', 'false');
+    }
   }
 
   function renderTodos() {
@@ -492,7 +503,11 @@
       deskCount.setAttribute('aria-label', `${list.length} 个工作集`);
     }
     const deskList = $('#desk-workset-list');
-    if (deskList) deskList.hidden = list.length === 0;
+    if (deskList) {
+      if (!list.length && deskList.open) deskList.close();
+      /* Closed dialog stays out of the page. Do not append the full list under the desk. */
+      if (!deskList.open) deskList.hidden = list.length === 0;
+    }
     const clearBtn = $('#worksets-clear');
     if (clearBtn) clearBtn.disabled = !list.length;
     const entryHtml = list.length ? list.map((w) => `
@@ -522,6 +537,10 @@
       return;
     }
     target.hidden = false;
+    if (typeof target.showModal === 'function') {
+      if (!target.open) target.showModal();
+      return;
+    }
     requestAnimationFrame(() => {
       target.scrollIntoView({ block: 'start' });
       target.focus({ preventScroll: true });
@@ -1138,6 +1157,13 @@
     });
 
     $('#site-add-toggle').addEventListener('click', () => toggleSiteForm());
+    const sitesDialog = $('#ops-sites-dialog');
+    if (sitesDialog) {
+      sitesDialog.addEventListener('close', () => {
+        const t = $('#site-add-toggle');
+        if (t) t.setAttribute('aria-expanded', 'false');
+      });
+    }
     $('#site-cancel').addEventListener('click', () => {
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
@@ -1160,7 +1186,7 @@
       saveDesk({ sites: state.sites });
       toast(`已加入 ${name}`);
     });
-    $('#sites').addEventListener('click', (e) => {
+    const onSiteRemoveClick = (e) => {
       const b = e.target.closest('[data-remove-site]');
       if (!b) return;
       e.preventDefault();
@@ -1170,7 +1196,10 @@
       renderSites();
       saveDesk({ sites: state.sites });
       if (removed) toast(`已移除 ${removed.name}`);
-    });
+    };
+    $('#sites').addEventListener('click', onSiteRemoveClick);
+    const sitesAll = $('#sites-all');
+    if (sitesAll) sitesAll.addEventListener('click', onSiteRemoveClick);
 
     $('#todo-form').addEventListener('submit', (e) => {
       e.preventDefault();

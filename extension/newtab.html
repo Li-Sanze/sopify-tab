@@ -172,32 +172,25 @@
 
         <section class="studio-sites c-sites" aria-labelledby="h-sites">
           <h2 class="studio-sites-label" id="h-sites">常用站</h2>
+          <button type="button" class="studio-sites-manage" id="site-add-toggle" aria-expanded="false" aria-haspopup="dialog" aria-controls="ops-sites-dialog">全部／管理</button>
           <div class="studio-sites-body">
             <div class="tiles" id="sites"></div>
-            <button type="button" class="tile add" id="site-add-toggle" aria-expanded="false" aria-controls="site-form">
-              <span class="glyph" aria-hidden="true">+</span>
-              <span class="lbl">添加</span>
-            </button>
-            <form class="tileform" id="site-form" hidden>
-              <label class="sr-only" for="site-name">名称</label>
-              <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
-              <label class="sr-only" for="site-url">网址</label>
-              <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
-              <button type="submit" class="btn">加入</button>
-              <button type="button" class="btn ghost" id="site-cancel">取消</button>
-            </form>
           </div>
           <span class="sr-only count" id="c-sites">0</span>
         </section>
         </div>
 
-        <section class="studio-saved" id="desk-workset-list" aria-labelledby="desk-worksets-h" hidden tabindex="-1">
-          <div class="ops-panel-head">
-            <h2 class="ops-panel-title" id="desk-worksets-h">已保存的工作集</h2>
-            <span class="ops-meta" id="c-worksets-desk">0</span>
+        <dialog id="desk-workset-list" class="ops-dialog" aria-labelledby="desk-worksets-h" hidden>
+          <div class="ops-dialog-inner">
+            <header class="ops-dialog-head">
+              <h2 id="desk-worksets-h">已保存的工作集 <span class="ops-meta" id="c-worksets-desk">0</span></h2>
+              <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
+            </header>
+            <div class="ops-dialog-body">
+              <div class="savedsets" id="desk-workset-entries"></div>
+            </div>
           </div>
-          <div class="savedsets" id="desk-workset-entries"></div>
-        </section>
+        </dialog>
 
         <!-- 离屏保留：既有 JS 依赖的列表／表单，不进首屏 -->
         <div class="desk-aux" hidden>
@@ -236,6 +229,26 @@
               <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
             </header>
             <div class="ops-dialog-body" id="ops-todos-dialog-body"></div>
+          </div>
+        </dialog>
+
+        <dialog id="ops-sites-dialog" class="ops-dialog" aria-labelledby="ops-sites-dialog-title">
+          <div class="ops-dialog-inner">
+            <header class="ops-dialog-head">
+              <h2 id="ops-sites-dialog-title">常用站</h2>
+              <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
+            </header>
+            <div class="ops-dialog-body" id="ops-sites-dialog-body">
+              <form class="tileform" id="site-form">
+                <label class="sr-only" for="site-name">名称</label>
+                <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
+                <label class="sr-only" for="site-url">网址</label>
+                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
+                <button type="submit" class="btn">加入</button>
+                <button type="button" class="btn ghost" id="site-cancel">取消</button>
+              </form>
+              <div class="tiles" id="sites-all"></div>
+            </div>
           </div>
         </dialog>
       </section>
