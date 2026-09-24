@@ -452,10 +452,6 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   margin-top: 8px;
   padding-top: 18px;
 }
-.ops-window .ops-panel-title {
-  display: block;
-  line-height: 1.45;
-}
 
 .resume {
   position: relative;
@@ -480,29 +476,51 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   gap: 10px;
   margin-bottom: 16px;
 }
-.ops-panel-title,
+/* Right-rail ladder: 12 label / 18 title / 14 action / 12 description.
+   Weights stay on 400 / 500 / 600. */
 .resume-kicker {
   margin: 0;
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--studio-muted);
+  letter-spacing: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ops-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--studio-ink);
   letter-spacing: 0;
   display: flex;
   align-items: center;
   gap: 7px;
 }
+/* The window heading is a sentence, not a title. Demote it to description. */
+.ops-window .ops-panel-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--studio-muted);
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.ops-window .ops-panel-head { margin-bottom: 8px; }
 .ops-meta {
   font-size: 12px;
+  font-weight: 400;
   color: var(--studio-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .resume-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 550;
+  font-size: 18px;
+  font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.5;
+  line-height: 1.45;
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -516,6 +534,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .ops-tab-count {
   margin: -4px 0 0;
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--studio-muted);
   font-variant-numeric: tabular-nums;
@@ -537,7 +556,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   border-radius: 10px;
   background: var(--studio-ink);
   color: var(--studio-paper);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   border: 0;
 }
@@ -550,7 +569,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   border-radius: 10px;
   background: var(--studio-accent-bg);
   color: var(--studio-accent);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   border: 0;
 }
@@ -561,12 +580,17 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   border: 0;
   background: none;
   border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--studio-ink);
   min-height: 40px;
 }
 .ops-subtle:hover { color: var(--studio-ink); }
+/* Global :focus-visible uses the old teal --accent. This control stays on the studio stroke. */
+#resume-act:focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 2px;
+}
 
 .ops-window-copy {
   margin: 0 0 18px;
@@ -584,11 +608,13 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   padding-top: 5px;
   border-top: 0;
   font-size: 12px;
+  font-weight: 400;
   line-height: 1.4;
   color: var(--studio-muted);
 }
 .ops-restore {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--studio-accent);
   flex-shrink: 0;
   padding: 4px 0;
