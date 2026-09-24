@@ -1267,6 +1267,8 @@ body.studio-home .main {
   border: 1px solid var(--studio-line-2); border-bottom-width: 2px; border-radius: 5px;
   font: 500 12px/1.6 var(--sans); color: var(--studio-ink-2);
 }
+.next[data-has="pending"] .next-compose { display: none; }
+.next[data-has="pending"] .next-filled { visibility: hidden; }
 .next[data-has="1"] .next-compose,
 .next[data-has="0"] .next-filled { display: none; }
 .studio-desk .fs-btn {
