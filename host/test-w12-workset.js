@@ -8,7 +8,7 @@ const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
-  'worksets',
+  'worksets', 'spaceView',
 ];
 
 function read(name) {
@@ -20,21 +20,21 @@ const css = read('newtab.css');
 const js = read('newtab.js');
 const manifest = JSON.parse(read('manifest.json'));
 const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
-const desk = html.slice(html.indexOf('id="studio-title"'), html.indexOf('id="tabs-h"'));
+const desk = html.slice(html.indexOf('id="resume"'), html.indexOf('id="tabs-h"'));
 const settings = html.slice(html.indexOf('aria-labelledby="settings-h"'));
 
-assert.ok(desk.includes('id="workset-save"') && desk.includes('保存当前窗口为工作集，下次继续'), 'desk save entry');
-assert.ok(desk.includes('id="workset-restore-recent"') && desk.includes('>恢复<'), 'desk keeps one recent restore');
-assert.ok(desk.includes('id="desk-workset-list"'), 'saved worksets list lives on 工作台');
+assert.ok(desk.includes('id="workset-save"') && desk.includes('保存这个窗口'), 'desk save entry');
+assert.ok(desk.includes('id="workset-restore-recent"') && desk.includes('恢复这'), 'desk keeps one recent restore');
+assert.ok(desk.includes('接着上次'), 'saved windows live under 接着上次');
 assert.ok(!desk.includes('id="saved-worksets"'), 'settings list id stays in settings');
-assert.ok(!desk.includes('清空全部工作集'), 'clear-all stays in settings');
+assert.ok(!desk.includes('清空全部'), 'clear-all stays in settings');
 assert.ok(html.includes('>工作台<') && html.includes('id="studio-nav-tabs">当前标签<'), 'nav is 工作台 / 当前标签 / 设置');
 assert.ok(!html.includes('工作集〔'), 'do not call 工作台 工作集');
-assert.ok(html.includes('当前标签 0 / 可保存网页 0'), 'tab counts are labeled apart');
+assert.ok(!desk.includes('工作集') && !settings.includes('工作集'), 'visible copy drops 工作集');
 assert.ok(!/Host|CLI|--force|cursor-agent/.test(desk), 'desk still silent on Host');
-assert.ok(settings.includes('id="saved-worksets"'), 'settings lists saved worksets');
-assert.ok(settings.includes('id="worksets-clear"') && settings.includes('清空全部工作集'));
-assert.ok(settings.includes('id="s-worksets"') && settings.includes('工作集'));
+assert.ok(settings.includes('id="saved-worksets"'), 'settings lists saved windows');
+assert.ok(settings.includes('id="worksets-clear"') && settings.includes('清空全部存下的窗口'));
+assert.ok(settings.includes('id="s-worksets"') && settings.includes('存下的窗口'));
 assert.ok(html.includes('id="resume"') && html.includes('下一件事'), 'resume strip stays first');
 
 assert.ok(js.includes('const WORKSET_STORE_CAP = 5'));
@@ -60,14 +60,17 @@ assert.ok(!/onRemoved[\s\S]{0,120}persistWorksets/.test(js), 'tab close must not
 assert.ok(!/visibilitychange[\s\S]{0,200}persistWorksets/.test(js), 'visibility must not persist worksets');
 
 const persistCalls = [...js.matchAll(/\bpersistWorksets\s*\(/g)];
-assert.strictEqual(persistCalls.length, 5, 'define + save + overwrite + delete + clear');
+assert.strictEqual(persistCalls.length, 6, 'define + save + overwrite + delete + clear + rename');
+assert.ok(js.includes('function startRename'), 'inline rename');
+assert.ok(/w\.id === id \? \{ id: w\.id, name: next, savedAt: w\.savedAt, tabs: w\.tabs \}/.test(js),
+  'rename writes only the name field');
 assert.ok(js.includes('function saveThisWindow') && js.includes("window.confirm"));
 assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
 assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
 const restoreFn = js.slice(js.indexOf('async function restoreWorksetById'), js.indexOf('async function deleteWorksetById'));
 assert.ok(restoreFn.includes('chrome.tabs.create') && restoreFn.includes('activateTab'));
 assert.ok(!/tabs\.remove/.test(restoreFn), 'restore must not close other tabs');
-assert.ok(js.includes('清空全部工作集？') || js.includes('清空全部工作集'));
+assert.ok(js.includes('清空全部存下的窗口？') || js.includes('清空全部存下的窗口'));
 
 const setKeys = [...js.matchAll(/storage\.local\.set\(\s*\{([^}]+)\}/g)].map((m) => m[1]);
 for (const chunk of setKeys) {
@@ -84,10 +87,10 @@ assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
 assert.ok(/\.savedset\s*\{/.test(css), 'saved workset rows are styled');
 assert.ok(/\.cardfoot-acts/.test(css));
 
-assert.ok(/下一件事/.test(readme) && /写一条/.test(readme), 'README documents W11 empty=write-one');
+assert.ok(/下一件事/.test(readme), 'README documents the next-thing hero');
 assert.ok(/不拿标签或便签凑数/.test(readme) || /不拿标签/.test(readme));
 assert.ok(/保存这个窗口/.test(readme));
-assert.ok(/最近一份 · 恢复/.test(readme));
+assert.ok(/接着上次/.test(readme) && /空间视图/.test(readme));
 assert.ok(/50 个网页/.test(readme));
 assert.ok(/worksets/.test(readme) && /title, url/.test(readme));
 assert.ok(/不存 favicon|不存favicon/.test(readme));
