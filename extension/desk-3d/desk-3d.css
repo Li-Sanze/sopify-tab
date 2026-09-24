@@ -125,10 +125,10 @@
   top: 30%;
   z-index: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse, rgba(211, 196, 183, 0.36), transparent 70%);
+  background: radial-gradient(ellipse, rgba(211, 196, 183, 0.22), transparent 70%);
 }
 html[data-sky="night"] .desk3d-board::before {
-  background: radial-gradient(ellipse, rgba(112, 96, 132, 0.25), transparent 70%);
+  background: radial-gradient(ellipse, rgba(112, 96, 132, 0.16), transparent 70%);
 }
 
 .desk3d-view,
@@ -196,8 +196,8 @@ html[data-sky="night"] .desk3d-scene-label {
 .desk3d-scene-label strong {
   display: block;
   max-width: 135px;
-  font-size: 11px;
-  font-weight: 550;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -207,7 +207,7 @@ html[data-sky="night"] .desk3d-scene-label {
 .desk3d-scene-label small {
   display: block;
   max-width: 135px;
-  font-size: 9px;
+  font-size: 10.5px;
   color: #8b8c90;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -409,15 +409,15 @@ html[data-sky="night"] .desk3d-banner {
 .desk3d-rail-link {
   margin-top: 0;
   border: 0;
-  background: color-mix(in srgb, var(--studio-paper, #f6f4ef) 94%, transparent);
+  background: transparent;
   color: var(--studio-accent, var(--accent));
   font: inherit;
   font-size: 11px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 2px 0;
+  border-radius: 0;
   flex-shrink: 0;
 }
 
