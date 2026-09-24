@@ -1396,7 +1396,8 @@ html[data-sky="night"] .studio-desk.active .stars-layer { opacity: 1; }
   .shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shelf .col:last-child { grid-column: 1 / -1; }
 }
-@media (max-width: 600px) {
+/* 600.98px: a 600px window can report ~600.4 CSS px (fractional DPR), which misses max-width: 600px. */
+@media (max-width: 600.98px) {
   body.studio-home .main { padding-left: 20px; padding-right: 20px; }
   .studio-brand-name { display: none; }
   .shelf { grid-template-columns: minmax(0, 1fr); }
