@@ -1301,6 +1301,7 @@ body.studio-home:not(.sidepanel) .main {
 .studio-desk .fs-btn.text { height: auto; padding: 6px 8px; border-radius: 8px; font-weight: 500; color: var(--studio-muted); }
 .studio-desk .fs-btn.text:hover { color: var(--studio-ink); background: var(--studio-hover); }
 .studio-desk :focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
+.next-input:focus-visible { outline: none; }
 html[data-boot-focus] #resume-act:focus-visible { outline: none; }
 html[data-boot-focus] .next-input:focus-visible { outline: none; }
 .shelf {

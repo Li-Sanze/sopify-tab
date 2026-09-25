@@ -158,12 +158,14 @@ assert.ok(!/font-size\s*:/.test(shortQ), 'short viewport query does not shrink t
 assert.ok(css.includes('.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }'));
 assert.ok(css.includes('html[data-boot-focus] #resume-act:focus-visible { outline: none; }'));
 assert.ok(css.includes('html[data-boot-focus] .next-input:focus-visible { outline: none; }'));
-assert.ok(!/(^|\n)\.next-input:focus-visible \{ outline: none; \}/.test(css), 'input ring is suppressed only while html[data-boot-focus]');
+assert.ok(/(^|\n)\.next-input:focus-visible \{ outline: none; \}/.test(css), 'next-input keeps underline and no ring after boot');
 assert.ok(css.includes('.next-input:focus { border-bottom-color: var(--studio-accent); }'));
 assert.ok(!css.includes('.next-input[data-boot-focus]'), 'boot mark is on html, not the input');
 const studioFocusVis = css.indexOf('.studio-desk :focus-visible');
+const permanentInputFocus = css.indexOf('\n.next-input:focus-visible { outline: none; }');
 const nextInputFocusVis = css.indexOf('html[data-boot-focus] .next-input:focus-visible { outline: none; }');
-assert.ok(studioFocusVis !== -1 && nextInputFocusVis > studioFocusVis, 'boot input rule follows the studio ring');
+assert.ok(studioFocusVis !== -1 && permanentInputFocus > studioFocusVis, 'permanent input rule follows the studio ring');
+assert.ok(nextInputFocusVis > studioFocusVis, 'boot input rule follows the studio ring');
 assert.ok(css.includes('.studio-desk .shelf textarea.note:focus-visible'));
 assert.ok(css.includes('--studio-danger:'));
 assert.ok(/z-index:\s*70/.test(braceBlock(css, '.toast')), 'toast z-index stays 70');
@@ -660,8 +662,7 @@ async function main() {
         underline: cs.borderBottomWidth,
       };
     })()`);
-    const ringReleased = afterPointer.match ? afterPointer.outline === 'solid' : afterPointer.outline === 'none';
-    check('first pointerdown clears html boot mark', !afterPointer.html && afterPointer.underline === '2px' && ringReleased, JSON.stringify(afterPointer));
+    check('first pointerdown clears html boot mark', !afterPointer.html && afterPointer.underline === '2px' && afterPointer.outline === 'none', JSON.stringify(afterPointer));
 
     await loadSeed(1440, 900, {
       todos: todoItems('5'),
