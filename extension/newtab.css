@@ -179,6 +179,7 @@ html[data-sky="day"] {
   --studio-line-2: rgba(38, 42, 51, 0.2);
   --studio-hover: rgba(38, 42, 51, 0.05);
   --studio-accent: #b55c40;
+  --studio-danger: #b23b3b;
   --studio-accent-bg: #f5e2d8;
   --studio-flash: rgba(181, 92, 64, 0.12);
   --studio-solid: #fffefa;
@@ -197,6 +198,7 @@ html[data-sky="night"] {
   --studio-line-2: rgba(255, 255, 255, 0.18);
   --studio-hover: rgba(255, 255, 255, 0.06);
   --studio-accent: #e4ac86;
+  --studio-danger: #ef7d7d;
   --studio-accent-bg: #4b3933;
   --studio-flash: rgba(228, 172, 134, 0.14);
   --studio-solid: #1f2432;
@@ -1130,7 +1132,7 @@ details.advanced .advanced-body {
 
 .tabtools { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .tabtools .field { max-width: 420px; }
-.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .group { padding: 8px 16px 12px; }
 .grouphead { display: flex; align-items: center; gap: 10px; min-height: 52px; }
 .grouphead b { font-size: 15px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1194,12 +1196,27 @@ body:not(.sidepanel) .main {
 }
 .view[data-view="tabs"],
 .view[data-view="settings"] { padding-top: 8px; }
-/* Same column-flex trap as the desk. A definite width keeps the 1240px cap
-   (and centering via margin-inline: auto) without shrink-wrapping below the
-   top bar when the bar itself is narrower than 1240px. */
+/* Same column as the desk: 1040px content inside 32px gutters, so the brand
+   mark does not shift when the view changes. The view fills that column. */
+body:not(.sidepanel):has(.view[data-view="tabs"].active) .main,
+body:not(.sidepanel):has(.view[data-view="settings"].active) .main {
+  max-width: calc(1040px + 64px);
+  padding-left: 32px;
+  padding-right: 32px;
+}
 body:not(.sidepanel) .view[data-view="tabs"].active,
 body:not(.sidepanel) .view[data-view="settings"].active {
-  width: min(1240px, 100%);
+  max-width: none;
+  width: 100%;
+  margin-inline: 0;
+  align-self: stretch;
+}
+@media (max-width: 600.98px) {
+  body:not(.sidepanel):has(.view[data-view="tabs"].active) .main,
+  body:not(.sidepanel):has(.view[data-view="settings"].active) .main {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1485,6 +1502,7 @@ body:not(.sidepanel) .studio-topbar :focus-visible,
 }
 .view[data-view="tabs"] .viewhead h1,
 .view[data-view="settings"] .viewhead h1 {
+  font-family: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -1601,7 +1619,7 @@ html[data-sky="night"] .view[data-view="tabs"] .favicon:has(img.fav.ok) {
   color: var(--studio-faint);
 }
 .view[data-view="settings"] .linkbtn.danger {
-  color: var(--danger);
+  color: var(--studio-danger);
 }
 .view[data-view="settings"] .linkbtn.danger:hover {
   background: var(--studio-hover);

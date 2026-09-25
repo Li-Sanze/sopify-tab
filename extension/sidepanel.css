@@ -16,8 +16,6 @@ body.sidepanel {
   min-width: 0;
   background: var(--glass-sheen), var(--struct);
   box-shadow: inset 0 1px 0 var(--glass-hi);
-  backdrop-filter: blur(26px);
-  -webkit-backdrop-filter: blur(26px);
 }
 
 .panelhead {
@@ -135,8 +133,6 @@ body.sidepanel {
 }
 .msg.user { align-self: flex-end; align-items: flex-end; }
 .msg.user .bubble {
-  background: var(--accent);
-  color: var(--accent-ink);
   border-bottom-right-radius: 5px;
 }
 .msg.assistant .bubble,
@@ -189,8 +185,6 @@ body.sidepanel .panel {
   z-index: 1;
   background: transparent;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 body.sidepanel :focus-visible {
   outline: 2px solid var(--studio-accent);
