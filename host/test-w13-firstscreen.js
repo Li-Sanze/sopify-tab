@@ -112,4 +112,18 @@ assert.ok(/html\[data-sky="night"\][^{]*\.stars-layer\s*\{[^}]*opacity:\s*1/.tes
 assert.ok(!/<canvas/i.test(html));
 assert.ok(!/getContext\s*\(\s*['"](?:webgl|experimental-webgl)['"]/i.test(html + js + css));
 
+const SONG_STACK = '"Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho"';
+const titleInput = ruleBlock(css, '.next-title, .next-input');
+assert.ok(titleInput.includes(`font-family: ${SONG_STACK}`), 'next title and input use the Songti stack');
+assert.ok(titleInput.includes('.next-title') && titleInput.includes('.next-input'));
+const family = (titleInput.split('font-family:')[1] || '').split(';')[0];
+assert.ok(!/SimSun|宋体/.test(family), 'Songti stack must not name SimSun or 宋体');
+assert.ok(!/(^|,)\s*serif\s*(,|$)/i.test(family), 'Songti stack must not end on bare serif');
+assert.ok(day.includes('--studio-field: rgba(38, 42, 51, 0.04);'));
+assert.ok(day.includes('--studio-field-hi: rgba(38, 42, 51, 0.07);'));
+assert.ok(night.includes('--studio-field: rgba(255, 255, 255, 0.04);'));
+assert.ok(night.includes('--studio-field-hi: rgba(255, 255, 255, 0.07);'));
+assert.ok(css.includes('.studio-desk .shelf textarea.note:placeholder-shown { background: var(--studio-field); }'));
+assert.ok(css.includes('.studio-desk .shelf textarea.note:placeholder-shown:hover { background: var(--studio-field-hi); }'));
+
 console.log('test-w13-firstscreen: ok');
