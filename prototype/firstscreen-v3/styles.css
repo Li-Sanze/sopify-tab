@@ -176,11 +176,11 @@ svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-widt
 .kicker .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .next-title,
 .next-input {
-  font-family: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho";
+  font-family: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
   font-size: clamp(34px, 3.8vw, 52px);
   line-height: 1.2;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .next-title {
   margin-top: 14px;
