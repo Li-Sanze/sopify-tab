@@ -138,8 +138,10 @@ assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(desk), 'no m
 
 assert.ok(newtabCss.includes('inset 0 1px 0 var(--glass-hi)'), 'desk glass uses the shared hairline token');
 assert.ok(panelCss.includes('inset 0 1px 0 var(--glass-hi)'), 'side panel uses the same glass hairline token');
-assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss) && /backdrop-filter:\s*blur\(26px\)/.test(panelCss),
-  'glass keeps one backdrop blur per surface');
+assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss),
+  'desk glass keeps one backdrop blur');
+assert.ok(!/backdrop-filter/.test(panelCss),
+  'side panel does not use backdrop-filter');
 assert.ok(!/backdrop-filter:[^;]*saturate/.test(newtabCss + panelCss), 'do not restore saturate glass');
 assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.86\s*\)/.test(dayBlock), 'day card fill matches prototype glass');
 assert.ok(/--glass:\s*rgba\(\s*22,\s*31,\s*48,\s*0\.66\s*\)/.test(nightBlock), 'night card fill matches prototype glass');

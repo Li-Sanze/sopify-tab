@@ -131,4 +131,120 @@ assert.ok(night.includes('--studio-field-hi: rgba(255, 255, 255, 0.07);'));
 assert.ok(css.includes('.studio-desk .shelf textarea.note:placeholder-shown { background: var(--studio-field); }'));
 assert.ok(css.includes('.studio-desk .shelf textarea.note:placeholder-shown:hover { background: var(--studio-field-hi); }'));
 
+// Follow-up after #44. Seven assertions for the warm-paper views and the side panel.
+const panelCss = read('sidepanel.css');
+
+function innermostRules(src) {
+  const rules = [];
+  for (const chunk of src.split('}')) {
+    const parts = chunk.split('{');
+    if (parts.length < 2) continue;
+    rules.push({
+      selector: parts[parts.length - 2],
+      body: parts[parts.length - 1],
+    });
+  }
+  return rules;
+}
+
+// 1. Each view's .sky is not visible.
+for (const sel of [
+  'body:has(.studio-desk.active) .sky',
+  'body:not(.sidepanel):has(.view[data-view="tabs"].active) .sky',
+  'body:not(.sidepanel):has(.view[data-view="settings"].active) .sky',
+]) {
+  const block = ruleBlock(css, sel);
+  assert.ok(/opacity:\s*0/.test(block), `${sel} hides .sky`);
+  assert.ok(/visibility:\s*hidden/.test(block), `${sel} hides .sky`);
+}
+
+// 2. Settings / current-tabs rules do not apply a backdrop blur.
+//    `none` is required so it beats the shared .card blur.
+const viewRules = innermostRules(css).filter((rule) => /data-view="(?:tabs|settings)"/.test(rule.selector));
+assert.ok(viewRules.length > 0, 'tabs and settings rules exist');
+for (const rule of viewRules) {
+  const filters = [...rule.body.matchAll(/((?:-webkit-)?backdrop-filter)\s*:\s*([^;]+)/g)];
+  for (const found of filters) {
+    assert.strictEqual(found[2].trim(), 'none', `${found[1]} on ${rule.selector.slice(0, 60)}`);
+  }
+}
+const viewCards = ruleBlock(css, '.view[data-view="tabs"] .card');
+assert.ok(viewCards.includes('backdrop-filter: none') && viewCards.includes('-webkit-backdrop-filter: none'),
+  'tabs/settings cards cancel backdrop-filter');
+
+// 3. #name is visible and focusable in settings.
+const nameInput = settings.match(/<input\b[^>]*\bid="name"[^>]*>/);
+assert.ok(nameInput, '#name lives in settings');
+assert.ok(!/\shidden\b/.test(nameInput[0]), '#name is not hidden');
+assert.ok(!/\sdisabled\b/.test(nameInput[0]), '#name is not disabled');
+assert.ok(!/tabindex\s*=\s*["']-1["']/.test(nameInput[0]), '#name is focusable');
+assert.ok(/type="text"/.test(nameInput[0]), '#name is a text field');
+assert.ok(settings.includes('<label for="name">'), 'settings labels #name');
+const nameRegion = settings.slice(settings.indexOf('class="settings-name"'), settings.indexOf('class="settings"'));
+assert.ok(nameRegion.includes('id="name"'), '#name sits in .settings-name');
+assert.ok(!nameRegion.includes('sr-only'), '#name is not screen-reader only');
+assert.ok(!/#name\s*\{[^}]*(?:display\s*:\s*none|visibility\s*:\s*hidden)/.test(css));
+assert.ok(!/\.settings-name\s*\{[^}]*(?:display\s*:\s*none|visibility\s*:\s*hidden)/.test(css));
+
+// 4. #tabs-sub avoids the copy already banned on the desk and in settings.
+const tabsSub = html.match(/<p id="tabs-sub">([^<]*)<\/p>/);
+assert.ok(tabsSub, '#tabs-sub copy');
+const bannedCopy = ['我的工作台', '工作集', '工作集〔'];
+for (const phrase of bannedCopy) {
+  assert.ok(!tabsSub[1].includes(phrase), `#tabs-sub must not include ${phrase}`);
+}
+
+// 5. --studio-danger meets the same 4.5:1 text threshold as --studio-muted, on paper.
+const dayDanger = hexToken(day, '--studio-danger');
+const nightDanger = hexToken(night, '--studio-danger');
+const daySolid = hexToken(day, '--studio-solid');
+const nightSolid = hexToken(night, '--studio-solid');
+assert.ok(contrast(dayDanger, dayPaper) >= 4.5, 'day --studio-danger vs paper');
+assert.ok(contrast(nightDanger, nightPaper) >= 4.5, 'night --studio-danger vs paper');
+assert.ok(contrast(dayDanger, daySolid) >= 4.5, 'day --studio-danger vs card solid');
+assert.ok(contrast(nightDanger, nightSolid) >= 4.5, 'night --studio-danger vs card solid');
+assert.ok(/\.view\[data-view="settings"\] \.linkbtn\.danger\s*\{[^}]*color:\s*var\(--studio-danger\)/.test(css),
+  'settings danger control uses --studio-danger');
+
+// 6. Settings / current-tabs h1 use the desk Songti stack.
+const viewH1 = ruleBlock(css, '.view[data-view="tabs"] .viewhead h1');
+assert.ok(viewH1.includes('.view[data-view="settings"] .viewhead h1'), 'one h1 rule covers both views');
+assert.ok(viewH1.includes(`font-family: ${SONG_STACK}`), 'view h1 uses the Songti stack');
+
+// 7. sidepanel.css: no backdrop-filter; user bubbles do not reference accent; no shared-var assignments.
+assert.ok(!/backdrop-filter/.test(panelCss), 'sidepanel.css has no backdrop-filter');
+const userBubbles = innermostRules(panelCss).filter((rule) => /\.msg\.user\b/.test(rule.selector) && /\.bubble\b/.test(rule.selector));
+assert.ok(userBubbles.length > 0, 'user bubble rules exist');
+for (const rule of userBubbles) {
+  assert.ok(!/--accent/.test(rule.selector + rule.body), 'user bubbles must not reference accent');
+}
+const sharedAssigned = [
+  '--sky-top', '--sky-mid', '--sky-low',
+  '--sky-veil', '--sky-wash', '--sky-planes', '--sky-stars', '--sky-ring',
+  '--ink', '--ink-2', '--ink-3',
+  '--sky-ink', '--sky-ink-2', '--sky-ink-3',
+  '--accent', '--accent-ink', '--accent-soft',
+  '--link', '--ok', '--warn', '--danger',
+  '--glass', '--glass-edge', '--glass-hi', '--struct', '--struct-edge',
+  '--tile-bg', '--tile-bg-hi', '--field-bg', '--field-bg-hi',
+  '--line', '--line-2', '--well', '--well-2',
+  '--shadow-1', '--shadow-2', '--glow', '--mist',
+];
+for (const name of sharedAssigned) {
+  const re = new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`, 'g');
+  assert.strictEqual((panelCss.match(re) || []).length, 0, `sidepanel.css must not assign ${name}`);
+}
+
+// Top bar shares the desk column. Not one of the seven; keeps the width fix from regressing.
+assert.ok(!/width:\s*min\(\s*1240px\s*,\s*100%\s*\)/.test(css), 'no separate 1240px tabs/settings width');
+const tabsMain = ruleBlock(css, 'body:not(.sidepanel):has(.view[data-view="tabs"].active) .main');
+assert.ok(tabsMain.includes('data-view="settings"'), 'settings main shares the tabs column rule');
+assert.ok(tabsMain.includes('max-width: calc(1040px + 64px)'));
+assert.ok(tabsMain.includes('padding-left: 32px') && tabsMain.includes('padding-right: 32px'));
+const narrowMain = ruleBlock(css, '@media (max-width: 600.98px)');
+assert.ok(narrowMain.includes('data-view="tabs"') && narrowMain.includes('data-view="settings"'));
+assert.ok(narrowMain.includes('padding-left: 20px') && narrowMain.includes('padding-right: 20px'));
+assert.ok(/\.groups\s*\{[^}]*repeat\(\s*auto-fill\s*,\s*minmax\(\s*300px\s*,\s*1fr\s*\)\s*\)/.test(css),
+  'grouping grid is auto-fill minmax(300px, 1fr)');
+
 console.log('test-w13-firstscreen: ok');
