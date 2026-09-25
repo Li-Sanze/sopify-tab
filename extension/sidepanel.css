@@ -163,3 +163,119 @@ body.sidepanel {
 @media (prefers-reduced-motion: reduce) {
   .msg.streaming .bubble::after { content: ""; }
 }
+
+/* Side panel chrome on the same studio paper. --studio-* come from newtab.css;
+   this file does not reassign the shared sky/glass token table. */
+body.sidepanel {
+  background: var(--studio-paper);
+  color: var(--studio-ink);
+}
+body.sidepanel .sky {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+body.sidepanel::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 0%, var(--studio-wash-a), transparent 46%),
+    radial-gradient(ellipse at 88% 100%, var(--studio-wash-b), transparent 42%);
+}
+body.sidepanel .panel {
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.sidepanel :focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 3px;
+}
+.panelhead {
+  border-bottom-color: var(--studio-line);
+}
+.panelhead h1 { color: var(--studio-ink); }
+.panelhead p,
+.panelfoot .hint,
+.msg .who {
+  color: var(--studio-muted);
+}
+.upstream-meta .linkbtn,
+.sessionbar .linkbtn {
+  color: var(--studio-accent);
+}
+.upstream-meta .linkbtn:hover,
+.sessionbar .linkbtn:hover {
+  background: var(--studio-hover);
+  color: var(--studio-ink);
+}
+.guard { border-bottom-color: var(--studio-line); }
+.guard span {
+  color: var(--studio-ink-2);
+  background: var(--studio-field);
+}
+.emptystate h2 { color: var(--studio-ink); }
+.emptystate p { color: var(--studio-muted); }
+.emptystate .ring {
+  background: var(--studio-accent-bg);
+  color: var(--studio-accent);
+}
+.emptystate .note {
+  background: var(--studio-field);
+  color: var(--studio-ink-2);
+}
+.emptystate .note svg.i { color: var(--studio-muted); }
+.emptystate .note code {
+  background: var(--studio-hover);
+  color: var(--studio-ink);
+}
+.emptystate .btn,
+.compose .btn {
+  border-radius: 999px;
+  background: var(--studio-ink);
+  color: var(--studio-paper);
+}
+.emptystate .btn:hover,
+.compose .btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--studio-ink) 86%, var(--studio-paper));
+}
+.compose .btn[disabled],
+.emptystate .btn[disabled] {
+  opacity: 0.4;
+}
+.msg.user .bubble {
+  background: var(--studio-ink);
+  color: var(--studio-paper);
+}
+.msg.assistant .bubble,
+.msg.bot .bubble {
+  background: color-mix(in srgb, var(--studio-solid) 82%, transparent);
+  border: 1px solid var(--studio-line);
+  color: var(--studio-ink);
+}
+.msg.error .bubble { color: var(--studio-ink-2); }
+.panelfoot { border-top-color: var(--studio-line); }
+.compose textarea.field {
+  background: var(--studio-field);
+  border: 1px solid var(--studio-line);
+  border-radius: 12px;
+  color: var(--studio-ink);
+}
+.compose textarea.field:hover { background: var(--studio-field-hi); }
+.compose textarea.field:focus {
+  background: var(--studio-solid);
+  border-color: var(--studio-accent);
+  box-shadow: 0 0 0 3px var(--studio-flash);
+}
+.compose textarea.field::placeholder { color: var(--studio-faint); }
+.compose textarea.field:disabled {
+  opacity: 1;
+  color: var(--studio-muted);
+  -webkit-text-fill-color: var(--studio-faint);
+}
