@@ -186,6 +186,7 @@ html[data-sky="day"] {
   --studio-wash-b: rgba(227, 217, 235, 0.32);
   --studio-field: rgba(38, 42, 51, 0.04);
   --studio-field-hi: rgba(38, 42, 51, 0.07);
+  --studio-danger: #9d342c;
 }
 html[data-sky="night"] {
   --studio-paper: #171b27;
@@ -204,6 +205,7 @@ html[data-sky="night"] {
   --studio-wash-b: rgba(48, 80, 120, 0.14);
   --studio-field: rgba(255, 255, 255, 0.04);
   --studio-field-hi: rgba(255, 255, 255, 0.07);
+  --studio-danger: #f3b0a8;
 }
 
 body:has(.studio-desk.active) {
@@ -240,10 +242,9 @@ body:has(.studio-desk.active) .main {
   display: flex;
   flex-direction: column;
 }
-/* First screen is .studio-screen (greeting + stage row + sites). Its height is
-   the viewport remainder under the top bar, with or without saved worksets.
-   The list sits after that slice and only adds scroll — it must not shrink the stage.
-   Bottom padding is 0 so this slice can stay at least as tall as d0256cf. */
+/* First screen is .studio-screen (greeting, next-thing, shelf, sites).
+   It sizes to its content on wide and narrow desks alike. Saved worksets
+   sit in their own column and do not change this slice. */
 body:has(.studio-desk.active) .view.studio-desk.active {
   /* max-width: none does not stretch this item. .view { margin-inline: auto }
      turns off cross-axis stretch in the column-flex .main, so the desk
@@ -269,20 +270,13 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   min-height: 0;
 }
 
-/* Viewport remainder after the 64px top bar.
-   Wide desk only: on a narrow stack the ops column sits above the stage and
-   must be allowed to grow the page. */
+/* Content-sized screen shared by the wide desk and the narrow stack. */
 .studio-screen {
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
   min-height: 0;
   min-width: 0;
-}
-@container desk (min-width: 801px) {
-  .studio-screen {
-    height: calc(100dvh - 64px);
-  }
 }
 
 .studio-topbar {
@@ -457,9 +451,8 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   gap: 22px;
   align-items: stretch;
   flex: 1 1 auto;
-  /* Floor is the ops column (下一件事 + 保存面板). Do not use min-height: 0 here:
-     a viewport-locked empty desk would otherwise squash this row over the sites.
-     The row still grows to the first-screen leftover inside .studio-screen. */
+  /* Floor is the ops column (下一件事 + 保存面板). min-height stays auto
+     so an empty desk keeps this row from squashing the sites. */
   min-height: auto;
   margin-top: 0;
 }
@@ -773,6 +766,22 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   white-space: nowrap;
 }
 #ops-sites-dialog .tileform { margin-top: 0; margin-bottom: 16px; }
+#ops-sites-dialog .site-url-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+#ops-sites-dialog .site-url-field .field { flex: 1 1 8em; min-width: 0; }
+#ops-sites-dialog .site-url-error {
+  flex: 1 0 auto;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--studio-danger);
+}
 #ops-sites-dialog .tiles { flex-wrap: wrap; overflow: visible; }
 
 .desk-aux[hidden] { display: none !important; }
@@ -1265,6 +1274,12 @@ body.studio-home:not(.sidepanel) .main {
 }
 .next-input::placeholder { color: var(--studio-faint); }
 .next-input:focus { border-bottom-color: var(--studio-accent); }
+/* Boot focus is the underline only. A second ring appears after that first blur. */
+.next-input[data-boot-focus],
+.next-input[data-boot-focus]:focus,
+.next-input[data-boot-focus]:focus-visible {
+  outline: none;
+}
 .hint { margin: 12px 0 0; font-size: 13px; color: var(--studio-muted); }
 .done-history { margin: 8px 0 0 -8px; }
 .studio-desk kbd {
@@ -1355,6 +1370,10 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
 .studio-desk .shelf textarea.note:placeholder-shown:hover { background: var(--studio-field-hi); }
 .studio-desk .shelf textarea.note:focus { background: var(--studio-solid); box-shadow: inset 0 0 0 1px var(--studio-line-2); }
 .studio-desk .shelf textarea.note:focus:hover { background: var(--studio-solid); box-shadow: inset 0 0 0 1px var(--studio-line-2); }
+.studio-desk .shelf textarea.note:focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 3px;
+}
 .note-status:empty { display: none; }
 .col.flash { animation: fs-flash 1400ms var(--out); }
 @keyframes fs-flash { from { background: var(--studio-flash); } to { background: transparent; } }
@@ -1377,8 +1396,24 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
   background: hsl(var(--h, 30) 18% 40%);
   border: 0;
 }
-.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 8em; color: inherit; }
+.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }
 .studio-desk .sites .fs-btn.text { height: 36px; padding: 0 10px; }
+@media (max-height: 760px) {
+  body.studio-home:not(.sidepanel) .main { padding-bottom: 12px; }
+  body.studio-home .hero { padding-top: 8px; }
+  body.studio-home .next { margin-top: 10px; }
+  body.studio-home .next-title { margin-top: 8px; }
+  body.studio-home .next-actions { margin-top: 10px; }
+  body.studio-home .next-compose { margin-top: 8px; }
+  body.studio-home .hint { margin-top: 8px; }
+  body.studio-home .shelf { margin-top: 16px; row-gap: 12px; }
+  body.studio-home .shelf .col { padding-top: 8px; }
+  body.studio-home .shelf .col-h { margin-bottom: 6px; }
+  body.studio-home .shelf .col-sub { margin-top: 4px; }
+  body.studio-home .shelf .col-actions { margin-top: 8px; }
+  body.studio-home .studio-desk .sites { margin-top: 16px; }
+  body.studio-home .studio-desk .sites .col-h { margin-bottom: 4px; }
+}
 .space-view-opt { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 .stars-layer {
   position: fixed; inset: 0; pointer-events: none; z-index: 0;

@@ -416,24 +416,33 @@
     if (clock) clock.textContent = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
   }
 
-  function siteTilesHtml() {
-    return state.sites.map((s, i) => `
+  function siteTilesHtml(list) {
+    return list.map((s) => {
+      const i = state.sites.indexOf(s);
+      return `
       <div class="tilewrap">
         <a class="tile" href="${esc(s.url)}" title="${esc(s.name)} · ${esc(s.url)}" style="--h:${hue(s.url)}">
           <span class="glyph" aria-hidden="true">${esc(mono(s.name))}</span>
-          <span class="lbl">${esc(s.name)}</span>
+          <span class="lbl" title="${esc(s.name)}">${esc(s.name)}</span>
         </a>
         <button type="button" class="iconbtn tile-remove" data-remove-site="${i}" aria-label="移除 ${esc(s.name)}">
           <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   function renderSites() {
-    const html = siteTilesHtml();
-    $('#sites').innerHTML = html;
+    const home = state.sites.slice(0, 8);
+    $('#sites').innerHTML = siteTilesHtml(home);
+    const more = $('#sites-more');
+    if (more) {
+      const showMore = state.sites.length > 8;
+      more.hidden = !showMore;
+      if (showMore) more.textContent = `全部 ${state.sites.length} 个`;
+    }
     const all = $('#sites-all');
-    if (all) all.innerHTML = state.sites.length ? html : '<p class="empty">还没有常用站。</p>';
+    if (all) all.innerHTML = state.sites.length ? siteTilesHtml(state.sites) : '<p class="empty">还没有常用站。</p>';
     $('#c-sites').textContent = String(state.sites.length);
     $('#c-sites').setAttribute('aria-label', `${state.sites.length} 个常用站`);
   }
@@ -518,7 +527,7 @@
     if (open && has) {
       const openCount = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
       const rest = Math.max(0, openCount - 1);
-      const parts = [rest ? `之后还有 ${rest} 条` : '这是最后一条'];
+      const parts = ['全部待办', rest ? `之后还有 ${rest} 条` : '这是最后一条'];
       if (done > 0) parts.push(`已完成 ${done} 件`);
       open.textContent = parts.join(' · ');
     }
@@ -1093,7 +1102,9 @@
         done: Boolean(t.done),
       }))
       : [];
-    state.notes = typeof data.notes === 'string' ? data.notes : '';
+    if (!noteSaveActive && notePending === null) {
+      state.notes = typeof data.notes === 'string' ? data.notes : '';
+    }
     state.name = typeof data.name === 'string' ? data.name : '';
     $('#name').value = state.name;
     renderSites();
@@ -1216,7 +1227,12 @@
   function focusDeskPrimary() {
     const next = pickResume(state.todos);
     const act = next.kind === 'todo' ? $('#resume-act') : $('#todo-input');
-    if (act) act.focus({ preventScroll: true });
+    if (!act) return;
+    if (act.id === 'todo-input') {
+      act.setAttribute('data-boot-focus', '');
+      act.addEventListener('blur', () => act.removeAttribute('data-boot-focus'), { once: true });
+    }
+    act.focus({ preventScroll: true });
   }
 
   let completingId = null;
@@ -1273,10 +1289,22 @@
     if (!dialog.open) dialog.showModal();
   }
 
+  function cssEscape(value) {
+    const s = String(value);
+    if (window.CSS && typeof CSS.escape === 'function') return CSS.escape(s);
+    return s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
   function openTodosDialog() {
     const dialog = $('#ops-todos-dialog');
     const body = $('#ops-todos-dialog-body');
     if (!dialog || !body) return;
+    const firstOpen = !dialog.open;
+    const previous = document.activeElement;
+    const previousId = previous && previous.dataset
+      ? (previous.dataset.todoId || previous.dataset.delTodo || '')
+      : '';
+    const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
     body.innerHTML = `
@@ -1317,9 +1345,24 @@
       saveDesk({ todos: state.todos });
       openTodosDialog();
     };
-    if (!dialog.open) dialog.showModal();
+    if (firstOpen) dialog.showModal();
     const focusInput = body.querySelector('#todo-input-dialog');
-    if (focusInput) focusInput.focus();
+    if (firstOpen || previousWasInput) {
+      if (focusInput) focusInput.focus();
+      return;
+    }
+    if (previousId) {
+      const again = body.querySelector(
+        `[data-todo-id="${cssEscape(previousId)}"], [data-del-todo="${cssEscape(previousId)}"]`
+      );
+      if (again) {
+        again.focus();
+        return;
+      }
+    }
+    const nextBox = body.querySelector('input[type="checkbox"][data-todo-id]');
+    if (nextBox) nextBox.focus();
+    else if (focusInput) focusInput.focus();
   }
 
   async function closeTab(id) {
@@ -1335,9 +1378,8 @@
     toast(`已关闭 ${host}`);
   }
 
-  let notesTimer;
-  let notesClearTimer;
-  let noteSaveGen = 0;
+  let noteSaveActive = false;
+  let notePending = null;
   function setNotesSavedStatus(text) {
     const saved = $('#notes-saved');
     if (saved) saved.textContent = text;
@@ -1347,24 +1389,56 @@
       desk.classList.toggle('is-saved', text === '已存在本机');
     }
   }
+  function pumpNoteSave() {
+    if (noteSaveActive) return;
+    noteSaveActive = true;
+    (async () => {
+      try {
+        while (notePending !== null) {
+          const payload = notePending;
+          notePending = null;
+          state.notes = payload;
+          try {
+            await saveDesk({ notes: state.notes });
+            if (notePending !== null) continue;
+            setNotesSavedStatus('已存在本机');
+          } catch {
+            if (notePending !== null) continue;
+            setNotesSavedStatus('没存上');
+          }
+        }
+      } finally {
+        noteSaveActive = false;
+        if (notePending !== null) pumpNoteSave();
+      }
+    })();
+  }
   function queueNoteSave() {
-    const gen = ++noteSaveGen;
+    notePending = state.notes;
     setNotesSavedStatus('保存中…');
-    clearTimeout(notesTimer);
-    clearTimeout(notesClearTimer);
-    notesTimer = setTimeout(() => {
-      Promise.resolve(saveDesk({ notes: state.notes })).then(() => {
-        if (gen !== noteSaveGen) return;
-        setNotesSavedStatus('已存在本机');
-        notesClearTimer = setTimeout(() => {
-          if (gen !== noteSaveGen) return;
-          setNotesSavedStatus('');
-        }, 1600);
-      }).catch(() => {
-        if (gen !== noteSaveGen) return;
-        setNotesSavedStatus('没存上，稍后再试');
-      });
-    }, 400);
+    pumpNoteSave();
+  }
+  function clearSiteUrlError() {
+    const input = $('#site-url');
+    const err = $('#site-url-error');
+    if (err) {
+      err.hidden = true;
+      err.textContent = '';
+    }
+    if (input) input.removeAttribute('aria-invalid');
+  }
+  function showSiteUrlError(message) {
+    const input = $('#site-url');
+    const err = $('#site-url-error');
+    if (err) {
+      err.hidden = false;
+      err.textContent = message;
+    }
+    if (input) {
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', 'site-url-error');
+      input.focus();
+    }
   }
   function bind() {
     $$('.navbtn, .studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
@@ -1397,6 +1471,10 @@
     });
 
     $('#site-add-toggle').addEventListener('click', () => toggleSiteForm());
+    const sitesMore = $('#sites-more');
+    if (sitesMore) sitesMore.addEventListener('click', () => toggleSiteForm(true));
+    const siteUrl = $('#site-url');
+    if (siteUrl) siteUrl.addEventListener('input', () => clearSiteUrlError());
     const sitesDialog = $('#ops-sites-dialog');
     if (sitesDialog) {
       sitesDialog.addEventListener('close', () => {
@@ -1413,10 +1491,11 @@
       const name = $('#site-name').value.trim();
       let url;
       try { url = normalizeSiteUrl($('#site-url').value); } catch {
-        toast('网址需要是 http(s)');
+        showSiteUrlError('网址需要是 http(s)');
         return;
       }
       if (!name) return;
+      clearSiteUrlError();
       state.sites.push({ name, url });
       $('#site-name').value = '';
       $('#site-url').value = '';

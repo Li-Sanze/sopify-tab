@@ -128,7 +128,7 @@
                     <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
                     完成
                   </button>
-                  <button type="button" class="fs-btn text" id="todos-open">之后还有 0 条</button>
+                  <button type="button" class="fs-btn text" id="todos-open">全部待办</button>
                 </div>
               </div>
               <form class="next-compose" id="todo-form" autocomplete="off">
@@ -178,6 +178,7 @@
             <h2 class="col-h" id="h-sites">常用站</h2>
             <div class="sites-row">
               <div class="tiles" id="sites"></div>
+              <button type="button" class="fs-btn text" id="sites-more" hidden>全部 0 个</button>
               <button type="button" class="fs-btn text" id="site-add-toggle" aria-expanded="false" aria-haspopup="dialog" aria-controls="ops-sites-dialog">+ 添加</button>
             </div>
             <span class="sr-only count" id="c-sites">0</span>
@@ -230,7 +231,10 @@
                 <label class="sr-only" for="site-name">名称</label>
                 <input class="field" id="site-name" placeholder="名称" required autocomplete="off">
                 <label class="sr-only" for="site-url">网址</label>
-                <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false">
+                <div class="site-url-field">
+                  <input class="field" id="site-url" type="text" inputmode="url" placeholder="https://" required autocomplete="off" spellcheck="false" aria-describedby="site-url-error">
+                  <p id="site-url-error" class="site-url-error" role="alert" hidden></p>
+                </div>
                 <button type="submit" class="btn">加入</button>
                 <button type="button" class="btn ghost" id="site-cancel">取消</button>
               </form>
