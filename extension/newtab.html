@@ -110,8 +110,6 @@
           <button type="button" class="studio-navbtn" data-view="tabs" id="studio-nav-tabs">当前标签</button>
           <button type="button" class="studio-navbtn" data-view="settings" id="studio-nav-settings">设置</button>
         </nav>
-        <label class="sr-only" for="name">称呼</label>
-        <input class="name sr-only" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" tabindex="-1">
       </header>
 
       <section class="view active studio-desk" data-view="desk" aria-labelledby="resume-kicker">
@@ -259,6 +257,11 @@
           <h1 id="settings-h">设置</h1>
           <p>外观随时可改，书桌不依赖 Host。</p>
         </header>
+        <div class="settings-name">
+          <label for="name">称呼</label>
+          <input class="field" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" aria-describedby="name-help">
+          <p class="help" id="name-help">写在首屏问候里，存在本机。留空就只打招呼。</p>
+        </div>
         <div class="settings">
           <section class="card" aria-labelledby="s-theme">
             <div class="cardhead">
