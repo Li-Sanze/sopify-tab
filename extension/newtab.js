@@ -524,12 +524,12 @@
       delete act.dataset.todoId;
     }
     const open = $('#todos-open');
-    if (open && has) {
+    if (open) {
       const openCount = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
-      const rest = Math.max(0, openCount - 1);
-      const parts = ['全部待办', rest ? `之后还有 ${rest} 条` : '这是最后一条'];
-      if (done > 0) parts.push(`已完成 ${done} 件`);
-      open.textContent = parts.join(' · ');
+      if (openCount === 1 && done === 0) open.textContent = '全部待办';
+      else if (openCount > 1) open.textContent = `全部待办 · 还有 ${openCount - 1} 条`;
+      else if (done > 0) open.textContent = `全部待办 · 已完成 ${done} 件`;
+      else open.textContent = '全部待办';
     }
     const input = $('#todo-input');
     const hint = $('#todo-hint');
@@ -1227,12 +1227,7 @@
   function focusDeskPrimary() {
     const next = pickResume(state.todos);
     const act = next.kind === 'todo' ? $('#resume-act') : $('#todo-input');
-    if (!act) return;
-    if (act.id === 'todo-input') {
-      act.setAttribute('data-boot-focus', '');
-      act.addEventListener('blur', () => act.removeAttribute('data-boot-focus'), { once: true });
-    }
-    act.focus({ preventScroll: true });
+    if (act) act.focus({ preventScroll: true });
   }
 
   let completingId = null;
@@ -1593,6 +1588,13 @@
     });
     const todosDialog = $('#ops-todos-dialog');
     if (todosDialog) {
+      todosDialog.addEventListener('close', () => {
+        focusDeskPrimary();
+        setTimeout(focusDeskPrimary, 0);
+      });
+      todosDialog.addEventListener('click', (e) => {
+        if (e.target === todosDialog) todosDialog.close();
+      });
       todosDialog.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
         const input = todosDialog.querySelector('#todo-input-dialog');
@@ -1731,6 +1733,14 @@
     if (location.hash === '#settings') setView('settings');
     else {
       document.body.classList.add('studio-home');
+      const clearBootFocus = () => {
+        document.documentElement.removeAttribute('data-boot-focus');
+        document.removeEventListener('keydown', clearBootFocus);
+        document.removeEventListener('pointerdown', clearBootFocus);
+      };
+      document.addEventListener('keydown', clearBootFocus);
+      document.addEventListener('pointerdown', clearBootFocus);
+      document.documentElement.setAttribute('data-boot-focus', '');
       focusDeskPrimary();
     }
     await refreshTabs();

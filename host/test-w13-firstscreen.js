@@ -156,7 +156,14 @@ assert.ok(shortQ.includes('.hero') && shortQ.includes('.next-actions') && shortQ
 assert.ok(!/overflow\s*:/.test(shortQ), 'short viewport query does not clip overflow');
 assert.ok(!/font-size\s*:/.test(shortQ), 'short viewport query does not shrink type');
 assert.ok(css.includes('.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }'));
-assert.ok(css.includes('.next-input[data-boot-focus]'));
+assert.ok(css.includes('html[data-boot-focus] #resume-act:focus-visible { outline: none; }'));
+assert.ok(css.includes('html[data-boot-focus] .next-input:focus-visible { outline: none; }'));
+assert.ok(!/(^|\n)\.next-input:focus-visible \{ outline: none; \}/.test(css), 'input ring is suppressed only while html[data-boot-focus]');
+assert.ok(css.includes('.next-input:focus { border-bottom-color: var(--studio-accent); }'));
+assert.ok(!css.includes('.next-input[data-boot-focus]'), 'boot mark is on html, not the input');
+const studioFocusVis = css.indexOf('.studio-desk :focus-visible');
+const nextInputFocusVis = css.indexOf('html[data-boot-focus] .next-input:focus-visible { outline: none; }');
+assert.ok(studioFocusVis !== -1 && nextInputFocusVis > studioFocusVis, 'boot input rule follows the studio ring');
 assert.ok(css.includes('.studio-desk .shelf textarea.note:focus-visible'));
 assert.ok(css.includes('--studio-danger:'));
 assert.ok(/z-index:\s*70/.test(braceBlock(css, '.toast')), 'toast z-index stays 70');
@@ -181,13 +188,37 @@ assert.ok(!js.includes('没存上，稍后再试'));
 assert.ok(fnBody(js, 'function saveDeskNoteFrom3d(').includes('queueNoteSave()'));
 assert.ok(js.includes('state.sites.slice(0, 8)'));
 assert.ok(js.includes('more.textContent = `全部 ${state.sites.length} 个`'));
-assert.ok(js.includes("setAttribute('data-boot-focus'"));
 assert.ok(js.includes('showSiteUrlError('));
 assert.ok(!/toast\('网址需要是 http\(s\)'\)/.test(js));
+assert.ok(!js.includes('这是最后一条'), 'button copy never says 这是最后一条');
+assert.ok(!js.includes('之后还有'), 'button copy does not use 之后还有');
+const resumeBody = fnBody(js, 'function renderResume()');
+assert.ok(resumeBody.includes('全部待办 · 还有 '));
+assert.ok(resumeBody.includes('全部待办 · 已完成 '));
+assert.ok(resumeBody.includes("open.textContent = '全部待办'"));
+assert.ok(!resumeBody.includes('这是最后一条'));
+const bootBody = fnBody(js, 'async function boot()');
+const bootMark = bootBody.indexOf("document.documentElement.setAttribute('data-boot-focus', '')");
+const bootFocus = bootBody.indexOf('focusDeskPrimary()');
+assert.ok(bootMark !== -1 && bootFocus !== -1 && bootMark < bootFocus, 'boot marks html before focusDeskPrimary');
+assert.ok(bootBody.includes("addEventListener('keydown', clearBootFocus)"));
+assert.ok(bootBody.includes("addEventListener('pointerdown', clearBootFocus)"));
+assert.ok(bootBody.includes("document.documentElement.removeAttribute('data-boot-focus')"));
+const setViewBody = fnBody(js, 'function setView(v, opts)');
+assert.ok(setViewBody.includes('focusDeskPrimary()'));
+assert.ok(!setViewBody.includes('data-boot-focus'), 'only boot() sets data-boot-focus');
+const closeAt = js.indexOf("todosDialog.addEventListener('close'");
+const closeNext = js.indexOf("todosDialog.addEventListener('keydown'", closeAt);
+assert.ok(closeAt !== -1 && closeNext > closeAt);
+assert.ok(js.slice(closeAt, closeNext).includes('focusDeskPrimary()'), 'todos dialog close returns focus via focusDeskPrimary');
+assert.ok(fnBody(js, 'function focusDeskPrimary()').includes("$('#resume-act')"));
+assert.ok(fnBody(js, 'function focusDeskPrimary()').includes("$('#todo-input')"));
 
 const ui = read('desk-3d/ui.js');
 assert.ok(ui.includes('this.host.saveNote(this.noteEditor.value)'), '3D note editor uses the host save path');
 assert.ok(!/chrome\.storage/.test(ui));
+
+console.log('test-w13-firstscreen static: ok');
 
 const http = require('http');
 const { spawn } = require('child_process');
@@ -553,19 +584,84 @@ async function main() {
     let layout = await readLayout();
     check('day spatial off', layout.spaceHidden, JSON.stringify(layout.spaceHidden));
     check('boot does not clip the page', !/hidden/.test(layout.overflowY), layout.overflowY);
-    await shoot('day-1440x900.png');
-
-    await loadSeed(1440, 900, { todos: [], sites: [] });
-    const boot = await evalJson(`(() => {
-      const el = document.getElementById('todo-input');
-      const cs = getComputedStyle(el);
+    check('one open todo says only 全部待办', layout.openText === '全部待办' && !layout.openText.includes('这是最后一条'), layout.openText);
+    const bootTodo = await evalJson(`(() => {
+      const act = document.getElementById('resume-act');
+      const cs = getComputedStyle(act);
       return {
-        active: document.activeElement === el,
-        attr: el.getAttribute('data-boot-focus') !== null,
+        active: document.activeElement === act,
+        html: document.documentElement.hasAttribute('data-boot-focus'),
+        inputMarked: document.getElementById('todo-input').hasAttribute('data-boot-focus'),
         outline: cs.outlineStyle,
       };
     })()`);
-    check('boot focus marks next-input', boot.active && boot.attr && boot.outline === 'none', JSON.stringify(boot));
+    check('boot marks html and focuses 完成', bootTodo.active && bootTodo.html && !bootTodo.inputMarked && bootTodo.outline === 'none', JSON.stringify(bootTodo));
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16, nativeVirtualKeyCode: 16,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16, nativeVirtualKeyCode: 16,
+    });
+    const afterKey = await evalJson(`(() => {
+      const cleared = !document.documentElement.hasAttribute('data-boot-focus');
+      document.documentElement.setAttribute('data-boot-focus', '');
+      const act = document.getElementById('resume-act');
+      act.blur();
+      act.focus({ focusVisible: true });
+      const suppressed = getComputedStyle(act).outlineStyle;
+      document.documentElement.removeAttribute('data-boot-focus');
+      act.blur();
+      act.focus({ focusVisible: true });
+      const cs = getComputedStyle(act);
+      return {
+        cleared,
+        suppressed,
+        outline: cs.outlineStyle,
+        width: cs.outlineWidth,
+        match: act.matches(':focus-visible'),
+        stillClear: !document.documentElement.hasAttribute('data-boot-focus'),
+      };
+    })()`);
+    check('first keydown clears html boot mark', afterKey.cleared && afterKey.stillClear, JSON.stringify(afterKey));
+    check('boot mark suppresses 完成 focus ring', afterKey.suppressed === 'none', JSON.stringify(afterKey));
+    check('keyboard focus rings 完成 after boot mark clears', afterKey.outline === 'solid' && parseFloat(afterKey.width) >= 2 && afterKey.match, JSON.stringify(afterKey));
+    await shoot('day-1440x900.png');
+
+    await loadSeed(1440, 900, { todos: [], sites: [] });
+    const bootEmpty = await evalJson(`(() => {
+      const el = document.getElementById('todo-input');
+      el.style.transition = 'none';
+      el.blur();
+      const blurred = getComputedStyle(el).borderBottomColor;
+      el.focus();
+      const cs = getComputedStyle(el);
+      return {
+        active: document.activeElement === el,
+        html: document.documentElement.hasAttribute('data-boot-focus'),
+        inputMarked: el.hasAttribute('data-boot-focus'),
+        outline: cs.outlineStyle,
+        focusVisible: el.matches(':focus-visible'),
+        underline: cs.borderBottomWidth === '2px',
+        before: blurred,
+        after: cs.borderBottomColor,
+      };
+    })()`);
+    check('boot focuses the input with underline and no ring', bootEmpty.active && bootEmpty.html && !bootEmpty.inputMarked && bootEmpty.outline === 'none' && bootEmpty.underline, JSON.stringify(bootEmpty));
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 720, y: 280, button: 'left', clickCount: 1 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 720, y: 280, button: 'left', clickCount: 1 });
+    const afterPointer = await evalJson(`(() => {
+      const el = document.getElementById('todo-input');
+      if (document.activeElement !== el) el.focus();
+      const cs = getComputedStyle(el);
+      return {
+        html: document.documentElement.hasAttribute('data-boot-focus'),
+        outline: cs.outlineStyle,
+        match: el.matches(':focus-visible'),
+        underline: cs.borderBottomWidth,
+      };
+    })()`);
+    const ringReleased = afterPointer.match ? afterPointer.outline === 'solid' : afterPointer.outline === 'none';
+    check('first pointerdown clears html boot mark', !afterPointer.html && afterPointer.underline === '2px' && ringReleased, JSON.stringify(afterPointer));
 
     await loadSeed(1440, 900, {
       todos: todoItems('5'),
@@ -573,7 +669,7 @@ async function main() {
       storageDelay: 80,
     });
     layout = await readLayout();
-    check('todos-open starts with 全部待办', layout.openText.startsWith('全部待办'), layout.openText);
+    check('five open todos say 还有 4 条', layout.openText === '全部待办 · 还有 4 条' && !layout.openText.includes('这是最后一条'), layout.openText);
     check('home shows 8 of 16', layout.homeSites === 8 && layout.moreText === '全部 16 个' && !layout.moreHidden, JSON.stringify(layout));
     const note = await evalJson(`(() => {
       const ta = document.getElementById('notes');
@@ -635,6 +731,48 @@ async function main() {
     check('todos dialog first-open focuses the field', dialogFocus.first, JSON.stringify(dialogFocus));
     check('todos dialog refresh keeps the checkbox', dialogFocus.restored && !dialogFocus.jumpedToInput, JSON.stringify(dialogFocus));
 
+    const closeFocus = await evalJson(`(() => {
+      const dialog = document.getElementById('ops-todos-dialog');
+      if (!dialog.open) document.getElementById('todos-open').click();
+      dialog.close();
+      return { open: dialog.open, has: document.getElementById('resume').dataset.has };
+    })()`);
+    await sleep(40);
+    const closeActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    check('todos dialog close focuses 完成', !closeFocus.open && closeActive === 'resume-act' && closeFocus.has === '1', JSON.stringify({ ...closeFocus, active: closeActive }));
+    await evalJson(`document.getElementById('todos-open').click()`);
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    await sleep(40);
+    const escFocus = await evalJson(`(() => {
+      const dialog = document.getElementById('ops-todos-dialog');
+      return {
+        open: dialog.open,
+        active: document.activeElement && document.activeElement.id,
+        body: document.activeElement === document.body,
+      };
+    })()`);
+    check('Esc closes todos dialog onto 完成', !escFocus.open && escFocus.active === 'resume-act' && !escFocus.body, JSON.stringify(escFocus));
+    await evalJson(`(() => {
+      const dialog = document.getElementById('ops-todos-dialog');
+      if (!dialog.open) document.getElementById('todos-open').click();
+      dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    })()`);
+    await sleep(40);
+    const backdropFocus = await evalJson(`(() => {
+      const dialog = document.getElementById('ops-todos-dialog');
+      return {
+        open: dialog.open,
+        active: document.activeElement && document.activeElement.id,
+        body: document.activeElement === document.body,
+      };
+    })()`);
+    check('backdrop closes todos dialog onto 完成', !backdropFocus.open && backdropFocus.active === 'resume-act' && !backdropFocus.body, JSON.stringify(backdropFocus));
+
     const opened = await evalJson(`(() => {
       document.getElementById('sites-more').click();
       const dialog = document.getElementById('ops-sites-dialog');
@@ -687,6 +825,45 @@ async function main() {
     })`);
     check('failed write says 没存上', failed.status === '没存上' && failed.notes === '', JSON.stringify(failed));
 
+    await loadSeed(1440, 900, {
+      todos: [{ id: 'done-1', text: '已经做完', done: true }],
+      sites: [],
+    });
+    const doneLabel = await evalJson(`document.getElementById('todos-open').textContent`);
+    check('done-only todos say 已完成 1 件', doneLabel === '全部待办 · 已完成 1 件', doneLabel);
+    await loadSeed(1440, 900, {
+      todos: [
+        { id: 'open-1', text: '还剩一件', done: false },
+        { id: 'done-2', text: '已经做完', done: true },
+        { id: 'done-3', text: '另一件也做完', done: true },
+      ],
+      sites: [],
+    });
+    const mixedLabel = await evalJson(`document.getElementById('todos-open').textContent`);
+    check('one open plus done says 已完成', mixedLabel === '全部待办 · 已完成 2 件', mixedLabel);
+    const lastClose = await evalJson(`(() => {
+      document.getElementById('todos-open').click();
+      const box = document.querySelector('#todos-dialog-list input[type="checkbox"]:not(:checked)');
+      const id = box.dataset.todoId;
+      box.focus();
+      box.checked = true;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      const after = document.activeElement;
+      const kept = !!(after && after.dataset && after.dataset.todoId === id);
+      document.querySelector('#ops-todos-dialog [data-dialog-close]').click();
+      const dialog = document.getElementById('ops-todos-dialog');
+      const filled = document.querySelector('.next-filled');
+      return {
+        kept,
+        open: dialog.open,
+        has: document.getElementById('resume').dataset.has,
+        openerHidden: getComputedStyle(filled).display === 'none',
+        label: document.getElementById('todos-open').textContent,
+      };
+    })()`);
+    await sleep(40);
+    const lastActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    check('close after the last open todo focuses the input', lastClose.kept && !lastClose.open && lastClose.has === '0' && lastActive === 'todo-input' && lastClose.openerHidden && lastClose.label === '全部待办 · 已完成 3 件', JSON.stringify({ ...lastClose, active: lastActive }));
     await loadSeed(1366, 650, { todos: todoItems('5'), sites: siteItems(6, false) });
     await shoot('short-1366x650.png');
 
@@ -714,7 +891,8 @@ async function main() {
             exception: false,
           });
           if (!pass || !sitesOk) failures.push(`${label} overflow=${box.overflow} wheel=${scrolled} sitesOk=${sitesOk} ${box.overflowY}`);
-          if (kind !== 'empty' && !box.openText.startsWith('全部待办')) {
+          const expectedOpen = kind === '5' ? '全部待办 · 还有 4 条' : '全部待办';
+          if (box.openText !== expectedOpen || box.openText.includes('这是最后一条')) {
             failures.push(`${label} todos-open=${box.openText}`);
           }
         }
@@ -749,11 +927,15 @@ async function main() {
     const matrixPath = path.join(shotDir, 'matrix.json');
     fs.writeFileSync(matrixPath, JSON.stringify({ behavior, rows, version: version.Browser || '' }, null, 2));
     console.log(`matrix ${matrixPath}`);
+    const behaviorFails = [];
     for (const item of behavior) {
-      if (!item.ok) failures.push(`behavior ${item.name}: ${item.detail}`);
+      if (!item.ok) behaviorFails.push(`behavior ${item.name}: ${item.detail}`);
     }
-    if (failures.length) {
-      throw new Error(failures.join('\n'));
+    const matrixFails = failures.slice();
+    console.log(`test-w13-firstscreen behavior: ${behaviorFails.length ? 'FAIL' : 'ok'}`);
+    console.log(`test-w13-firstscreen matrix: ${matrixFails.length ? 'FAIL' : 'ok'}`);
+    if (behaviorFails.length || matrixFails.length) {
+      throw new Error([...behaviorFails, ...matrixFails].join('\n'));
     }
     console.log('test-w13-firstscreen: ok');
   } catch (err) {

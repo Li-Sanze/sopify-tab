@@ -1274,12 +1274,6 @@ body.studio-home:not(.sidepanel) .main {
 }
 .next-input::placeholder { color: var(--studio-faint); }
 .next-input:focus { border-bottom-color: var(--studio-accent); }
-/* Boot focus is the underline only. A second ring appears after that first blur. */
-.next-input[data-boot-focus],
-.next-input[data-boot-focus]:focus,
-.next-input[data-boot-focus]:focus-visible {
-  outline: none;
-}
 .hint { margin: 12px 0 0; font-size: 13px; color: var(--studio-muted); }
 .done-history { margin: 8px 0 0 -8px; }
 .studio-desk kbd {
@@ -1307,6 +1301,8 @@ body.studio-home:not(.sidepanel) .main {
 .studio-desk .fs-btn.text { height: auto; padding: 6px 8px; border-radius: 8px; font-weight: 500; color: var(--studio-muted); }
 .studio-desk .fs-btn.text:hover { color: var(--studio-ink); background: var(--studio-hover); }
 .studio-desk :focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 3px; }
+html[data-boot-focus] #resume-act:focus-visible { outline: none; }
+html[data-boot-focus] .next-input:focus-visible { outline: none; }
 .shelf {
   margin-top: clamp(40px, 7vh, 72px);
   display: grid;
