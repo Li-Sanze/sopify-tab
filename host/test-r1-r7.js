@@ -439,7 +439,7 @@ assert.strictEqual(left.keeper.snapshot().text, originalA);
 assert.strictEqual(right.keeper.snapshot().text, originalB);
 assert.strictEqual(overlapStore.events.filter((e) => e === 'change').length, 1);
 const bg = read('background.js');
-assert.ok(bg.includes("importScripts('note-sync.js')"));
+assert.ok(bg.includes("importScripts('note-sync.js', 'collection-sync.js')"));
 assert.ok(bg.includes('sopify-note-commit'));
 assert.ok(bg.includes('createNoteCoordinator'));
 
@@ -589,7 +589,8 @@ assert.ok(saveWin.indexOf('await persistWorksets(proposal.worksets)') < saveWin.
 assert.ok(saveWin.includes('savedWindow.ok !== true'));
 const persistBody = braceBlock(js, 'async function persistWorksets');
 assert.ok(persistBody.includes('confirmDeskWrite'));
-assert.ok(persistBody.indexOf('chrome.storage.local.set({ worksets })') < persistBody.indexOf('state.worksets = worksets'));
+assert.ok(persistBody.includes('requestCollectionCommit'));
+assert.ok(persistBody.indexOf('requestCollectionCommit') < persistBody.indexOf('state.worksets ='));
 assert.ok(braceBlock(js, 'async function commitDesk').includes('confirmDeskWrite'));
 assert.ok(braceBlock(js, 'async function commitDesk').includes('refuseUnreadWrite'));
 assert.ok(braceBlock(js, 'async function persistWorksets').includes("domainWriteAllowed(domainUnread, 'worksets')"));

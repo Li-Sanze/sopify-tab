@@ -56,6 +56,13 @@
     domainUnread.notes = false;
     domainUnread.name = false;
   }
+  let todosSeen = 0;
+  let sitesSeen = 0;
+  let worksetsSeen = 0;
+  function collectionRev(n) {
+    const v = typeof n === 'string' && String(n).trim() ? Number(n) : n;
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  }
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -216,7 +223,11 @@
     }
     if (saveResult.empty) return { ok: true, empty: true };
     if (!readback || readback.ok !== true) return { ok: false, error: true };
-    return { ok: true };
+    const out = { ok: true };
+    if (saveResult && saveResult.items) out.items = saveResult.items;
+    if (saveResult && saveResult.rev != null) out.rev = saveResult.rev;
+    if (saveResult && saveResult.idempotent) out.idempotent = true;
+    return out;
   }
 
   function beginRestore(queryOk, openTabs) {
@@ -474,6 +485,7 @@
     try {
       const data = await getFn({
         sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '',
+        todosRev: 0, sitesRev: 0,
       });
       const src = data && typeof data === 'object' ? data : {};
       return {
@@ -484,6 +496,8 @@
         name: src.name,
         notesRev: src.notesRev,
         notesStamp: src.notesStamp,
+        todosRev: src.todosRev,
+        sitesRev: src.sitesRev,
         loadError: false,
       };
     } catch {
@@ -523,7 +537,7 @@
 
   async function loadDesk() {
     if (!hasStorage) {
-      return { ok: true, sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: false };
+      return { ok: true, sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', todosRev: 0, sitesRev: 0, loadError: false };
     }
     return readDeskStorage((defaults) => chrome.storage.local.get(defaults));
   }
@@ -549,6 +563,8 @@
       const refused = refuseUnreadWrite(domainUnread, keys[i]);
       if (refused) return refused;
     }
+    if (partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) return commitTodoIntent(partial.todos);
+    if (partial && Object.prototype.hasOwnProperty.call(partial, 'sites')) return commitSiteIntent(partial.sites);
     let result;
     try {
       result = await saveDesk(partial);
@@ -567,6 +583,54 @@
     }
   }
 
+  function adoptCollection(domain, saved) {
+    if (!saved || saved.ok !== true || !saved.items) return;
+    const rev = saved.rev == null ? null : collectionRev(saved.rev);
+    if (domain === 'todos') {
+      if (rev == null || rev >= todosSeen) {
+        state.todos = saved.items;
+        if (rev != null) todosSeen = rev;
+      }
+      return;
+    }
+    if (domain === 'sites') {
+      if (rev == null || rev >= sitesSeen) {
+        state.sites = saved.items;
+        if (rev != null) sitesSeen = rev;
+      }
+    }
+  }
+
+  async function commitTodoIntent(next) {
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffTodos(state.todos, next);
+    let committed;
+    try { committed = await requestCollectionCommit({ domain: 'todos', ops: ops }); } catch { committed = null; }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    return confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
+  }
+
+  async function commitSiteIntent(next) {
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffSites(state.sites, next);
+    let committed;
+    try { committed = await requestCollectionCommit({ domain: 'sites', ops: ops }); } catch { committed = null; }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    return confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
+  }
+
   async function replaceTodos(next, errorId, message) {
     const saved = await commitDesk({ todos: next });
     if (!saved || saved.ok !== true) {
@@ -577,7 +641,7 @@
     }
     hideWriteError('todo-save-error');
     hideWriteError('todo-dialog-save-error');
-    state.todos = next;
+    adoptCollection('todos', saved);
     renderTodos();
     return true;
   }
@@ -609,7 +673,9 @@
   async function loadWorksets() {
     if (!hasStorage) return [];
     try {
-      const data = await chrome.storage.local.get({ worksets: [] });
+      const data = await chrome.storage.local.get({ worksets: [], worksetsRev: 0 });
+      const rev = collectionRev(data && data.worksetsRev);
+      if (rev >= worksetsSeen) worksetsSeen = rev;
       return normalizeWorksets(data.worksets);
     } catch {
       return null;
@@ -620,18 +686,28 @@
     const worksets = normalizeWorksets(list);
     if (!domainWriteAllowed(domainUnread, 'worksets')) return { ok: false, blocked: true };
     if (!hasStorage) return confirmDeskWrite({ ok: false, skipped: true }, null);
-    let saved;
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffWorksets(state.worksets, worksets);
+    let committed;
     try {
-      await chrome.storage.local.set({ worksets });
-      const again = await chrome.storage.local.get({ worksets: [] });
-      const stored = normalizeWorksets(again && again.worksets);
-      const match = JSON.stringify(stored) === JSON.stringify(worksets);
-      saved = confirmDeskWrite({ ok: true }, { ok: match });
+      committed = await requestCollectionCommit({ domain: 'worksets', ops: ops });
     } catch {
-      saved = confirmDeskWrite(null, null);
+      committed = null;
     }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    const saved = confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
     if (!saved.ok) return saved;
-    state.worksets = worksets;
+    const storedRev = committed.rev == null ? null : collectionRev(committed.rev);
+    if (storedRev == null || storedRev >= worksetsSeen) {
+      state.worksets = normalizeWorksets(committed.items);
+      if (storedRev != null) worksetsSeen = storedRev;
+    }
     renderSavedWorksets();
     notifyDesk3d();
     return saved;
@@ -1440,6 +1516,14 @@
       if (absorbed.action === 'apply') state.notes = absorbed.text;
     }
     state.name = typeof src.name === 'string' ? src.name : '';
+    if (src.todosRev != null) {
+      const n = collectionRev(src.todosRev);
+      if (n >= todosSeen) todosSeen = n;
+    }
+    if (src.sitesRev != null) {
+      const n = collectionRev(src.sitesRev);
+      if (n >= sitesSeen) sitesSeen = n;
+    }
     $('#name').value = state.name;
     renderSites();
     renderTodos();
@@ -1910,6 +1994,37 @@
     });
     window.__sopifyNoteCommit = (req) => pageQueue.commit(req);
   }
+  if (typeof window !== 'undefined' && window.SopifyCollection && hasStorage && typeof window.__sopifyCollectionCommit !== 'function') {
+    const pageCollections = window.SopifyCollection.createCollectionCoordinator({
+      get: (defaults) => chrome.storage.local.get(defaults),
+      set: (partial) => chrome.storage.local.set(partial),
+    });
+    window.__sopifyCollectionCommit = (req) => pageCollections.commit(req);
+  }
+  function requestCollectionCommit(req) {
+    const domain = req && req.domain;
+    if (!domainWriteAllowed(domainUnread, domain)) return Promise.resolve({ ok: false, blocked: true });
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      return new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage({ type: 'sopify-collection-commit', req: req }, (res) => {
+            const failed = chrome.runtime.lastError;
+            if (failed) {
+              resolve({ ok: false, error: true });
+              return;
+            }
+            resolve(res && typeof res === 'object' ? res : { ok: false, error: true });
+          });
+        } catch {
+          resolve({ ok: false, error: true });
+        }
+      });
+    }
+    if (typeof window !== 'undefined' && typeof window.__sopifyCollectionCommit === 'function') {
+      return window.__sopifyCollectionCommit(req);
+    }
+    return Promise.resolve({ ok: false, error: true });
+  }
   function requestNoteCommit(req) {
     if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
       return new Promise((resolve) => {
@@ -2008,15 +2123,22 @@
               }
             });
             if (notePending !== null) continue;
-            if (outcome && outcome.ok) {
+            const snap = noteKeeper.snapshot();
+            const markSaved = window.SopifyNoteSync
+              ? window.SopifyNoteSync.shouldMarkNoteSaved(outcome, snap)
+              : false;
+            if (markSaved) {
               setNotesSavedStatus('已存在本机');
               const openBtn = $('#note-show-conflict');
               if (openBtn) openBtn.hidden = true;
               showNoteConflict(false);
-            } else if (outcome && outcome.conflict) {
+            } else if ((outcome && outcome.conflict) || noteKeeper.hasConflict()) {
               const status = (noteKeeper.snapshot().status) || '便签在另一页更新了';
               setNotesSavedStatus(status);
               showConflictNotice(status);
+            } else if (outcome && outcome.ok && snap.dirty) {
+              notePending = snap.text;
+              setNotesSavedStatus('保存中…');
             } else {
               setNotesSavedStatus('没存上');
             }
@@ -2156,7 +2278,7 @@
       }
       hideWriteError('site-save-error');
       hideWriteError('sites-save-error');
-      state.sites = next;
+      adoptCollection('sites', saved);
       nameInput.value = '';
       urlInput.value = '';
       renderSites();
@@ -2180,7 +2302,7 @@
       }
       hideWriteError('sites-save-error');
       hideWriteError('site-save-error');
-      state.sites = next;
+      adoptCollection('sites', saved);
       renderSites();
       if (removed) toast(`已移除 ${removed.name}`);
     };
@@ -2418,17 +2540,29 @@
           state.hostUpstream = normalizeUpstream(changes.hostUpstream.newValue);
           renderUpstream();
         }
-        if ('worksets' in changes) {
-          state.worksets = normalizeWorksets(changes.worksets.newValue);
-          renderSavedWorksets();
-          notifyDesk3d();
+        if ('worksets' in changes || 'worksetsRev' in changes) {
+          const incomingRev = 'worksetsRev' in changes ? collectionRev(changes.worksetsRev.newValue) : null;
+          if (incomingRev != null && incomingRev < worksetsSeen) {
+            /* an older snapshot must not roll the desk backward */
+          } else {
+            if ('worksets' in changes) state.worksets = normalizeWorksets(changes.worksets.newValue);
+            if (incomingRev != null) worksetsSeen = incomingRev;
+            renderSavedWorksets();
+            notifyDesk3d();
+          }
         }
-        if ('sites' in changes || 'todos' in changes || 'name' in changes) {
+        const todoRev = 'todosRev' in changes ? collectionRev(changes.todosRev.newValue) : null;
+        const siteRev = 'sitesRev' in changes ? collectionRev(changes.sitesRev.newValue) : null;
+        const skipTodos = todoRev != null && todoRev < todosSeen;
+        const skipSites = siteRev != null && siteRev < sitesSeen;
+        if ('sites' in changes || 'todos' in changes || 'name' in changes || 'todosRev' in changes || 'sitesRev' in changes) {
           applyDesk({
-            sites: changes.sites ? changes.sites.newValue : state.sites,
-            todos: changes.todos ? changes.todos.newValue : state.todos,
+            sites: skipSites ? state.sites : (changes.sites ? changes.sites.newValue : state.sites),
+            todos: skipTodos ? state.todos : (changes.todos ? changes.todos.newValue : state.todos),
             notes: state.notes,
             name: changes.name ? changes.name.newValue : state.name,
+            todosRev: skipTodos ? todosSeen : todoRev,
+            sitesRev: skipSites ? sitesSeen : siteRev,
           }, { notes: false });
         }
         if ('notes' in changes || 'notesRev' in changes || 'notesStamp' in changes) {

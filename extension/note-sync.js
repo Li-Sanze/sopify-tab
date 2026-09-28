@@ -58,6 +58,7 @@
   function createNoteKeeper(options) {
     const opts = options || {};
     let rev = 0;
+    let seenRev = 0;
     let stamp = '';
     let acked = '';
     let text = '';
@@ -71,6 +72,7 @@
       return {
         text: text,
         rev: rev,
+        seenRev: seenRev,
         stamp: stamp,
         acked: acked,
         dirty: dirty,
@@ -109,6 +111,7 @@
       if (dirty || conflict) return { action: 'keep-local', text: text };
       const notes = data && typeof data.notes === 'string' ? data.notes : '';
       rev = normalizeRev(data && data.notesRev);
+      seenRev = rev;
       stamp = data && typeof data.notesStamp === 'string' ? data.notesStamp : '';
       acked = notes;
       text = notes;
@@ -139,6 +142,8 @@
       const remoteText = data && typeof data.notes === 'string' ? data.notes : '';
       const remoteRev = normalizeRev(data && data.notesRev);
       const remoteStamp = data && typeof data.notesStamp === 'string' ? data.notesStamp : '';
+      if (remoteRev < seenRev) return { action: 'stale' };
+      if (remoteRev > seenRev) seenRev = remoteRev;
       if ((inflight && remoteStamp && remoteStamp === inflight) || (stamp && remoteStamp && remoteStamp === stamp)) {
         rev = remoteRev;
         stamp = remoteStamp;
@@ -175,15 +180,33 @@
       return id + ':' + nextRev + ':' + Date.now().toString(36) + ':' + Math.random().toString(16).slice(2);
     }
 
-    function applyCommitResult(body, result) {
+    function applyCommitResult(body, request, result) {
+      const requestStamp = request && typeof request.stamp === 'string' ? request.stamp : '';
       if (result && result.ok) {
-        rev = normalizeRev(result.rev != null ? result.rev : rev);
-        stamp = typeof result.stamp === 'string' ? result.stamp : stamp;
+        const resultStamp = typeof result.stamp === 'string' ? result.stamp : (typeof result.requestId === 'string' ? result.requestId : '');
+        if (requestStamp && resultStamp && resultStamp !== requestStamp && result.idempotent !== true) {
+          return { ok: false, ignored: true };
+        }
+        const resultRev = normalizeRev(result.rev != null ? result.rev : rev);
+        const stale = resultRev < seenRev || (conflict && conflict.remoteRev > resultRev) || resultRev < rev;
+        if (stale) {
+          if (inflight === requestStamp) inflight = '';
+          return { ok: true, stale: true, applied: false, rev: resultRev };
+        }
+        if (resultRev > seenRev) seenRev = resultRev;
+        rev = resultRev;
+        stamp = resultStamp || stamp;
         acked = body;
         dirty = text !== acked;
         conflict = null;
         inflight = '';
-        return { ok: true, idempotent: !!(result && result.idempotent) };
+        return {
+          ok: true,
+          idempotent: !!(result && result.idempotent),
+          applied: true,
+          current: text === body,
+          rev: rev,
+        };
       }
       inflight = '';
       if (result && result.conflict) {
@@ -221,22 +244,22 @@
       return enqueueNoteWrite(async function () {
         try {
           if (opts.coordinator && typeof opts.coordinator.commit === 'function') {
-            return applyCommitResult(body, await opts.coordinator.commit(request));
+            return applyCommitResult(body, request, await opts.coordinator.commit(request));
           }
           const remote = await readRemote();
           if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
           if (remote.notes === body && remote.stamp && request.stamp && remote.stamp === request.stamp) {
-            return applyCommitResult(body, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
+            return applyCommitResult(body, request, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
           }
           if (remote.notes === body && !useReviewed) {
-            return applyCommitResult(body, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
+            return applyCommitResult(body, request, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
           }
           if (useReviewed) {
             const same = remote.rev === useReviewed.rev
               && remote.notes === useReviewed.notes
               && (!useReviewed.stamp || !remote.stamp || remote.stamp === useReviewed.stamp);
             if (!same) {
-              return applyCommitResult(body, {
+              return applyCommitResult(body, request, {
                 ok: false,
                 conflict: true,
                 moved: true,
@@ -246,7 +269,7 @@
               });
             }
           } else if (!baselineStillCurrent(remote, baseline)) {
-            return applyCommitResult(body, {
+            return applyCommitResult(body, request, {
               ok: false,
               conflict: true,
               remoteText: remote.notes,
@@ -269,12 +292,12 @@
           }
           const again = await readRemote();
           if (again.ok && again.stamp === meta.stamp && again.notes === body) {
-            return applyCommitResult(body, { ok: true, rev: again.rev, stamp: again.stamp });
+            return applyCommitResult(body, request, { ok: true, rev: again.rev, stamp: again.stamp });
           }
           inflight = '';
           if (!again.ok) return { ok: false, error: true };
           if (again.notes !== body) {
-            return applyCommitResult(body, {
+            return applyCommitResult(body, request, {
               ok: false,
               conflict: true,
               remoteText: again.notes,
@@ -288,6 +311,14 @@
           return { ok: false, error: err };
         }
       });
+    }
+
+    function considerAck(result) {
+      const ack = result && typeof result === 'object' ? result : {};
+      const ackStamp = typeof ack.stamp === 'string' ? ack.stamp : (typeof ack.requestId === 'string' ? ack.requestId : '');
+      if (!inflight || !ackStamp || ackStamp !== inflight) return { ok: false, ignored: true };
+      const body = typeof ack.notes === 'string' ? ack.notes : text;
+      return applyCommitResult(body, { stamp: inflight }, ack);
     }
 
     function acceptRemote() {
@@ -308,6 +339,7 @@
       absorbBoot: absorbBoot,
       handleRemote: handleRemote,
       commit: commit,
+      considerAck: considerAck,
       acceptRemote: acceptRemote,
       hasConflict: function () { return !!conflict; },
       peekForce: function () { return reviewed != null; },
@@ -324,6 +356,14 @@
       },
       readRemote: readRemote,
     };
+  }
+
+  function shouldMarkNoteSaved(outcome, snap) {
+    if (!outcome || outcome.ok !== true) return false;
+    if (outcome.applied === false || outcome.stale === true || outcome.ignored === true || outcome.current === false) return false;
+    if (!snap || snap.conflict || snap.dirty) return false;
+    if (snap.text !== snap.acked) return false;
+    return true;
   }
 
   function createNoteCoordinator(storage) {
@@ -418,6 +458,7 @@
     createImeGuard: createImeGuard,
     createNoteKeeper: createNoteKeeper,
     createNoteCoordinator: createNoteCoordinator,
+    shouldMarkNoteSaved: shouldMarkNoteSaved,
   };
   root.SopifyNoteSync = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

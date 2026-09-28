@@ -33,6 +33,8 @@ run() {
 }
 
 run host/test-r1-r7.js
+run host/test-r3-collection.js
+run host/test-r2-note-ack.js
 run host/test-w11-resume.js
 run host/test-w12-workset.js
 run host/test-w4-theme.js

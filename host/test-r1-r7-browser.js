@@ -179,6 +179,15 @@ function stubSource(seed) {
         onMessage: { addListener() {} },
         sendMessage(msg, cb) {
           const done = (res) => { if (typeof cb === 'function') cb(res); };
+          if (msg && msg.type === 'sopify-collection-commit') {
+            const run = window.__sopifyCollectionCommit;
+            if (typeof run !== 'function') {
+              done({ ok: false, error: true });
+              return;
+            }
+            Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+            return;
+          }
           if (!msg || msg.type !== 'sopify-note-commit') {
             done({ ok: true });
             return;
@@ -1206,6 +1215,22 @@ async function main() {
         真扩展: '未测',
         IME: '未测',
         未测: '版本被改掉后再确认只在静态单测。真扩展 / Host / 真中文 IME',
+      },
+      {
+        item: 'P1 待办／常用站／窗口按意图合并，双成功不丢新增',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '真双页扩展 / 真扩展 / Host / 真中文 IME。交叉新增只在静态协调器里断言存储',
+      },
+      {
+        item: 'P2 旧便签回执不压掉较新冲突',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '真双页扩展 / 3D 便签 / 真扩展 / Host / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
       },
       {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',

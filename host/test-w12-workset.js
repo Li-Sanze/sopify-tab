@@ -8,7 +8,7 @@ const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
-  'worksets', 'spaceView',
+  'worksets', 'worksetsRev', 'todosRev', 'sitesRev', 'spaceView',
 ];
 
 function read(name) {
@@ -18,6 +18,7 @@ function read(name) {
 const html = read('newtab.html');
 const css = read('newtab.css');
 const js = read('newtab.js');
+const collection = read('collection-sync.js');
 const manifest = JSON.parse(read('manifest.json'));
 const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
 const desk = html.slice(html.indexOf('id="resume"'), html.indexOf('id="tabs-h"'));
@@ -48,7 +49,9 @@ assert.ok(js.includes('function proposeSaveWorkset'));
 assert.ok(js.includes('function overwriteOldestWorkset'));
 assert.ok(js.includes('function planRestore'));
 assert.ok(js.includes('async function persistWorksets'));
-assert.ok(js.includes("chrome.storage.local.set({ worksets })"), 'only worksets key is written');
+assert.ok(collection.includes('createCollectionCoordinator'));
+assert.ok(js.includes("domain: 'worksets'"));
+assert.ok(!/storage\.local\.set\(\s*\{\s*worksets\s*,\s*(sites|todos|notes)/.test(collection), 'workset writes stay on the workset domain');
 assert.ok(js.includes('chrome.tabs.create'));
 assert.ok(js.includes('chrome.tabs.update'));
 assert.ok(!/chrome\.windows\.create/.test(js), 'restore stays in the current window');

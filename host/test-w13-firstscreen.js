@@ -307,6 +307,15 @@ function stubSource(seed) {
         onMessage: { addListener() {} },
         sendMessage(msg, cb) {
           const done = (res) => { if (typeof cb === 'function') cb(res); };
+          if (msg && msg.type === 'sopify-collection-commit') {
+            const run = window.__sopifyCollectionCommit;
+            if (typeof run !== 'function') {
+              done({ ok: false, error: true });
+              return;
+            }
+            Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+            return;
+          }
           if (!msg || msg.type !== 'sopify-note-commit') {
             done({ ok: true });
             return;
