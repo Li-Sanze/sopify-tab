@@ -39,7 +39,7 @@ assert.ok(start !== -1 && end > start);
 const helpers = new Function(
   'const WORKSET_TAB_CAP = 50; const WORKSET_TITLE_MAX = 200; ' +
   js.slice(start, end) +
-  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, domainWriteAllowed, refuseUnreadWrite, confirmDeskWrite, beginRestore, noteDraftIsDirty, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
+  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, domainWriteAllowed, refuseUnreadWrite, shouldApplyLoad, confirmDeskWrite, beginRestore, noteDraftIsDirty, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
 )();
 
 const tabs = [
@@ -160,19 +160,26 @@ const loaded = await helpers.readDeskStorage(async () => ({
   notesRev: 2,
   notesStamp: 'old',
 }));
+assert.strictEqual(loaded.ok, true);
 assert.strictEqual(loaded.loadError, false);
 assert.strictEqual(loaded.notes, '原便签');
 assert.strictEqual(loaded.notesRev, 2);
 const failedRead = await helpers.readDeskStorage(async () => { throw new Error('disk'); });
+assert.strictEqual(failedRead.ok, false);
 assert.strictEqual(failedRead.loadError, true);
-assert.deepStrictEqual(failedRead.sites, []);
-assert.strictEqual(failedRead.notes, '');
+assert.strictEqual(failedRead.sites, undefined);
+assert.strictEqual(failedRead.todos, undefined);
+assert.strictEqual(failedRead.notes, undefined);
 assert.ok(braceBlock(js, 'async function loadDesk(').includes('readDeskStorage'));
-assert.ok(braceBlock(js, 'async function loadWorksets(').includes('catch'));
-assert.ok(braceBlock(js, 'async function loadCwd(').includes('catch'));
-assert.ok(braceBlock(js, 'async function loadUpstream(').includes('catch'));
-assert.ok(html.includes('id="desk-load-error"') && html.includes('再试一次'));
-assert.ok(js.includes('showDeskLoadError'));
+assert.ok(braceBlock(js, 'async function loadWorksets(').includes('return null'));
+assert.ok(!braceBlock(js, 'async function loadCwd(').includes('deskLoadBroken'));
+assert.ok(!braceBlock(js, 'async function loadUpstream(').includes('deskLoadBroken'));
+assert.ok(!braceBlock(js, 'async function boot()').includes('saveUpstream'));
+assert.ok(html.includes('id="todo-load-error"') && html.includes('待办暂时没能读取') && html.includes('>重试<'));
+assert.ok(html.includes('id="workset-load-error"') && html.includes('存下的窗口暂时没能读取'));
+assert.strictEqual(helpers.shouldApplyLoad(1, 2), false);
+assert.strictEqual(helpers.shouldApplyLoad(2, 2), true);
+assert.ok(js.includes('shouldApplyLoad'));
 
 const pump = braceBlock(js, 'function pumpNoteSave()');
 assert.ok(pump.includes('saveDesk({ notes: state.notes })'));
@@ -181,9 +188,12 @@ assert.ok(pump.includes("setNotesSavedStatus('没存上')"));
 const saveBody = braceBlock(js, 'async function saveDesk(');
 assert.ok(saveBody.includes('skipped: true'));
 assert.ok(saveBody.includes('notesRev'));
-assert.ok(html.includes('id="note-conflict"') && html.includes('用那边的') && html.includes('仍保存这边'));
+assert.ok(html.includes('id="note-conflict"') && html.includes('使用另一页内容') && html.includes('保存我的内容'));
+assert.ok(html.includes('id="note-show-conflict"') && html.includes('查看更新'));
+assert.ok(html.includes('id="note-dismiss-conflict"') && html.includes('先不选'));
+assert.ok(html.includes('我的输入') && html.includes('另一页内容'));
+assert.ok(html.includes('另一页又有更新，请重新确认。'));
 assert.ok(html.includes('id="note-local-preview"') && html.includes('id="note-remote-preview"'));
-assert.ok(html.includes('>这边<') && html.includes('>另一页<'));
 const both = helpers.noteConflictView('这边还在写', '另一页已经改好');
 assert.strictEqual(both.local, '这边还在写');
 assert.strictEqual(both.remote, '另一页已经改好');
@@ -314,7 +324,7 @@ function page(storage, id, coordinator) {
 
 async function settleStatus(box, result) {
   if (result && result.ok) box.status = '已存在本机';
-  else if (result && result.conflict) box.status = box.status || '另一页改过，没覆盖';
+  else if (result && result.conflict) box.status = box.status || '便签在另一页更新了';
   else box.status = '没存上';
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -471,7 +481,7 @@ assert.strictEqual(editing.keeper.snapshot().text, 'still typing');
 assert.ok(editing.keeper.snapshot().conflict, 'in-progress edit is not overwritten');
 assert.strictEqual(editing.keeper.snapshot().conflict.remoteText, 'remote saved');
 assert.notStrictEqual(editing.keeper.snapshot().text, editing.keeper.snapshot().conflict.remoteText);
-assert.strictEqual(editing.box.status, '另一页改过，没覆盖');
+assert.strictEqual(editing.box.status, '便签在另一页更新了');
 assert.strictEqual(pageA.keeper.snapshot().conflict, null, 'own save echo does not open a conflict');
 
 assert.deepStrictEqual(helpers.confirmDeskWrite({ ok: true }, { ok: true }), { ok: true });
@@ -612,6 +622,126 @@ assert.strictEqual(blockedAdd.stored[0].text, '原来的待办');
 assert.ok(!blockedAdd.stored.some((t) => t.text === '不该盖掉'));
 assert.ok(braceBlock(js, 'async function commitTodoFromDialog').includes('await replaceTodos'));
 assert.ok(html.includes('id="todo-save-error"') && html.includes('id="site-save-error"') && html.includes('id="workset-save-error"'));
+
+const keptTodos = [{ id: 'old', text: '必须保留的原待办', done: false }];
+const todoDisk = { todos: keptTodos.map((t) => ({ ...t })), sites: [{ name: '旧站', url: 'https://old.example' }], worksets: [{ id: 'w', name: '上午' }] };
+let todoWrites = 0;
+async function tryDeskWrite(key, next) {
+  const refused = helpers.refuseUnreadWrite({ [key]: true }, key);
+  if (refused) return refused;
+  todoWrites += 1;
+  todoDisk[key] = next;
+  return { ok: true };
+}
+const added = await tryDeskWrite('todos', todoDisk.todos.concat([{ id: 'new', text: '读取失败后新增', done: false }]));
+assert.strictEqual(added.blocked, true);
+assert.strictEqual(todoWrites, 0);
+assert.deepStrictEqual(todoDisk.todos, keptTodos);
+const removed = await tryDeskWrite('todos', []);
+assert.strictEqual(removed.blocked, true);
+assert.deepStrictEqual(todoDisk.todos, keptTodos);
+const siteWrite = await tryDeskWrite('sites', []);
+assert.strictEqual(siteWrite.blocked, true);
+assert.strictEqual(todoDisk.sites.length, 1);
+const setWrite = await tryDeskWrite('worksets', []);
+assert.strictEqual(setWrite.blocked, true);
+assert.strictEqual(todoDisk.worksets.length, 1);
+
+const raceStore = { notes: 'base', notesRev: 0, notesStamp: 'seed' };
+const raceStorage = { get: async () => structuredClone(raceStore) };
+const raceA = noteSync.createNoteKeeper({ pageId: 'A', storage: raceStorage });
+const raceB = noteSync.createNoteKeeper({ pageId: 'B', storage: raceStorage });
+raceA.absorbBoot(raceStore);
+raceB.absorbBoot(raceStore);
+const sanzeA = 'A 新内容';
+const sanzeB = 'B 新内容';
+raceA.remember(sanzeA);
+raceB.remember(sanzeB);
+function raceSave(text, meta) {
+  Object.assign(raceStore, { notes: text, notesRev: meta.rev, notesStamp: meta.stamp });
+  raceA.handleRemote(structuredClone(raceStore));
+  raceB.handleRemote(structuredClone(raceStore));
+  return Promise.resolve({ ok: true });
+}
+let releaseRace;
+const aAck = new Promise((resolve) => { releaseRace = resolve; });
+const raceResults = await Promise.all([
+  raceA.commit(sanzeA, raceSave).then((result) => { releaseRace(); return result; }),
+  raceB.commit(sanzeB, async (text, meta) => { await aAck; return raceSave(text, meta); }),
+]);
+assert.strictEqual(raceResults[0].ok, true);
+assert.strictEqual(raceResults[1].ok, false);
+assert.strictEqual(raceResults[1].conflict, true);
+assert.strictEqual(raceStore.notes, sanzeA);
+assert.notStrictEqual(raceStore.notes, sanzeB);
+assert.strictEqual(raceA.snapshot().text, sanzeA);
+assert.strictEqual(raceA.snapshot().conflict, null);
+assert.strictEqual(raceB.snapshot().text, sanzeB);
+assert.ok(raceB.snapshot().conflict);
+assert.strictEqual(raceB.snapshot().conflict.remoteText, sanzeA);
+
+const typingStore = createSharedStorage({ notes: 'base', notesRev: 0, notesStamp: 'seed' });
+const typing = page(typingStore, 'type');
+let releaseSave;
+const saveGate = new Promise((resolve) => { releaseSave = resolve; });
+typing.keeper.remember('A1');
+const typingPromise = typing.keeper.commit('A1', async (text, meta) => {
+  await saveGate;
+  await typingStore.set({ notes: text, notesRev: meta.rev, notesStamp: meta.stamp });
+  return { ok: true };
+});
+typing.keeper.remember('A2');
+releaseSave();
+const typed = await typingPromise;
+assert.strictEqual(typed.ok, true);
+assert.strictEqual(typing.keeper.snapshot().text, 'A2');
+assert.strictEqual(typing.keeper.snapshot().acked, 'A1');
+assert.notStrictEqual(typing.keeper.snapshot().text, typingStore.store.notes);
+
+const sharedPrefix = '相同的开头'.repeat(16);
+const fullA = sharedPrefix + '这边后文不同';
+const fullB = sharedPrefix + '另一页后文不同';
+const longDiff = helpers.noteConflictView(fullA, fullB);
+assert.strictEqual(longDiff.localFull, fullA);
+assert.strictEqual(longDiff.remoteFull, fullB);
+assert.notStrictEqual(longDiff.localFull, longDiff.remoteFull);
+assert.ok(longDiff.localLong && longDiff.remoteLong);
+
+let restartWrites = 0;
+const restartStore = createSharedStorage({ notes: 'base', notesRev: 0, notesStamp: 'seed' });
+const wrapped = {
+  get: (defaults) => restartStore.get(defaults),
+  set: async (partial) => { restartWrites += 1; return restartStore.set(partial); },
+};
+const firstCoord = noteSync.createNoteCoordinator(wrapped);
+const req = {
+  text: '落地了',
+  baselineNotes: 'base',
+  baselineRev: 0,
+  baselineStamp: 'seed',
+  stamp: 'req-same',
+};
+const firstWrite = await firstCoord.commit(req);
+assert.strictEqual(firstWrite.ok, true);
+assert.strictEqual(restartWrites, 1);
+const restarted = noteSync.createNoteCoordinator(wrapped);
+const replay = await restarted.commit(req);
+assert.strictEqual(replay.ok, true);
+assert.strictEqual(replay.idempotent, true);
+assert.strictEqual(restartWrites, 1);
+assert.strictEqual(restartStore.store.notes, '落地了');
+
+let fallbackSaves = 0;
+const failedKeeper = noteSync.createNoteKeeper({
+  pageId: 'down',
+  storage: restartStore,
+  coordinator: { commit: async () => { throw new Error('worker gone'); } },
+});
+failedKeeper.absorbBoot({ notes: 'base', notesRev: 0, notesStamp: 'seed' });
+failedKeeper.remember('别直接写');
+const failedSend = await failedKeeper.commit('别直接写', async () => { fallbackSaves += 1; return { ok: true }; });
+assert.strictEqual(failedSend.ok, false);
+assert.strictEqual(fallbackSaves, 0);
 
 try {
   fs.mkdirSync(artifactDir, { recursive: true });

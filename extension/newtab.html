@@ -116,10 +116,6 @@
       <section class="view active studio-desk" data-view="desk" aria-labelledby="resume-kicker">
         <div class="stars-layer" aria-hidden="true"></div>
         <div class="studio-screen">
-          <p class="desk-load-error" id="desk-load-error" hidden>
-            没读上来
-            <button type="button" id="desk-load-retry">再试一次</button>
-          </p>
           <section class="hero" aria-labelledby="resume-kicker">
             <p class="eyebrow">
               <span id="greet-word">你好</span><span class="sep" aria-hidden="true">·</span><span id="date-line"></span><span class="sep" aria-hidden="true">·</span><time id="clock-hm">00:00</time>
@@ -140,6 +136,10 @@
                 <label class="sr-only" for="todo-input">写下下一件事</label>
                 <input class="next-input" id="todo-input" placeholder="今天先做什么？" maxlength="80">
                 <p class="hint" id="todo-hint">写一句，按 <kbd>回车</kbd>，它就是下一件事</p>
+                <p class="desk-load-error" id="todo-load-error" role="alert" hidden>
+                  待办暂时没能读取
+                  <button type="button" id="todo-load-retry">重试</button>
+                </p>
                 <p class="desk-write-error" id="todo-save-error" role="alert" hidden></p>
                 <button type="button" class="fs-btn text done-history" id="todos-done-history" hidden>查看已完成 0 件</button>
               </form>
@@ -169,6 +169,10 @@
               </button>
               <div class="favs" id="last-favs" hidden aria-hidden="true"></div>
               <p class="col-sub" id="last-meta" hidden></p>
+              <p class="desk-load-error" id="workset-load-error" role="alert" hidden>
+                存下的窗口暂时没能读取
+                <button type="button" id="workset-load-retry">重试</button>
+              </p>
               <p class="desk-write-error" id="last-save-error" role="alert" hidden></p>
               <div class="col-actions" id="last-actions" hidden>
                 <button type="button" class="fs-btn secondary" id="workset-restore-recent">恢复这 0 个网页</button>
@@ -179,21 +183,24 @@
               <h2 class="col-h" id="note-h"><label for="notes">随手记</label></h2>
               <textarea class="note" id="notes" rows="4" maxlength="2000" placeholder="记点什么，自动存在本机"></textarea>
               <p class="col-sub note-status" id="notes-saved" aria-live="polite"></p>
+              <button type="button" class="fs-btn text" id="note-show-conflict" hidden>查看更新</button>
               <div class="note-conflict" id="note-conflict" hidden>
                 <div class="note-sides">
                   <div class="note-side">
-                    <span class="note-side-k">这边</span>
+                    <span class="note-side-k">我的输入</span>
                     <span class="note-side-body" id="note-local-preview"></span>
                     <button type="button" class="fs-btn text" id="note-local-expand" hidden>展开全文</button>
                   </div>
                   <div class="note-side">
-                    <span class="note-side-k">另一页</span>
+                    <span class="note-side-k">另一页内容</span>
                     <span class="note-side-body" id="note-remote-preview"></span>
                     <button type="button" class="fs-btn text" id="note-remote-expand" hidden>展开全文</button>
                   </div>
                 </div>
-                <button type="button" class="fs-btn text" id="note-use-remote">用那边的</button>
-                <button type="button" class="fs-btn text" id="note-keep-local">仍保存这边</button>
+                <p class="desk-write-error" id="note-conflict-again" hidden>另一页又有更新，请重新确认。</p>
+                <button type="button" class="fs-btn text" id="note-use-remote">使用另一页内容</button>
+                <button type="button" class="fs-btn text" id="note-keep-local">保存我的内容</button>
+                <button type="button" class="fs-btn text" id="note-dismiss-conflict">先不选</button>
               </div>
             </article>
           </section>

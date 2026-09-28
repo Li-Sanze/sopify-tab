@@ -466,16 +466,18 @@
     return label + '新开 ' + (s.opened || 0) + '，已有 ' + (s.skipped || 0) + '，没打开 ' + (s.failed || 0);
   }
 
+  function shouldApplyLoad(gen, latest) {
+    return gen === latest;
+  }
+
   async function readDeskStorage(getFn) {
-    const empty = {
-      sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: true,
-    };
     try {
       const data = await getFn({
         sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '',
       });
       const src = data && typeof data === 'object' ? data : {};
       return {
+        ok: true,
         sites: src.sites,
         todos: src.todos,
         notes: src.notes,
@@ -485,7 +487,7 @@
         loadError: false,
       };
     } catch {
-      return empty;
+      return { ok: false, loadError: true };
     }
   }
 
@@ -521,7 +523,7 @@
 
   async function loadDesk() {
     if (!hasStorage) {
-      return { sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: false };
+      return { ok: true, sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: false };
     }
     return readDeskStorage((defaults) => chrome.storage.local.get(defaults));
   }
@@ -568,7 +570,8 @@
   async function replaceTodos(next, errorId, message) {
     const saved = await commitDesk({ todos: next });
     if (!saved || saved.ok !== true) {
-      showWriteError(errorId, writeFailMessage(saved, message));
+      showWriteError(errorId, writeFailMessage(saved, '待办暂时没能读取', message));
+      if (saved && saved.blocked) showTodoLoadError();
       renderTodos();
       return false;
     }
@@ -607,11 +610,8 @@
     if (!hasStorage) return [];
     try {
       const data = await chrome.storage.local.get({ worksets: [] });
-      domainUnread.worksets = false;
       return normalizeWorksets(data.worksets);
     } catch {
-      deskLoadBroken = true;
-      domainUnread.worksets = true;
       return null;
     }
   }
@@ -643,8 +643,7 @@
       const data = await chrome.storage.local.get({ cwd: '' });
       return typeof data.cwd === 'string' ? data.cwd : '';
     } catch {
-      deskLoadBroken = true;
-      return '';
+      return null;
     }
   }
 
@@ -663,8 +662,7 @@
       const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
       return normalizeUpstream(data.hostUpstream);
     } catch {
-      deskLoadBroken = true;
-      return 'cursor';
+      return null;
     }
   }
 
@@ -712,6 +710,15 @@
   }
 
   function renderSites() {
+    if (domainUnread.sites) {
+      $('#sites').innerHTML = '';
+      const more = $('#sites-more');
+      if (more) more.hidden = true;
+      const all = $('#sites-all');
+      if (all) all.innerHTML = '';
+      $('#c-sites').textContent = '0';
+      return;
+    }
     const home = state.sites.slice(0, 8);
     $('#sites').innerHTML = siteTilesHtml(home);
     const more = $('#sites-more');
@@ -744,6 +751,11 @@
 
   function renderTodos() {
     const ul = $('#todos');
+    if (domainUnread.todos) {
+      if (ul) ul.innerHTML = '';
+      renderResume();
+      return;
+    }
     ul.innerHTML = state.todos.length ? state.todos.map((t) => `
       <li class="todo ${t.done ? 'done' : ''}">
         <label>
@@ -785,6 +797,21 @@
     const title = $('#resume-title');
     const act = $('#resume-act');
     if (!root || !title || !act) return;
+    if (domainUnread.todos) {
+      root.dataset.has = 'unread';
+      root.classList.add('is-empty');
+      title.textContent = '';
+      title.removeAttribute('title');
+      delete title.dataset.size;
+      act.dataset.kind = 'unread';
+      delete act.dataset.todoId;
+      const hint = $('#todo-hint');
+      if (hint) hint.hidden = true;
+      showTodoLoadError();
+      return;
+    }
+    const hintShown = $('#todo-hint');
+    if (hintShown) hintShown.hidden = false;
     const done = state.todos.filter((t) => t && t.done).length;
     const has = next.kind === 'todo';
     root.dataset.has = has ? '1' : '0';
@@ -885,6 +912,19 @@
     const actions = $('#last-actions');
     const restore = $('#workset-restore-recent');
     const all = $('#last-all');
+    if (domainUnread.worksets) {
+      if (empty) empty.hidden = true;
+      const nameBtn = $('#last-name');
+      if (nameBtn) nameBtn.hidden = true;
+      if (favs) favs.hidden = true;
+      if (meta) meta.hidden = true;
+      if (actions) actions.hidden = true;
+      if (restore) restore.hidden = true;
+      if (all) all.hidden = true;
+      showWorksetLoadError();
+      return;
+    }
+    hideWorksetLoadError();
     if (!ws) {
       const stray = $('#last-col') && $('#last-col').querySelector('.rename-input');
       if (stray) ensureLastNameButton();
@@ -981,7 +1021,8 @@
       persistWorksets(list).then((saved) => {
         if (!saved || saved.ok !== true) {
           done = false;
-          showWriteError('last-save-error', writeFailMessage(saved, '名字没存上，再按一次回车'));
+          showWriteError('last-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '名字没存上，再按一次回车'));
+          if (saved && saved.blocked) showWorksetLoadError();
           if (input.isConnected) input.focus();
           return;
         }
@@ -1471,7 +1512,8 @@
       }
       const overwritten = await persistWorksets(next.worksets);
       if (!overwritten || overwritten.ok !== true) {
-        showWriteError('workset-save-error', writeFailMessage(overwritten, '窗口没存上，再点一次保存'));
+        showWriteError('workset-save-error', writeFailMessage(overwritten, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
+        if (overwritten && overwritten.blocked) showWorksetLoadError();
         return;
       }
       hideWriteError('workset-save-error');
@@ -1481,7 +1523,8 @@
     }
     const savedWindow = await persistWorksets(proposal.worksets);
     if (!savedWindow || savedWindow.ok !== true) {
-      showWriteError('workset-save-error', writeFailMessage(savedWindow, '窗口没存上，再点一次保存'));
+      showWriteError('workset-save-error', writeFailMessage(savedWindow, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
+      if (savedWindow && savedWindow.blocked) showWorksetLoadError();
       return;
     }
     hideWriteError('workset-save-error');
@@ -1555,7 +1598,7 @@
     const current = (state.worksets || []).find((w) => w.id === id);
     const saved = await persistWorksets(removeWorksetById(state.worksets, id));
     if (!saved || saved.ok !== true) {
-      showWriteError('worksets-save-error', writeFailMessage(saved, '没删掉，再点一次'));
+      showWriteError('worksets-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '没删掉，再点一次'));
       return;
     }
     hideWriteError('worksets-save-error');
@@ -1568,7 +1611,7 @@
     if (!ok) return;
     const saved = await persistWorksets([]);
     if (!saved || saved.ok !== true) {
-      showWriteError('worksets-save-error', writeFailMessage(saved, '没清空，再点一次'));
+      showWriteError('worksets-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '没清空，再点一次'));
       return;
     }
     hideWriteError('worksets-save-error');
@@ -1656,9 +1699,9 @@
     const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
-    body.innerHTML = `
-      <ul class="todos" id="todos-dialog-list">
-        ${state.todos.length ? state.todos.map((t) => `
+    const todoRows = domainUnread.todos
+      ? '<li class="empty">待办暂时没能读取</li>'
+      : (state.todos.length ? state.todos.map((t) => `
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
               <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
@@ -1667,7 +1710,10 @@
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </li>`).join('') : '<li class="empty">还没有待办。</li>'}
+          </li>`).join('') : '<li class="empty">还没有待办。</li>');
+    body.innerHTML = `
+      <ul class="todos" id="todos-dialog-list">
+        ${todoRows}
       </ul>
       <div class="todoadd" id="todo-add-dialog">
         <label class="sr-only" for="todo-input-dialog">新待办</label>
@@ -1770,8 +1816,8 @@
       desk.classList.toggle('is-saved', text === '已存在本机');
     }
   }
-  function writeFailMessage(saved, fallback) {
-    if (saved && saved.blocked) return '还没读上来，先别改。点再试一次';
+  function writeFailMessage(saved, blockedText, fallback) {
+    if (saved && saved.blocked) return blockedText;
     return fallback;
   }
   function showWriteError(id, message) {
@@ -1798,6 +1844,14 @@
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
   }
+  function showConflictNotice(status) {
+    const openBtn = $('#note-show-conflict');
+    if (openBtn) openBtn.hidden = false;
+    const again = $('#note-conflict-again');
+    if (again) again.hidden = status !== '另一页又有更新，请重新确认。';
+    const box = $('#note-conflict');
+    if (box && !box.hidden) showNoteConflict(true);
+  }
   function showNoteConflict(on) {
     const box = $('#note-conflict');
     if (box) box.hidden = !on;
@@ -1813,17 +1867,34 @@
     const view = noteConflictView(local, remote);
     paintConflictSide('local', view.local, view.localFull, view.localLong);
     paintConflictSide('remote', view.remote, view.remoteFull, view.remoteLong);
+    const again = $('#note-conflict-again');
+    if (again) again.hidden = snap.status !== '另一页又有更新，请重新确认。';
   }
-  function showDeskLoadError() {
-    const el = $('#desk-load-error');
-    if (!el) return;
-    el.hidden = false;
+  function showTodoLoadError() {
+    const el = $('#todo-load-error');
+    if (el) el.hidden = false;
   }
-  function hideDeskLoadError() {
-    const el = $('#desk-load-error');
+  function hideTodoLoadError() {
+    const el = $('#todo-load-error');
     if (el) el.hidden = true;
   }
+  function showWorksetLoadError() {
+    const el = $('#workset-load-error');
+    if (el) el.hidden = false;
+  }
+  function hideWorksetLoadError() {
+    const el = $('#workset-load-error');
+    if (el) el.hidden = true;
+  }
+  function showDeskLoadError() {
+    showTodoLoadError();
+  }
+  function hideDeskLoadError() {
+    hideTodoLoadError();
+  }
+  let noteComposing = false;
   function noteFieldEditing() {
+    if (noteComposing) return true;
     if (noteSaveActive || notePending !== null) return true;
     const snap = noteKeeper.snapshot();
     const ta = $('#notes');
@@ -1868,14 +1939,18 @@
       coordinator: { commit: requestNoteCommit },
       isEditing: noteFieldEditing,
       onStatus(text) {
-        if (text === '另一页改过，没覆盖') {
+        if (text === '便签在另一页更新了' || text === '另一页又有更新，请重新确认。') {
           setNotesSavedStatus(text);
-          showNoteConflict(true);
+          showConflictNotice(text);
           return;
         }
         if (text === '') {
           const cur = $('#notes-saved');
-          if (cur && cur.textContent === '已存在本机') setNotesSavedStatus('');
+          if (cur && (cur.textContent === '已存在本机' || cur.textContent === '便签在另一页更新了' || cur.textContent === '另一页又有更新，请重新确认。')) {
+            setNotesSavedStatus('');
+          }
+          const openBtn = $('#note-show-conflict');
+          if (openBtn) openBtn.hidden = true;
           showNoteConflict(false);
         }
       },
@@ -1908,8 +1983,9 @@
       return;
     }
     if (outcome.action === 'conflict') {
-      setNotesSavedStatus('另一页改过，没覆盖');
-      showNoteConflict(true);
+      const status = outcome.status || '便签在另一页更新了';
+      setNotesSavedStatus(status);
+      showConflictNotice(status);
     }
   }
   function pumpNoteSave() {
@@ -1934,10 +2010,13 @@
             if (notePending !== null) continue;
             if (outcome && outcome.ok) {
               setNotesSavedStatus('已存在本机');
+              const openBtn = $('#note-show-conflict');
+              if (openBtn) openBtn.hidden = true;
               showNoteConflict(false);
             } else if (outcome && outcome.conflict) {
-              setNotesSavedStatus('另一页改过，没覆盖');
-              showNoteConflict(true);
+              const status = (noteKeeper.snapshot().status) || '便签在另一页更新了';
+              setNotesSavedStatus(status);
+              showConflictNotice(status);
             } else {
               setNotesSavedStatus('没存上');
             }
@@ -1955,12 +2034,13 @@
   function queueNoteSave() {
     noteKeeper.remember(state.notes);
     if (!domainWriteAllowed(domainUnread, 'notes')) {
-      setNotesSavedStatus('还没读上来，先别改。点再试一次');
+      setNotesSavedStatus('暂未保存');
       return;
     }
     if (noteKeeper.hasConflict() && !noteKeeper.peekForce()) {
-      setNotesSavedStatus('另一页改过，没覆盖');
-      showNoteConflict(true);
+      const status = noteKeeper.snapshot().status || '便签在另一页更新了';
+      setNotesSavedStatus(status);
+      showConflictNotice(status);
       return;
     }
     notePending = state.notes;
@@ -2017,7 +2097,7 @@
       state.name = e.target.value;
       tick();
       if (!domainWriteAllowed(domainUnread, 'name')) {
-        showWriteError('name-save-error', '还没读上来，先别改。点再试一次');
+        showWriteError('name-save-error', '称呼暂时没能读取');
         return;
       }
       hideWriteError('name-save-error');
@@ -2071,7 +2151,7 @@
       const saved = await commitDesk({ sites: next });
       siteAddBusy = false;
       if (!saved || saved.ok !== true) {
-        showWriteError('site-save-error', writeFailMessage(saved, '没加上，再点一次加入'));
+        showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没加上，再点一次加入'));
         return;
       }
       hideWriteError('site-save-error');
@@ -2094,8 +2174,8 @@
       const [removed] = next.splice(i, 1);
       const saved = await commitDesk({ sites: next });
       if (!saved || saved.ok !== true) {
-        showWriteError('sites-save-error', writeFailMessage(saved, '没去掉，再点一次'));
-        showWriteError('site-save-error', writeFailMessage(saved, '没去掉，再点一次'));
+        showWriteError('sites-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
+        showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
         return;
       }
       hideWriteError('sites-save-error');
@@ -2170,6 +2250,30 @@
       renderResume();
       queueNoteSave();
     });
+    const notesField = $('#notes');
+    if (notesField) {
+      notesField.addEventListener('compositionstart', () => { noteComposing = true; });
+      notesField.addEventListener('compositionend', () => { noteComposing = false; });
+    }
+    document.addEventListener('compositionstart', (e) => {
+      const id = e.target && e.target.id;
+      if (id === 'notes' || id === 'desk3d-note-editor') noteComposing = true;
+    });
+    document.addEventListener('compositionend', (e) => {
+      const id = e.target && e.target.id;
+      if (id === 'notes' || id === 'desk3d-note-editor') noteComposing = false;
+    });
+    const showConflictBtn = $('#note-show-conflict');
+    if (showConflictBtn) {
+      showConflictBtn.addEventListener('click', () => { showNoteConflict(true); });
+    }
+    const dismissConflict = $('#note-dismiss-conflict');
+    if (dismissConflict) {
+      dismissConflict.addEventListener('click', () => {
+        showNoteConflict(false);
+        setNotesSavedStatus('暂未保存');
+      });
+    }
     const useRemote = $('#note-use-remote');
     if (useRemote) {
       useRemote.addEventListener('click', () => {
@@ -2209,8 +2313,10 @@
         showNoteConflict(true);
       });
     }
-    const loadRetry = $('#desk-load-retry');
+    const loadRetry = $('#todo-load-retry');
     if (loadRetry) loadRetry.addEventListener('click', () => { retryDeskLoad(); });
+    const worksetLoadRetry = $('#workset-load-retry');
+    if (worksetLoadRetry) worksetLoadRetry.addEventListener('click', () => { retryDeskLoad(); });
 
     $('#resume-act').addEventListener('click', () => runResumeAction());
     const todosOpen = $('#todos-open');
@@ -2382,31 +2488,41 @@
     });
   }
 
+  let loadGen = 0;
   async function retryDeskLoad() {
+    const gen = ++loadGen;
     deskLoadBroken = false;
     let data;
-    try { data = await loadDesk(); } catch { data = { loadError: true }; }
-    if (!data || data.loadError) {
+    try { data = await loadDesk(); } catch { data = { ok: false, loadError: true }; }
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (!data || data.ok === false || data.loadError) {
       deskLoadBroken = true;
       markDeskUnread();
-      showDeskLoadError();
+      showTodoLoadError();
+      renderResume();
       return;
     }
     clearDeskUnread();
     applyDesk(data);
+    hideTodoLoadError();
     const loadedSets = await loadWorksets();
+    if (!shouldApplyLoad(gen, loadGen)) return;
     if (loadedSets == null) {
+      domainUnread.worksets = true;
       deskLoadBroken = true;
-      showDeskLoadError();
+      showWorksetLoadError();
+      renderSavedWorksets();
       return;
     }
+    domainUnread.worksets = false;
     state.worksets = loadedSets;
-    state.cwd = await loadCwd();
-    state.hostUpstream = await loadUpstream();
-    if (deskLoadBroken) {
-      showDeskLoadError();
-      return;
-    }
+    hideWorksetLoadError();
+    const cwd = await loadCwd();
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (cwd != null) state.cwd = cwd;
+    const upstream = await loadUpstream();
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (upstream != null) state.hostUpstream = upstream;
     hideDeskLoadError();
     ['todo-save-error', 'todo-dialog-save-error', 'site-save-error', 'sites-save-error', 'workset-save-error', 'last-save-error', 'worksets-save-error', 'name-save-error'].forEach(hideWriteError);
     const cwdEl = $('#cwd');
@@ -2419,9 +2535,12 @@
   }
 
   async function boot() {
+    const gen = ++loadGen;
     try {
       const data = await loadDesk();
-      if (!data || data.loadError) {
+      if (!shouldApplyLoad(gen, loadGen)) {
+        /* a newer retry owns the snapshot */
+      } else if (!data || data.ok === false || data.loadError) {
         deskLoadBroken = true;
         markDeskUnread();
       } else {
@@ -2429,13 +2548,24 @@
         applyDesk(data);
       }
       const loadedSets = await loadWorksets();
-      if (loadedSets == null) deskLoadBroken = true;
-      else state.worksets = loadedSets;
-      state.cwd = await loadCwd();
-      state.hostUpstream = await loadUpstream();
+      if (shouldApplyLoad(gen, loadGen)) {
+        if (loadedSets == null) {
+          domainUnread.worksets = true;
+          deskLoadBroken = true;
+        } else {
+          domainUnread.worksets = false;
+          state.worksets = loadedSets;
+        }
+      }
+      const cwd = await loadCwd();
+      if (shouldApplyLoad(gen, loadGen) && cwd != null) state.cwd = cwd;
+      const upstream = await loadUpstream();
+      if (shouldApplyLoad(gen, loadGen) && upstream != null) state.hostUpstream = upstream;
     } catch {
-      deskLoadBroken = true;
-      markDeskUnread();
+      if (shouldApplyLoad(gen, loadGen)) {
+        deskLoadBroken = true;
+        markDeskUnread();
+      }
     }
     const cwdEl = $('#cwd');
     if (cwdEl) cwdEl.value = state.cwd;
@@ -2446,7 +2576,8 @@
     renderUpstream();
     renderTheme();
     bind();
-    if (deskLoadBroken) showDeskLoadError();
+    if (domainUnread.todos) showTodoLoadError();
+    if (domainUnread.worksets) showWorksetLoadError();
     notifyDesk3d();
     tick();
     setInterval(tick, 1000);

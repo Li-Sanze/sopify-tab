@@ -38,6 +38,23 @@
     };
   }
 
+  let noteWriteChain = Promise.resolve();
+
+  function enqueueNoteWrite(task) {
+    const run = noteWriteChain.then(task, task);
+    noteWriteChain = run.then(function () { return null; }, function () { return null; });
+    return run;
+  }
+
+  function baselineStillCurrent(remote, baseline) {
+    if (!remote || remote.notes !== baseline.notes) return false;
+    if (remote.rev !== normalizeRev(baseline.rev)) return false;
+    const baseStamp = typeof baseline.stamp === 'string' ? baseline.stamp : '';
+    const remoteStamp = typeof remote.stamp === 'string' ? remote.stamp : '';
+    if (!baseStamp || !remoteStamp) return remote.notes === baseline.notes;
+    return remoteStamp === baseStamp;
+  }
+
   function createNoteKeeper(options) {
     const opts = options || {};
     let rev = 0;
@@ -138,8 +155,9 @@
         return { action: 'sync' };
       }
       if (isEditing()) {
+        const again = !!(conflict && conflict.remoteText !== remoteText);
         conflict = { remoteText: remoteText, remoteRev: remoteRev, remoteStamp: remoteStamp };
-        setStatus('另一页改过，没覆盖');
+        setStatus(again ? '另一页又有更新，请重新确认。' : '便签在另一页更新了');
         return { action: 'conflict', remoteText: remoteText, status: status };
       }
       text = remoteText;
@@ -165,7 +183,7 @@
         dirty = text !== acked;
         conflict = null;
         inflight = '';
-        return { ok: true };
+        return { ok: true, idempotent: !!(result && result.idempotent) };
       }
       inflight = '';
       if (result && result.conflict) {
@@ -174,7 +192,8 @@
           remoteRev: normalizeRev(result.remoteRev),
           remoteStamp: typeof result.remoteStamp === 'string' ? result.remoteStamp : '',
         };
-        setStatus('另一页改过，没覆盖');
+        const again = result.moved === true;
+        setStatus(again ? '另一页又有更新，请重新确认。' : '便签在另一页更新了');
         return { ok: false, conflict: true, remoteText: conflict.remoteText, remoteRev: conflict.remoteRev };
       }
       return { ok: false, skipped: !!(result && result.skipped), error: true };
@@ -184,75 +203,91 @@
       const useReviewed = reviewed;
       reviewed = null;
       const body = typeof payload === 'string' ? payload : '';
-      const nextStamp = makeStamp((useReviewed ? useReviewed.rev : rev) + 1);
+      const baseline = { notes: acked, rev: rev, stamp: stamp };
+      const nextStamp = makeStamp((useReviewed ? useReviewed.rev : baseline.rev) + 1);
       const request = {
         text: body,
-        baselineNotes: acked,
-        baselineRev: rev,
+        baselineNotes: baseline.notes,
+        baselineRev: baseline.rev,
+        baselineStamp: baseline.stamp,
         stamp: nextStamp,
       };
       if (useReviewed) {
         request.expectRev = useReviewed.rev;
         request.expectNotes = useReviewed.notes;
+        request.expectStamp = useReviewed.stamp;
       }
-      if (opts.coordinator && typeof opts.coordinator.commit === 'function') {
-        inflight = nextStamp;
+      inflight = nextStamp;
+      return enqueueNoteWrite(async function () {
         try {
-          return applyCommitResult(body, await opts.coordinator.commit(request));
+          if (opts.coordinator && typeof opts.coordinator.commit === 'function') {
+            return applyCommitResult(body, await opts.coordinator.commit(request));
+          }
+          const remote = await readRemote();
+          if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
+          if (remote.notes === body && remote.stamp && request.stamp && remote.stamp === request.stamp) {
+            return applyCommitResult(body, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
+          }
+          if (remote.notes === body && !useReviewed) {
+            return applyCommitResult(body, { ok: true, rev: remote.rev, stamp: remote.stamp, idempotent: true });
+          }
+          if (useReviewed) {
+            const same = remote.rev === useReviewed.rev
+              && remote.notes === useReviewed.notes
+              && (!useReviewed.stamp || !remote.stamp || remote.stamp === useReviewed.stamp);
+            if (!same) {
+              return applyCommitResult(body, {
+                ok: false,
+                conflict: true,
+                moved: true,
+                remoteText: remote.notes,
+                remoteRev: remote.rev,
+                remoteStamp: remote.stamp,
+              });
+            }
+          } else if (!baselineStillCurrent(remote, baseline)) {
+            return applyCommitResult(body, {
+              ok: false,
+              conflict: true,
+              remoteText: remote.notes,
+              remoteRev: remote.rev,
+              remoteStamp: remote.stamp,
+            });
+          }
+          const meta = { rev: remote.rev + 1, stamp: nextStamp };
+          inflight = meta.stamp;
+          let saved;
+          try {
+            saved = await saveFn(body, meta);
+          } catch (err) {
+            inflight = '';
+            return { ok: false, error: err };
+          }
+          if (!saved || saved.ok === false) {
+            inflight = '';
+            return { ok: false, skipped: !!(saved && saved.skipped) };
+          }
+          const again = await readRemote();
+          if (again.ok && again.stamp === meta.stamp && again.notes === body) {
+            return applyCommitResult(body, { ok: true, rev: again.rev, stamp: again.stamp });
+          }
+          inflight = '';
+          if (!again.ok) return { ok: false, error: true };
+          if (again.notes !== body) {
+            return applyCommitResult(body, {
+              ok: false,
+              conflict: true,
+              remoteText: again.notes,
+              remoteRev: again.rev,
+              remoteStamp: again.stamp,
+            });
+          }
+          return { ok: false, error: true };
         } catch (err) {
           inflight = '';
           return { ok: false, error: err };
         }
-      }
-      const remote = await readRemote();
-      if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
-      if (useReviewed) {
-        if (remote.rev !== useReviewed.rev || remote.notes !== useReviewed.notes) {
-          conflict = { remoteText: remote.notes, remoteRev: remote.rev, remoteStamp: remote.stamp };
-          setStatus('另一页改过，没覆盖');
-          return { ok: false, conflict: true, remoteText: remote.notes, remoteRev: remote.rev };
-        }
-      } else {
-        const diverged = remote.rev !== rev && remote.notes !== acked;
-        if (diverged) {
-          conflict = { remoteText: remote.notes, remoteRev: remote.rev, remoteStamp: remote.stamp };
-          setStatus('另一页改过，没覆盖');
-          return { ok: false, conflict: true, remoteText: remote.notes, remoteRev: remote.rev };
-        }
-        if (remote.rev !== rev && remote.notes === acked) {
-          rev = remote.rev;
-          stamp = remote.stamp;
-        }
-      }
-      const meta = { rev: remote.rev + 1, stamp: nextStamp };
-      inflight = meta.stamp;
-      let saved;
-      try {
-        saved = await saveFn(body, meta);
-      } catch (err) {
-        inflight = '';
-        return { ok: false, error: err };
-      }
-      if (!saved || saved.ok === false) {
-        inflight = '';
-        return { ok: false, skipped: !!(saved && saved.skipped) };
-      }
-      const again = await readRemote();
-      if (again.ok && again.stamp === meta.stamp && again.notes === body) {
-        return applyCommitResult(body, { ok: true, rev: again.rev, stamp: again.stamp });
-      }
-      inflight = '';
-      if (!again.ok) return { ok: false, error: true };
-      if (again.notes !== body && again.stamp && again.stamp !== meta.stamp) {
-        return applyCommitResult(body, {
-          ok: false,
-          conflict: true,
-          remoteText: again.notes,
-          remoteRev: again.rev,
-          remoteStamp: again.stamp,
-        });
-      }
-      return { ok: false, error: true };
+      });
     }
 
     function acceptRemote() {
@@ -312,10 +347,11 @@
         .catch(function (err) { return { ok: false, error: err }; });
     }
 
-    function conflictResult(remote) {
+    function conflictResult(remote, moved) {
       return {
         ok: false,
         conflict: true,
+        moved: moved === true,
         remoteText: remote.notes,
         remoteRev: remote.rev,
         remoteStamp: remote.stamp,
@@ -325,22 +361,32 @@
     function commitLocked(request) {
       const req = request || {};
       const body = typeof req.text === 'string' ? req.text : '';
-      const baseline = typeof req.baselineNotes === 'string' ? req.baselineNotes : '';
+      const baseline = {
+        notes: typeof req.baselineNotes === 'string' ? req.baselineNotes : '',
+        rev: req.baselineRev,
+        stamp: typeof req.baselineStamp === 'string' ? req.baselineStamp : '',
+      };
       const hasExpect = typeof req.expectNotes === 'string' && req.expectRev != null;
       return read().then(function (remote) {
         if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
+        const stamp = typeof req.stamp === 'string' && req.stamp
+          ? req.stamp
+          : ('q:' + (remote.rev + 1) + ':' + Date.now().toString(36));
+        if (remote.stamp && remote.stamp === stamp && remote.notes === body) {
+          return { ok: true, rev: remote.rev, stamp: remote.stamp, notes: body, idempotent: true };
+        }
         if (hasExpect) {
-          if (remote.rev !== normalizeRev(req.expectRev) || remote.notes !== req.expectNotes) {
-            return conflictResult(remote);
-          }
-        } else if (remote.notes !== baseline) {
+          const same = remote.rev === normalizeRev(req.expectRev)
+            && remote.notes === req.expectNotes
+            && (!req.expectStamp || !remote.stamp || remote.stamp === req.expectStamp);
+          if (!same) return conflictResult(remote, true);
+        } else if (remote.notes === body) {
+          return { ok: true, rev: remote.rev, stamp: remote.stamp, notes: body, idempotent: true };
+        } else if (!baselineStillCurrent(remote, baseline)) {
           return conflictResult(remote);
         }
         if (!storage || typeof storage.set !== 'function') return { ok: false, skipped: true };
         const nextRev = remote.rev + 1;
-        const stamp = typeof req.stamp === 'string' && req.stamp
-          ? req.stamp
-          : ('q:' + nextRev + ':' + Date.now().toString(36));
         return Promise.resolve()
           .then(function () {
             return storage.set({ notes: body, notesRev: nextRev, notesStamp: stamp });

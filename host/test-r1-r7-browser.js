@@ -86,7 +86,7 @@ function stubSource(seed) {
       worksets: seed.worksets || [],
       spaceView: false,
       cwd: '',
-      hostUpstream: 'cursor',
+      hostUpstream: seed.hostUpstream || 'cursor',
       themePreset: seed.theme || 'day',
     };
     let noteWrites = 0;
@@ -129,6 +129,12 @@ function stubSource(seed) {
               readsLeft -= 1;
               return Promise.reject(new Error('storage read failed'));
             }
+            if (seed.failWorksetReads && defaults && Object.prototype.hasOwnProperty.call(defaults, 'worksets') && !deskRead) {
+              return Promise.reject(new Error('worksets read failed'));
+            }
+            if (seed.failUpstream && defaults && Object.prototype.hasOwnProperty.call(defaults, 'hostUpstream')) {
+              return Promise.reject(new Error('upstream read failed'));
+            }
             const out = {};
             const src = defaults && typeof defaults === 'object' ? defaults : {};
             Object.keys(src).forEach((k) => {
@@ -156,6 +162,9 @@ function stubSource(seed) {
                   return;
                 }
                 if (partial && Object.prototype.hasOwnProperty.call(partial, 'notes')) noteWrites += 1;
+                if (partial && Object.prototype.hasOwnProperty.call(partial, 'hostUpstream')) {
+                  window.__sopifyUpstreamWrites = (window.__sopifyUpstreamWrites || 0) + 1;
+                }
                 deliver(partial || {});
                 resolve();
               };
@@ -424,7 +433,7 @@ async function main() {
           openText: open ? open.textContent : '',
           has: document.getElementById('resume').dataset.has,
           title: (document.getElementById('resume-title') || {}).textContent || '',
-          loadError: document.getElementById('desk-load-error') ? !document.getElementById('desk-load-error').hidden : null,
+          loadError: document.getElementById('todo-load-error') ? !document.getElementById('todo-load-error').hidden : null,
           text: document.body.innerText.slice(0, 80),
         };
       })()`);
@@ -555,7 +564,7 @@ async function main() {
         hidden: box.hidden,
       };
     })()`);
-    check('focused clean note applies the other page', focusedClean.value === '那边改的' && focusedClean.hidden === true && focusedClean.status !== '另一页改过，没覆盖', JSON.stringify(focusedClean));
+    check('focused clean note applies the other page', focusedClean.value === '那边改的' && focusedClean.hidden === true && focusedClean.status !== '便签在另一页更新了', JSON.stringify(focusedClean));
 
     await loadSeed(1440, 900, { todos: [], sites: [], notes: '这边', notesRev: 1, notesStamp: 'seed' }, 'day');
     const conflict = await evalJson(`(() => {
@@ -564,16 +573,20 @@ async function main() {
       ta.value = '这边草稿';
       ta.dispatchEvent(new Event('input', { bubbles: true }));
       window.__pushNotes('那边改的', 2, 'other:2:x');
+      document.getElementById('note-show-conflict').click();
       const box = document.getElementById('note-conflict');
       return {
         value: ta.value,
         status: document.getElementById('notes-saved').textContent,
+        notice: document.getElementById('note-show-conflict').textContent,
         buttons: !box.hidden,
         local: document.getElementById('note-local-preview').textContent,
         remote: document.getElementById('note-remote-preview').textContent,
+        useRemote: document.getElementById('note-use-remote').textContent,
+        keepLocal: document.getElementById('note-keep-local').textContent,
       };
     })()`);
-    check('dirty note keeps the local draft', conflict.value === '这边草稿' && conflict.status === '另一页改过，没覆盖' && conflict.buttons, JSON.stringify(conflict));
+    check('dirty note keeps the local draft', conflict.value === '这边草稿' && conflict.status === '便签在另一页更新了' && conflict.buttons && conflict.notice === '查看更新' && conflict.useRemote === '使用另一页内容' && conflict.keepLocal === '保存我的内容', JSON.stringify(conflict));
     check('conflict shows both drafts before a choice', conflict.local === '这边草稿' && conflict.remote === '那边改的' && conflict.local !== conflict.remote, JSON.stringify(conflict));
     const expanded = await evalJson(`(() => {
       const ta = document.getElementById('notes');
@@ -581,6 +594,7 @@ async function main() {
       ta.value = long;
       ta.dispatchEvent(new Event('input', { bubbles: true }));
       window.__pushNotes('页'.repeat(90), 9, 'other:9:long');
+      document.getElementById('note-show-conflict').click();
       const btn = document.getElementById('note-remote-expand');
       const before = document.getElementById('note-remote-preview').textContent;
       btn.click();
@@ -627,11 +641,174 @@ async function main() {
         toast: toast.textContent,
       };
     })()`);
-    check('read failure blocks the add and keeps the original todos', blockedAdd.todos.length === 1 && blockedAdd.todos[0] === '读回来了' && !blockedAdd.todos.includes('不该盖掉待办') && blockedAdd.todoValue === '不该盖掉待办' && blockedAdd.hidden === false && blockedAdd.error.includes('还没读上来') && blockedAdd.notes === '原便签' && blockedAdd.noteStatus.includes('还没读上来') && blockedAdd.sites === 1 && !(blockedAdd.toastOn && /已加入|已存下|已存在/.test(blockedAdd.toast)), JSON.stringify(blockedAdd));
-    await evalJson(`document.getElementById('desk-load-retry').click()`);
+    check('read failure blocks the add and keeps the original todos', blockedAdd.todos.length === 1 && blockedAdd.todos[0] === '读回来了' && blockedAdd.todos[0] !== '不该盖掉待办' && blockedAdd.todoValue === '不该盖掉待办' && blockedAdd.hidden === false && blockedAdd.error.includes('待办暂时没能读取') && blockedAdd.notes === '原便签' && blockedAdd.noteStatus === '暂未保存' && blockedAdd.sites === 1 && !(blockedAdd.toastOn && /已加入|已存下|已存在/.test(blockedAdd.toast)), JSON.stringify(blockedAdd));
+    const dialogBlocked = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      const list = document.getElementById('todos-dialog-list');
+      const input = document.getElementById('todo-input-dialog');
+      input.value = '弹窗不该写入';
+      document.getElementById('todo-add-btn').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const stored = window.__sopifyStore.todos.map((t) => ({ id: t.id, text: t.text, done: t.done }));
+      document.getElementById('ops-todos-dialog').close();
+      return {
+        list: list ? list.innerText : '',
+        value: input.value,
+        stored,
+      };
+    })()`);
+    check('dialog add during read failure does not write', dialogBlocked.stored.length === 1 && dialogBlocked.stored[0].id === 'later' && dialogBlocked.stored[0].text === '读回来了' && dialogBlocked.stored[0].done === false && dialogBlocked.value === '弹窗不该写入' && dialogBlocked.list.includes('待办暂时没能读取') && !dialogBlocked.list.includes('还没有待办'), JSON.stringify(dialogBlocked));
+    const siteBlocked = await evalJson(`(async () => {
+      document.getElementById('site-add-toggle').click();
+      document.getElementById('site-name').value = '不该盖掉的站';
+      document.getElementById('site-url').value = 'https://overwrite.example';
+      document.getElementById('site-form').requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('site-save-error');
+      const stored = window.__sopifyStore.sites.map((s) => ({ name: s.name, url: s.url }));
+      const dialog = document.getElementById('ops-sites-dialog');
+      if (dialog && dialog.open) dialog.close();
+      return {
+        error: err ? err.textContent : '',
+        hidden: err ? err.hidden : true,
+        stored,
+        emptyCopy: (document.getElementById('sites') || {}).innerText || '',
+      };
+    })()`);
+    check('site add during read failure does not overwrite sites', siteBlocked.hidden === false && siteBlocked.error.includes('常用站暂时没能读取') && siteBlocked.stored.length === 1 && siteBlocked.stored[0].name === '站1' && siteBlocked.stored[0].url === 'https://example.com/1' && !siteBlocked.emptyCopy.includes('还没有常用站'), JSON.stringify(siteBlocked));
+    const otherPage = await evalJson(`(() => {
+      window.__sopifyStore.todos = window.__sopifyStore.todos.concat([{ id: 'other', text: '另一页加上的', done: false }]);
+      return window.__sopifyStore.todos.map((t) => ({ id: t.id, text: t.text, done: t.done }));
+    })()`);
+    check('other page can add while this page is unread', otherPage.length === 2 && otherPage[0].text === '读回来了' && otherPage[1].id === 'other' && otherPage[1].text === '另一页加上的', JSON.stringify(otherPage));
+    await evalJson(`document.getElementById('todo-load-retry').click()`);
     await sleep(80);
     const retried = await box();
-    check('retry loads the desk', retried.loadError === false && retried.title === '读回来了', JSON.stringify(retried));
+    const retriedStore = await evalJson(`window.__sopifyStore.todos.map((t) => ({ id: t.id, text: t.text, done: t.done }))`);
+    check('retry loads the desk', retried.loadError === false && retried.title === '读回来了' && retried.has === '1', JSON.stringify(retried));
+    check('retry keeps the other page todo', retriedStore.length === 2 && retriedStore[0].id === 'later' && retriedStore[0].text === '读回来了' && retriedStore[0].done === false && retriedStore[1].id === 'other' && retriedStore[1].text === '另一页加上的' && retriedStore[1].done === false, JSON.stringify(retriedStore));
+    const addedAfter = await evalJson(`(async () => {
+      const input = document.getElementById('todo-input');
+      input.value = '重试后再加';
+      input.form.requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        value: input.value,
+        loadError: !document.getElementById('todo-load-error').hidden,
+        empty: (document.getElementById('todos') || {}).innerText.includes('还没有待办'),
+        stored: window.__sopifyStore.todos.map((t) => ({ id: t.id, text: t.text, done: t.done })),
+        notes: window.__sopifyStore.notes,
+      };
+    })()`);
+    check('add after retry stores old plus new', addedAfter.value === '' && addedAfter.loadError === false && addedAfter.empty === false && addedAfter.notes === '原便签' && addedAfter.stored.length === 3 && addedAfter.stored[0].id === 'later' && addedAfter.stored[0].text === '读回来了' && addedAfter.stored[1].text === '另一页加上的' && addedAfter.stored[2].text === '重试后再加' && addedAfter.stored[2].done === false, JSON.stringify(addedAfter));
+
+    await loadSeed(1440, 900, {
+      todos: [{ id: 'keep-todo', text: '待办还在', done: false }],
+      sites: [{ name: '原站', url: 'https://site.example/' }],
+      worksets: [{
+        id: 'ws-keep',
+        name: '必须保留的窗口',
+        savedAt: 1,
+        tabs: [{ title: 'keep', url: 'https://keep.example/' }],
+      }],
+      tabs: [{ id: 9, title: '新网页', url: 'https://new.example/' }],
+      failWorksetReads: true,
+    }, 'day');
+    const worksetUnread = await evalJson(`(async () => {
+      const btn = document.getElementById('workset-save');
+      btn.click();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('workset-save-error');
+      const loadErr = document.getElementById('workset-load-error');
+      const toast = document.getElementById('toast');
+      return {
+        title: document.getElementById('resume-title').textContent,
+        disabled: btn.disabled,
+        loadHidden: loadErr ? loadErr.hidden : true,
+        loadText: loadErr ? loadErr.textContent : '',
+        emptyHidden: document.getElementById('last-empty') ? document.getElementById('last-empty').hidden : null,
+        error: err ? err.textContent : '',
+        errorHidden: err ? err.hidden : true,
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        stored: window.__sopifyStore.worksets.map((w) => ({ id: w.id, name: w.name, tabs: (w.tabs || []).length })),
+        sites: window.__sopifyStore.sites.map((s) => s.name),
+      };
+    })()`);
+    check('workset read failure does not overwrite with an empty list', worksetUnread.title === '待办还在' && worksetUnread.disabled === false && worksetUnread.loadHidden === false && worksetUnread.loadText.includes('存下的窗口暂时没能读取') && worksetUnread.emptyHidden === true && worksetUnread.errorHidden === false && worksetUnread.error.includes('存下的窗口暂时没能读取') && !(worksetUnread.toastOn && worksetUnread.toast.includes('已存下')) && worksetUnread.stored.length === 1 && worksetUnread.stored[0].id === 'ws-keep' && worksetUnread.stored[0].name === '必须保留的窗口' && worksetUnread.sites[0] === '原站', JSON.stringify(worksetUnread));
+
+    await loadSeed(1440, 900, {
+      todos: [{ id: 'slow', text: '慢读原待办', done: false }],
+      sites: sites(1, false),
+      failReads: 1,
+    }, 'day');
+    await evalJson(`(() => {
+      const orig = chrome.storage.local.get.bind(chrome.storage.local);
+      let deskReads = 0;
+      let releaseLate;
+      window.__lateRead = new Promise((resolve) => { releaseLate = resolve; });
+      window.__releaseLateRead = () => releaseLate();
+      chrome.storage.local.get = function (defaults) {
+        const desk = defaults && Object.prototype.hasOwnProperty.call(defaults, 'notes');
+        if (desk) {
+          deskReads += 1;
+          if (deskReads === 1) {
+            return window.__lateRead.then(() => Promise.reject(new Error('late fail')));
+          }
+        }
+        return orig(defaults);
+      };
+      document.getElementById('todo-load-retry').click();
+      document.getElementById('todo-load-retry').click();
+      return deskReads;
+    })()`);
+    await sleep(120);
+    await evalJson(`window.__releaseLateRead()`);
+    await sleep(80);
+    const late = await evalJson(`({
+      title: document.getElementById('resume-title').textContent,
+      has: document.getElementById('resume').dataset.has,
+      loadError: !document.getElementById('todo-load-error').hidden,
+      empty: (document.getElementById('todos') || {}).innerText.includes('还没有待办'),
+      stored: window.__sopifyStore.todos.map((t) => ({ id: t.id, text: t.text, done: t.done })),
+    })`);
+    check('late read failure does not wipe a newer retry', late.title === '慢读原待办' && late.has === '1' && late.loadError === false && late.empty === false && late.stored.length === 1 && late.stored[0].id === 'slow' && late.stored[0].text === '慢读原待办' && late.stored[0].done === false, JSON.stringify(late));
+
+    await loadSeed(1440, 900, {
+      todos: [{ id: 'up', text: '书桌还在', done: false }],
+      sites: [],
+      failUpstream: true,
+      hostUpstream: 'claude',
+    }, 'day');
+    const upstreamFail = await evalJson(`({
+      title: document.getElementById('resume-title').textContent,
+      has: document.getElementById('resume').dataset.has,
+      loadError: !document.getElementById('todo-load-error').hidden,
+      writes: window.__sopifyUpstreamWrites || 0,
+      stored: window.__sopifyStore.hostUpstream,
+    })`);
+    check('upstream read failure does not save a default', upstreamFail.title === '书桌还在' && upstreamFail.has === '1' && upstreamFail.loadError === false && upstreamFail.writes === 0 && upstreamFail.stored === 'claude', JSON.stringify(upstreamFail));
+
+    await loadSeed(1440, 900, { todos: [], sites: [], notes: '组词前', notesRev: 1, notesStamp: 'seed' }, 'day');
+    const composing = await evalJson(`(() => {
+      const notes = document.getElementById('notes');
+      let editor = document.getElementById('desk3d-note-editor');
+      if (!editor) {
+        editor = document.createElement('textarea');
+        editor.id = 'desk3d-note-editor';
+        document.body.appendChild(editor);
+      }
+      editor.value = notes.value;
+      editor.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      window.__pushNotes('外部打断', 4, 'other:4:ime');
+      return {
+        notes: notes.value,
+        editor: editor.value,
+        status: document.getElementById('notes-saved').textContent,
+        stored: window.__sopifyStore.notes,
+      };
+    })()`);
+    check('composition on the space note blocks a remote overwrite', composing.notes === '组词前' && composing.editor === '组词前' && composing.status === '便签在另一页更新了' && composing.stored === '外部打断', JSON.stringify(composing));
 
     await loadSeed(1440, 900, {
       todos: manyTodos.concat([{ id: 'd1', text: '已经做完', done: true }]),
@@ -987,6 +1164,12 @@ async function main() {
     if (!row) return '未测';
     return row.ok ? 'pass' : 'fail';
   }
+  function cols(names) {
+    const rows = names.map(col);
+    if (rows.some((v) => v === 'fail')) return 'fail';
+    if (rows.every((v) => v === 'pass')) return 'pass';
+    return '未测';
+  }
   const acceptance = {
     columns: ['静态', '替身', '真扩展', 'IME', '未测'],
     note: '替身是桩浏览器里的界面。真扩展、Host、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
@@ -994,10 +1177,19 @@ async function main() {
       {
         item: 'A 读失败不当成空数据，禁止覆盖写',
         静态: staticCol,
-        替身: col('read failure blocks the add and keeps the original todos'),
+        替身: cols([
+          'read failure blocks the add and keeps the original todos',
+          'dialog add during read failure does not write',
+          'site add during read failure does not overwrite sites',
+          'retry keeps the other page todo',
+          'add after retry stores old plus new',
+          'workset read failure does not overwrite with an empty list',
+          'late read failure does not wipe a newer retry',
+          'upstream read failure does not save a default',
+        ]),
         真扩展: '未测',
         IME: '未测',
-        未测: '真扩展 / Host / 真中文 IME',
+        未测: '真扩展 / Host / 真中文 IME。A1–A6 只在替身里点过新增并核对存储',
       },
       {
         item: 'B 便签同一队列，先写的留下，后写的冲突并保留草稿',
@@ -1005,7 +1197,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '双页并发只在静态单测里走 createNoteCoordinator。替身只验证单页保存。真扩展 / Host / 真中文 IME',
+        未测: '双页并发只在静态单测里走真实 note-sync。替身没有两页。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。真扩展 / Host / 真中文 IME',
       },
       {
         item: 'C 确认只覆盖刚看过的版本，冲突可展开全文',

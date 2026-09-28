@@ -213,7 +213,8 @@ assert.ok(!proto.includes('专注工作集'));
 const readme = read('README.md');
 assert.ok(!readme.includes('演示工作集不恢复真实标签'));
 assert.ok(!readme.includes('演示便签只进本页'));
-assert.ok(readme.includes('restoreWorksetById') || readme.includes('真实工作集'));
+assert.ok(readme.includes('恢复只补上还没有打开的网页'));
+assert.ok(newtabJs.includes('async function restoreWorksetById'));
 
 const deskReadme = read('extension/desk-3d/README.md');
 assert.ok(!deskReadme.includes('演示数据只写'));
