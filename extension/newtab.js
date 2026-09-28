@@ -85,6 +85,10 @@
   let siteAddRecord = null;
   let todoRemoveRecord = null;
   let siteRemoveRecord = null;
+  let siteEdit = null;
+  let siteEditRecord = null;
+  let siteEditRemoveRecord = null;
+  let siteEditBusy = false;
   let clearDoneRecord = null;
   let worksetSaveRecord = null;
   let worksetRemoveRecord = null;
@@ -631,6 +635,11 @@
   async function commitSiteIntent(next) {
     if (!window.SopifyCollection) return confirmDeskWrite(null, null);
     const ops = window.SopifyCollection.diffSites(state.sites, next);
+    if (ops.length === 2) {
+      const added = ops.find((op) => op.op === 'add');
+      const removed = ops.find((op) => op.op === 'remove');
+      if (added && removed) added.replaces = removed.id;
+    }
     let committed;
     try { committed = await requestCollectionCommit({ domain: 'sites', ops: ops }); } catch { committed = null; }
     if (!committed || committed.ok !== true) {
@@ -797,8 +806,87 @@
     }).join('');
   }
 
+  function captureSiteEditFields() {
+    const held = { name: false, url: false };
+    if (!siteEdit) return held;
+    const form = document.querySelector('#sites-all [data-site-edit]');
+    if (!form || form.getAttribute('data-original-url') !== siteEdit.originalUrl) return held;
+    const name = form.querySelector('[name="edit-name"]');
+    const url = form.querySelector('[name="edit-url"]');
+    const active = document.activeElement;
+    if (name) {
+      siteEdit.name = name.value;
+      if (active === name) {
+        held.name = true;
+        siteEdit.caret = { field: 'name', start: name.selectionStart, end: name.selectionEnd };
+      }
+    }
+    if (url) {
+      siteEdit.url = url.value;
+      if (active === url) {
+        held.url = true;
+        siteEdit.caret = { field: 'url', start: url.selectionStart, end: url.selectionEnd };
+      }
+    }
+    return held;
+  }
+
+  function restoreSiteEditFocus(held) {
+    if (!siteEdit) return;
+    const name = document.querySelector('#sites-all [name="edit-name"]');
+    const url = document.querySelector('#sites-all [name="edit-url"]');
+    let input = null;
+    if (siteEdit.focus && name) input = name;
+    else if (held && held.url && url) input = url;
+    else if (held && held.name && name) input = name;
+    if (!input) return;
+    input.focus();
+    if (siteEdit.focus) input.select();
+    else if (siteEdit.caret && typeof input.setSelectionRange === 'function') {
+      const start = siteEdit.caret.start;
+      const end = siteEdit.caret.end;
+      if (typeof start === 'number' && typeof end === 'number') input.setSelectionRange(start, end);
+    }
+    siteEdit.focus = false;
+  }
+
+  function siteManageHtml(list) {
+    return list.map((s) => {
+      const i = state.sites.indexOf(s);
+      if (siteEdit && siteEdit.originalUrl === s.url) {
+        const err = siteEdit.error || '';
+        return `
+        <form class="siterow siterow-editing" data-site-edit="${i}" data-original-url="${esc(s.url)}">
+          <label class="sr-only" for="site-edit-name">名称</label>
+          <input class="field" id="site-edit-name" name="edit-name" value="${esc(siteEdit.name)}" required autocomplete="off">
+          <label class="sr-only" for="site-edit-url">网址</label>
+          <input class="field" id="site-edit-url" name="edit-url" type="text" inputmode="url" value="${esc(siteEdit.url)}" required autocomplete="off" spellcheck="false">
+          <button type="submit" class="btn">保存</button>
+          <button type="button" class="btn ghost" data-edit-cancel>取消</button>
+          <p class="desk-write-error" data-edit-error role="alert" ${err ? '' : 'hidden'}>${esc(err)}</p>
+        </form>`;
+      }
+      return `
+      <div class="siterow">
+        <a class="tile" href="${esc(s.url)}" title="${esc(s.name)} · ${esc(s.url)}" style="--h:${hue(s.url)}">
+          <span class="glyph" aria-hidden="true">${esc(mono(s.name))}</span>
+          <span class="siterow-text">
+            <span class="lbl">${esc(s.name)}</span>
+            <span class="url">${esc(s.url)}</span>
+          </span>
+        </a>
+        <button type="button" class="btn ghost" data-edit-site="${i}" data-site-url="${esc(s.url)}">修改</button>
+        <button type="button" class="iconbtn" data-remove-site="${i}" aria-label="移除 ${esc(s.name)}">
+          <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+
   function renderSites() {
+    const held = captureSiteEditFields();
     if (domainUnread.sites) {
+      siteEdit = null;
       $('#sites').innerHTML = '';
       const more = $('#sites-more');
       if (more) more.hidden = true;
@@ -806,6 +894,11 @@
       if (all) all.innerHTML = '';
       $('#c-sites').textContent = '0';
       return;
+    }
+    if (siteEdit && !siteEditBusy && !state.sites.some((s) => s.url === siteEdit.originalUrl)) {
+      siteEdit = null;
+      siteEditRecord = null;
+      siteEditRemoveRecord = null;
     }
     const home = state.sites.slice(0, 8);
     $('#sites').innerHTML = siteTilesHtml(home);
@@ -816,9 +909,129 @@
       if (showMore) more.textContent = `全部 ${state.sites.length} 个`;
     }
     const all = $('#sites-all');
-    if (all) all.innerHTML = state.sites.length ? siteTilesHtml(state.sites) : '<p class="empty">还没有常用站。</p>';
+    const preserveEdit = siteEditBusy && document.querySelector('#sites-all [data-site-edit]');
+    if (all && !preserveEdit) {
+      all.innerHTML = state.sites.length ? siteManageHtml(state.sites) : '<p class="empty">还没有常用站。</p>';
+    }
     $('#c-sites').textContent = String(state.sites.length);
     $('#c-sites').setAttribute('aria-label', `${state.sites.length} 个常用站`);
+    if (!preserveEdit) restoreSiteEditFocus(held);
+  }
+
+  function showSiteEditError(message) {
+    if (siteEdit) siteEdit.error = message;
+    const el = document.querySelector('#sites-all [data-edit-error]');
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = message;
+  }
+
+  function beginSiteEdit(index) {
+    if (siteEditBusy) return;
+    const site = state.sites[index];
+    if (!site) return;
+    if (siteEdit && siteEdit.originalUrl === site.url) return;
+    siteEdit = {
+      originalUrl: site.url,
+      name: site.name,
+      url: site.url,
+      error: '',
+      focus: true,
+    };
+    renderSites();
+  }
+
+  function cancelSiteEdit() {
+    if (siteEditBusy) return;
+    const url = siteEdit && siteEdit.originalUrl;
+    siteEdit = null;
+    siteEditRecord = null;
+    siteEditRemoveRecord = null;
+    renderSites();
+    if (!url) return;
+    const again = [...document.querySelectorAll('#sites-all [data-edit-site]')].find((btn) => btn.dataset.siteUrl === url);
+    if (again) again.focus();
+  }
+
+  async function commitSiteEdit(form) {
+    if (siteEditBusy || !siteEdit || !form) return;
+    const nameInput = form.querySelector('[name="edit-name"]');
+    const urlInput = form.querySelector('[name="edit-url"]');
+    if (!nameInput || !urlInput) return;
+    const name = nameInput.value.trim();
+    if (!name) return;
+    let url;
+    try { url = normalizeSiteUrl(urlInput.value); } catch {
+      showSiteEditError('网址需要是 http(s)');
+      urlInput.focus();
+      return;
+    }
+    const originalUrl = siteEdit.originalUrl;
+    if (state.sites.some((site) => site.url === url && site.url !== originalUrl)) {
+      showSiteEditError('这个网址已经有了');
+      urlInput.focus();
+      return;
+    }
+    const current = state.sites.find((site) => site.url === originalUrl);
+    if (!current) {
+      siteEdit = null;
+      renderSites();
+      return;
+    }
+    if (current.name === name && current.url === url) {
+      siteEdit = null;
+      siteEditRecord = null;
+      siteEditRemoveRecord = null;
+      renderSites();
+      return;
+    }
+    siteEdit.name = nameInput.value;
+    siteEdit.url = urlInput.value;
+    siteEdit.error = '';
+    siteEditBusy = true;
+    const planned = formOps().planSiteAdd(siteEditRecord, name, url, uid);
+    siteEditRecord = planned.record;
+    if (url !== originalUrl) {
+      const removal = formOps().planRemove(siteEditRemoveRecord, originalUrl, uid);
+      siteEditRemoveRecord = removal.record;
+    }
+    const next = state.sites.map((site) => (
+      site.url === originalUrl ? { name: planned.name, url: planned.url } : site
+    ));
+    const saved = await commitDesk({ sites: next });
+    const live = document.querySelector('#sites-all [data-site-edit]');
+    const liveName = live ? live.querySelector('[name="edit-name"]') : nameInput;
+    const liveUrl = live ? live.querySelector('[name="edit-url"]') : urlInput;
+    let currentUrl = '';
+    try { currentUrl = normalizeSiteUrl(liveUrl ? liveUrl.value : urlInput.value); } catch {
+      currentUrl = (liveUrl ? liveUrl.value : urlInput.value).trim();
+    }
+    const settled = formOps().settleSiteSubmit(
+      planned.record,
+      (liveName ? liveName.value : nameInput.value).trim(),
+      currentUrl,
+      !!(saved && saved.ok === true),
+    );
+    siteEditRecord = settled.record;
+    siteEditBusy = false;
+    if (!saved || saved.ok !== true) {
+      showSiteEditError(writeFailMessage(saved, '常用站暂时没能读取', '没存上，再点一次'));
+      return;
+    }
+    siteEditRemoveRecord = null;
+    adoptCollection('sites', saved);
+    if (!settled.clearInput && siteEdit) {
+      siteEdit.originalUrl = planned.url;
+      siteEdit.name = liveName ? liveName.value : nameInput.value;
+      siteEdit.url = liveUrl ? liveUrl.value : urlInput.value;
+      siteEdit.error = '';
+      siteEdit.focus = false;
+      renderSites();
+      return;
+    }
+    siteEdit = null;
+    renderSites();
+    toast('已改名');
   }
 
   function toggleSiteForm(force) {
@@ -2341,7 +2554,49 @@
     };
     $('#sites').addEventListener('click', onSiteRemoveClick);
     const sitesAll = $('#sites-all');
-    if (sitesAll) sitesAll.addEventListener('click', onSiteRemoveClick);
+    if (sitesAll) {
+      sitesAll.addEventListener('click', onSiteRemoveClick);
+      sitesAll.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('[data-edit-site]');
+        if (editBtn) {
+          e.preventDefault();
+          beginSiteEdit(Number(editBtn.dataset.editSite));
+          return;
+        }
+        if (e.target.closest('[data-edit-cancel]')) {
+          e.preventDefault();
+          cancelSiteEdit();
+        }
+      });
+      sitesAll.addEventListener('submit', (e) => {
+        const form = e.target.closest('[data-site-edit]');
+        if (!form) return;
+        e.preventDefault();
+        commitSiteEdit(form);
+      });
+      const siteEditIme = createImeGuard();
+      sitesAll.addEventListener('compositionstart', (e) => {
+        if (e.target.closest('[data-site-edit]')) siteEditIme.onCompositionStart();
+      });
+      sitesAll.addEventListener('compositionend', (e) => {
+        if (e.target.closest('[data-site-edit]')) siteEditIme.onCompositionEnd();
+      });
+      sitesAll.addEventListener('keydown', (e) => {
+        if (!e.target.closest('[data-site-edit]')) return;
+        if (e.key === 'Enter' && siteEditIme.blocks(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+      sitesAll.addEventListener('input', (e) => {
+        if (!e.target.closest('[data-site-edit]') || !siteEdit) return;
+        siteEdit.error = '';
+        const err = document.querySelector('#sites-all [data-edit-error]');
+        if (!err) return;
+        err.hidden = true;
+        err.textContent = '';
+      });
+    }
 
     const todoIme = createImeGuard();
     const todoInput = $('#todo-input');

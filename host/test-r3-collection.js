@@ -155,6 +155,29 @@ async function main() {
     'https://b.example/',
   ], 'T7');
 
+  const renamed = memory({
+    sites: [
+      { name: '甲', url: 'https://a.example/' },
+      { name: '乙', url: 'https://b.example/' },
+    ],
+  });
+  const renameCoord = collection.createCollectionCoordinator(renamed);
+  const renameBase = structuredClone(renamed.store.sites);
+  const renameOps = collection.diffSites(renameBase, [
+    { name: '甲改', url: 'https://a2.example/' },
+    { name: '乙', url: 'https://b.example/' },
+  ]);
+  const renameAdd = renameOps.find((op) => op.op === 'add');
+  const renameRemove = renameOps.find((op) => op.op === 'remove');
+  assert.ok(renameAdd && renameRemove);
+  renameAdd.replaces = renameRemove.id;
+  const renameSaved = await renameCoord.commit({ domain: 'sites', ops: renameOps });
+  assert.strictEqual(renameSaved.ok, true);
+  assert.deepStrictEqual(renamed.store.sites, [
+    { name: '甲改', url: 'https://a2.example/' },
+    { name: '乙', url: 'https://b.example/' },
+  ], 'site url edit keeps the row in place');
+
   const windowA = { id: 'wa', name: '甲窗', savedAt: 20, tabs: [{ title: '甲', url: 'https://a.example/' }] };
   const windowB = { id: 'wb', name: '乙窗', savedAt: 10, tabs: [{ title: '乙', url: 'https://b.example/' }] };
   const kept = { id: 'wk', name: '原窗', savedAt: 30, tabs: [{ title: '原', url: 'https://old.example/' }] };
