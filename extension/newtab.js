@@ -352,20 +352,26 @@
         skipped: 0,
         failed: creates.length + activates.length,
         focusOk: false,
+        unopened: creates.slice(),
       };
     }
     let opened = 0;
     let failed = 0;
     const openedIds = [];
+    const unopened = [];
     for (let i = 0; i < creates.length; i += 1) {
       try {
         const tab = await api.create({ url: creates[i], active: false });
         if (tab && tab.id != null) {
           opened += 1;
           openedIds.push(tab.id);
-        } else failed += 1;
+        } else {
+          failed += 1;
+          unopened.push(creates[i]);
+        }
       } catch {
         failed += 1;
+        unopened.push(creates[i]);
       }
     }
     const skipped = activates.length;
@@ -377,7 +383,7 @@
         try { await api.activate(focusId); } catch { focusOk = false; }
       }
     }
-    return { opened: opened, skipped: skipped, failed: failed, focusOk: focusOk };
+    return { opened: opened, skipped: skipped, failed: failed, focusOk: focusOk, unopened: unopened };
   }
 
   function summarizeRestore(plan, exec) {
@@ -1457,7 +1463,40 @@
     } : null);
     const summary = summarizeRestore(plan, exec);
     toast(restoreToast(w.name, summary));
+    setRestoreRetry(w, exec.unopened || []);
     return Object.assign({ name: w.name }, summary);
+  }
+
+  let restoreRetry = null;
+  function setRestoreRetry(workset, urls) {
+    const list = (urls || []).filter((url) => typeof url === 'string' && url);
+    restoreRetry = workset && list.length ? { id: workset.id, name: workset.name, urls: list.slice() } : null;
+    const btn = $('#workset-retry-unopened');
+    if (btn) btn.hidden = !restoreRetry;
+  }
+  async function retryUnopened() {
+    const pending = restoreRetry;
+    if (!pending || !pending.urls.length) return;
+    let queried = { ok: false, tabs: [] };
+    try {
+      queried = { ok: true, tabs: await queryWindowTabs() };
+    } catch {
+      queried = { ok: false, tabs: [] };
+    }
+    const started = beginRestore(queried.ok, queried.tabs);
+    if (started.abort) {
+      toast('没看清当前窗口，没有恢复「' + pending.name + '」');
+      return;
+    }
+    const plan = planRestore(pending.urls.map((url) => ({ title: url, url: url })), started.open);
+    const exec = await executeRestore(plan, hasTabs ? {
+      create: (tabOpts) => chrome.tabs.create(tabOpts),
+      activate: (tabId) => activateTab(tabId, { rethrow: true }),
+    } : null);
+    const summary = summarizeRestore(plan, exec);
+    toast(restoreToast(pending.name, summary));
+    setRestoreRetry(pending, exec.unopened || []);
+    return Object.assign({ name: pending.name }, summary);
   }
 
   async function deleteWorksetById(id) {
@@ -2116,6 +2155,8 @@
     });
     $('#workset-save').addEventListener('click', () => { saveThisWindow(); });
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
+    const retryUnopenedBtn = $('#workset-retry-unopened');
+    if (retryUnopenedBtn) retryUnopenedBtn.addEventListener('click', () => { retryUnopened(); });
     $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 

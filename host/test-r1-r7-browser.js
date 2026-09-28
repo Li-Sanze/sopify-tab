@@ -91,6 +91,8 @@ function stubSource(seed) {
     };
     let noteWrites = 0;
     let readsLeft = seed.failReads || 0;
+    let failCreate = seed.failCreate || '';
+    window.__sopifySetFailCreate = (value) => { failCreate = value || ''; };
     const removed = [];
     const created = [];
     const listeners = [];
@@ -177,7 +179,7 @@ function stubSource(seed) {
         },
         create(opts) {
           const url = opts && opts.url ? String(opts.url) : '';
-          if (seed.failCreate && url.includes(seed.failCreate)) return Promise.reject(new Error('blocked'));
+          if (failCreate && url.includes(failCreate)) return Promise.reject(new Error('blocked'));
           const tab = { id: 500 + created.length, url: url, title: url };
           created.push(tab);
           return Promise.resolve(tab);
@@ -694,9 +696,10 @@ async function main() {
       return {
         toast: document.getElementById('toast').textContent,
         created: window.__sopifyCreated.map((t) => t.url),
+        retryHidden: document.getElementById('workset-retry-unopened').hidden,
       };
     })()`);
-    check('query failure aborts restore', queryAbort.toast.includes('没有恢复') && !queryAbort.toast.includes('已恢复') && queryAbort.created.length === 0, JSON.stringify(queryAbort));
+    check('query failure aborts restore', queryAbort.toast.includes('没有恢复') && !queryAbort.toast.includes('已恢复') && queryAbort.created.length === 0 && queryAbort.retryHidden, JSON.stringify(queryAbort));
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -708,14 +711,30 @@ async function main() {
     const restored = await evalJson(`(async () => {
       document.getElementById('workset-restore-recent').click();
       await new Promise((r) => setTimeout(r, 40));
+      const retry = document.getElementById('workset-retry-unopened');
       return {
         toast: document.getElementById('toast').textContent,
         created: window.__sopifyCreated.map((t) => t.url),
+        retryHidden: retry.hidden,
+        retryText: retry.textContent,
       };
     })()`);
     check('partial restore does not claim full success', restored.toast.includes('没打开') && !restored.toast.includes('已恢复'), JSON.stringify(restored));
     check('partial restore opened the healthy url only', restored.created.length === 1 && restored.created[0].includes('ok.example'), JSON.stringify(restored.created));
+    check('partial restore offers retry for what failed', restored.retryHidden === false && restored.retryText === '重试未打开', JSON.stringify(restored));
     await shot('stub-partial-restore-1440.png');
+    const retriedOpen = await evalJson(`(async () => {
+      window.__sopifySetFailCreate('');
+      document.getElementById('workset-retry-unopened').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const retry = document.getElementById('workset-retry-unopened');
+      return {
+        toast: document.getElementById('toast').textContent,
+        created: window.__sopifyCreated.map((t) => t.url),
+        retryHidden: retry.hidden,
+      };
+    })()`);
+    check('retry opens only the tab that failed', retriedOpen.created.length === 2 && retriedOpen.created.filter((url) => url.includes('ok.example')).length === 1 && retriedOpen.created.some((url) => url.includes('fail.example')) && retriedOpen.toast.includes('已恢复') && !retriedOpen.toast.includes('没打开') && retriedOpen.retryHidden, JSON.stringify(retriedOpen));
 
     await loadSeed(1440, 900, { todos: [], sites: [], failTodos: true }, 'day');
     const todoFail = await evalJson(`(async () => {

@@ -93,6 +93,21 @@ assert.strictEqual(partialSummary.tone, 'partial');
 const partialToast = helpers.restoreToast('上午', partialSummary);
 assert.ok(partialToast.includes('没打开'), partialToast);
 assert.ok(!partialToast.includes('已恢复'), partialToast);
+assert.deepStrictEqual(partial.unopened, ['https://fail.example/']);
+const retryPlan = helpers.planRestore(
+  partial.unopened.map((url) => ({ title: url, url: url })),
+  [{ id: 9, url: 'https://x.com/' }, { id: 21, url: 'https://new.example/' }],
+);
+assert.deepStrictEqual(retryPlan.create, ['https://fail.example/']);
+assert.deepStrictEqual(retryPlan.activate, []);
+const already = helpers.planRestore(
+  [{ title: 'bad', url: 'https://fail.example/' }],
+  [{ id: 4, url: 'https://fail.example/' }],
+);
+assert.deepStrictEqual(already.create, []);
+assert.ok(html.includes('id="workset-retry-unopened"') && html.includes('重试未打开'));
+assert.ok(braceBlock(js, 'async function executeRestore').includes('unopened'));
+assert.ok(braceBlock(js, 'async function retryUnopened').includes('planRestore(pending.urls.map'));
 
 const noTabs = await helpers.executeRestore(plan, null);
 assert.strictEqual(noTabs.opened, 0);

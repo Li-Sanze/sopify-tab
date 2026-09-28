@@ -1161,6 +1161,16 @@ details.advanced .advanced-body {
   transition: opacity var(--dur) var(--out), transform var(--dur) var(--out);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast-retry {
+  position: fixed; left: 50%; bottom: 64px; z-index: 71;
+  transform: translateX(-50%);
+  font: inherit; font-size: 13px; line-height: 1.3;
+  color: var(--studio-ink, #292e39);
+  background: var(--studio-paper, #fffefa);
+  border: 1px solid var(--studio-line, rgba(41, 46, 57, 0.16));
+  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+.toast-retry[hidden] { display: none !important; }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
