@@ -184,10 +184,12 @@
                   <div class="note-side">
                     <span class="note-side-k">这边</span>
                     <span class="note-side-body" id="note-local-preview"></span>
+                    <button type="button" class="fs-btn text" id="note-local-expand" hidden>展开全文</button>
                   </div>
                   <div class="note-side">
                     <span class="note-side-k">另一页</span>
                     <span class="note-side-body" id="note-remote-preview"></span>
+                    <button type="button" class="fs-btn text" id="note-remote-expand" hidden>展开全文</button>
                   </div>
                 </div>
                 <button type="button" class="fs-btn text" id="note-use-remote">用那边的</button>
@@ -290,6 +292,7 @@
           <label for="name">称呼</label>
           <input class="field" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" aria-describedby="name-help">
           <p class="help" id="name-help">写在首屏问候里，存在本机。留空就只打招呼。</p>
+          <p class="desk-write-error" id="name-save-error" role="alert" hidden></p>
         </div>
         <div class="settings">
           <section class="card" aria-labelledby="s-theme">

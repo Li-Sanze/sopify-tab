@@ -47,7 +47,7 @@
     let dirty = false;
     let conflict = null;
     let inflight = '';
-    let force = false;
+    let reviewed = null;
     let status = '';
 
     function snapshot() {
@@ -157,23 +157,74 @@
       return id + ':' + nextRev + ':' + Date.now().toString(36) + ':' + Math.random().toString(16).slice(2);
     }
 
+    function applyCommitResult(body, result) {
+      if (result && result.ok) {
+        rev = normalizeRev(result.rev != null ? result.rev : rev);
+        stamp = typeof result.stamp === 'string' ? result.stamp : stamp;
+        acked = body;
+        dirty = text !== acked;
+        conflict = null;
+        inflight = '';
+        return { ok: true };
+      }
+      inflight = '';
+      if (result && result.conflict) {
+        conflict = {
+          remoteText: typeof result.remoteText === 'string' ? result.remoteText : '',
+          remoteRev: normalizeRev(result.remoteRev),
+          remoteStamp: typeof result.remoteStamp === 'string' ? result.remoteStamp : '',
+        };
+        setStatus('另一页改过，没覆盖');
+        return { ok: false, conflict: true, remoteText: conflict.remoteText, remoteRev: conflict.remoteRev };
+      }
+      return { ok: false, skipped: !!(result && result.skipped), error: true };
+    }
+
     async function commit(payload, saveFn) {
-      const useForce = force === true;
-      force = false;
+      const useReviewed = reviewed;
+      reviewed = null;
       const body = typeof payload === 'string' ? payload : '';
+      const nextStamp = makeStamp((useReviewed ? useReviewed.rev : rev) + 1);
+      const request = {
+        text: body,
+        baselineNotes: acked,
+        baselineRev: rev,
+        stamp: nextStamp,
+      };
+      if (useReviewed) {
+        request.expectRev = useReviewed.rev;
+        request.expectNotes = useReviewed.notes;
+      }
+      if (opts.coordinator && typeof opts.coordinator.commit === 'function') {
+        inflight = nextStamp;
+        try {
+          return applyCommitResult(body, await opts.coordinator.commit(request));
+        } catch (err) {
+          inflight = '';
+          return { ok: false, error: err };
+        }
+      }
       const remote = await readRemote();
       if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
-      const diverged = remote.rev !== rev && remote.notes !== acked;
-      if (diverged && !useForce) {
-        conflict = { remoteText: remote.notes, remoteRev: remote.rev, remoteStamp: remote.stamp };
-        setStatus('另一页改过，没覆盖');
-        return { ok: false, conflict: true, remoteText: remote.notes, remoteRev: remote.rev };
+      if (useReviewed) {
+        if (remote.rev !== useReviewed.rev || remote.notes !== useReviewed.notes) {
+          conflict = { remoteText: remote.notes, remoteRev: remote.rev, remoteStamp: remote.stamp };
+          setStatus('另一页改过，没覆盖');
+          return { ok: false, conflict: true, remoteText: remote.notes, remoteRev: remote.rev };
+        }
+      } else {
+        const diverged = remote.rev !== rev && remote.notes !== acked;
+        if (diverged) {
+          conflict = { remoteText: remote.notes, remoteRev: remote.rev, remoteStamp: remote.stamp };
+          setStatus('另一页改过，没覆盖');
+          return { ok: false, conflict: true, remoteText: remote.notes, remoteRev: remote.rev };
+        }
+        if (remote.rev !== rev && remote.notes === acked) {
+          rev = remote.rev;
+          stamp = remote.stamp;
+        }
       }
-      if (!diverged && remote.rev !== rev && remote.notes === acked) {
-        rev = remote.rev;
-        stamp = remote.stamp;
-      }
-      const meta = { rev: remote.rev + 1, stamp: makeStamp(remote.rev + 1) };
+      const meta = { rev: remote.rev + 1, stamp: nextStamp };
       inflight = meta.stamp;
       let saved;
       try {
@@ -188,20 +239,18 @@
       }
       const again = await readRemote();
       if (again.ok && again.stamp === meta.stamp && again.notes === body) {
-        rev = again.rev;
-        stamp = again.stamp;
-        acked = body;
-        dirty = text !== acked;
-        conflict = null;
-        inflight = '';
-        return { ok: true };
+        return applyCommitResult(body, { ok: true, rev: again.rev, stamp: again.stamp });
       }
       inflight = '';
       if (!again.ok) return { ok: false, error: true };
       if (again.notes !== body && again.stamp && again.stamp !== meta.stamp) {
-        conflict = { remoteText: again.notes, remoteRev: again.rev, remoteStamp: again.stamp };
-        setStatus('另一页改过，没覆盖');
-        return { ok: false, conflict: true, remoteText: again.notes };
+        return applyCommitResult(body, {
+          ok: false,
+          conflict: true,
+          remoteText: again.notes,
+          remoteRev: again.rev,
+          remoteStamp: again.stamp,
+        });
       }
       return { ok: false, error: true };
     }
@@ -226,10 +275,95 @@
       commit: commit,
       acceptRemote: acceptRemote,
       hasConflict: function () { return !!conflict; },
-      peekForce: function () { return force === true; },
-      armForce: function () { force = true; },
+      peekForce: function () { return reviewed != null; },
+      armForce: function () {
+        if (!conflict) {
+          reviewed = null;
+          return;
+        }
+        reviewed = {
+          rev: conflict.remoteRev,
+          notes: conflict.remoteText,
+          stamp: conflict.remoteStamp || '',
+        };
+      },
       readRemote: readRemote,
     };
+  }
+
+  function createNoteCoordinator(storage) {
+    let chain = Promise.resolve();
+
+    function read() {
+      if (!storage || typeof storage.get !== 'function') {
+        return Promise.resolve({ ok: false, skipped: true });
+      }
+      return Promise.resolve()
+        .then(function () { return storage.get({ notes: '', notesRev: 0, notesStamp: '' }); })
+        .then(function (data) {
+          const src = data && typeof data === 'object' ? data : {};
+          return {
+            ok: true,
+            notes: typeof src.notes === 'string' ? src.notes : '',
+            rev: normalizeRev(src.notesRev),
+            stamp: typeof src.notesStamp === 'string' ? src.notesStamp : '',
+          };
+        })
+        .catch(function (err) { return { ok: false, error: err }; });
+    }
+
+    function conflictResult(remote) {
+      return {
+        ok: false,
+        conflict: true,
+        remoteText: remote.notes,
+        remoteRev: remote.rev,
+        remoteStamp: remote.stamp,
+      };
+    }
+
+    function commitLocked(request) {
+      const req = request || {};
+      const body = typeof req.text === 'string' ? req.text : '';
+      const baseline = typeof req.baselineNotes === 'string' ? req.baselineNotes : '';
+      const hasExpect = typeof req.expectNotes === 'string' && req.expectRev != null;
+      return read().then(function (remote) {
+        if (!remote.ok) return { ok: false, skipped: !!remote.skipped, error: true };
+        if (hasExpect) {
+          if (remote.rev !== normalizeRev(req.expectRev) || remote.notes !== req.expectNotes) {
+            return conflictResult(remote);
+          }
+        } else if (remote.notes !== baseline) {
+          return conflictResult(remote);
+        }
+        if (!storage || typeof storage.set !== 'function') return { ok: false, skipped: true };
+        const nextRev = remote.rev + 1;
+        const stamp = typeof req.stamp === 'string' && req.stamp
+          ? req.stamp
+          : ('q:' + nextRev + ':' + Date.now().toString(36));
+        return Promise.resolve()
+          .then(function () {
+            return storage.set({ notes: body, notesRev: nextRev, notesStamp: stamp });
+          })
+          .then(function () { return read(); })
+          .then(function (again) {
+            if (again.ok && again.stamp === stamp && again.notes === body) {
+              return { ok: true, rev: again.rev, stamp: again.stamp, notes: body };
+            }
+            if (again.ok && again.notes !== body) return conflictResult(again);
+            return { ok: false, error: true };
+          })
+          .catch(function () { return { ok: false, error: true }; });
+      });
+    }
+
+    function commit(request) {
+      const run = chain.then(function () { return commitLocked(request); });
+      chain = run.then(function () {}, function () {});
+      return run;
+    }
+
+    return { commit: commit };
   }
 
   const api = {
@@ -237,6 +371,7 @@
     imeBlocksSubmit: imeBlocksSubmit,
     createImeGuard: createImeGuard,
     createNoteKeeper: createNoteKeeper,
+    createNoteCoordinator: createNoteCoordinator,
   };
   root.SopifyNoteSync = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

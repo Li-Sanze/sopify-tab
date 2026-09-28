@@ -28,6 +28,8 @@ function braceBlock(src, start) {
 }
 
 async function main() {
+const artifactDir = process.env.SOPIFY_ARTIFACT_DIR || '/opt/cursor/artifacts/r1-r7';
+try { fs.rmSync(path.join(artifactDir, 'static-ok'), { force: true }); } catch { /* fresh run */ }
 const js = read('newtab.js');
 const side = read('sidepanel.js');
 const html = read('newtab.html');
@@ -37,7 +39,7 @@ assert.ok(start !== -1 && end > start);
 const helpers = new Function(
   'const WORKSET_TAB_CAP = 50; const WORKSET_TITLE_MAX = 200; ' +
   js.slice(start, end) +
-  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, confirmDeskWrite, beginRestore, noteDraftIsDirty, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
+  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, domainWriteAllowed, refuseUnreadWrite, confirmDeskWrite, beginRestore, noteDraftIsDirty, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
 )();
 
 const tabs = [
@@ -185,11 +187,26 @@ assert.ok(html.includes('>这边<') && html.includes('>另一页<'));
 const both = helpers.noteConflictView('这边还在写', '另一页已经改好');
 assert.strictEqual(both.local, '这边还在写');
 assert.strictEqual(both.remote, '另一页已经改好');
+assert.strictEqual(both.localFull, '这边还在写');
+assert.strictEqual(both.remoteFull, '另一页已经改好');
+assert.strictEqual(both.localLong, false);
 assert.notStrictEqual(both.local, both.remote);
 assert.strictEqual(helpers.noteConflictView('', '  ').local, '还没写');
+const longLocal = '本'.repeat(80);
+const longRemote = '页'.repeat(90);
+const longView = helpers.noteConflictView(longLocal, longRemote);
+assert.strictEqual(longView.localFull, longLocal);
+assert.strictEqual(longView.remoteFull, longRemote);
+assert.strictEqual(longView.localLong, true);
+assert.ok(longView.local.endsWith('…') && [...longView.local].length === 73);
+assert.notStrictEqual(longView.local, longView.localFull);
 assert.ok(braceBlock(js, 'function showNoteConflict').includes('noteConflictView'));
-assert.ok(braceBlock(js, 'function showNoteConflict').includes('note-local-preview'));
-assert.ok(braceBlock(js, 'function showNoteConflict').includes('note-remote-preview'));
+assert.ok(braceBlock(js, 'function showNoteConflict').includes('paintConflictSide'));
+assert.ok(braceBlock(js, 'function paintConflictSide').includes('note-local-preview'));
+assert.ok(braceBlock(js, 'function paintConflictSide').includes('note-remote-preview'));
+assert.ok(braceBlock(js, 'function showNoteConflict').includes('localFull'));
+assert.ok(html.includes('id="note-local-expand"') && html.includes('id="note-remote-expand"'));
+assert.ok(html.includes('展开全文'));
 
 const guard = noteSync.createImeGuard(() => 1000);
 let now = 1000;
@@ -279,11 +296,12 @@ function saver(storage) {
   };
 }
 
-function page(storage, id) {
+function page(storage, id, coordinator) {
   const box = { status: '' };
   const keeper = noteSync.createNoteKeeper({
     pageId: id,
     storage,
+    coordinator: coordinator || null,
     onStatus(text) { box.status = text; },
   });
   keeper.absorbBoot({
@@ -347,29 +365,73 @@ assert.strictEqual(forced.ok, true);
 assert.strictEqual(shared.store.notes, 'local B');
 assert.strictEqual(idle.keeper.snapshot().text, 'local B');
 
+const reviewStore = createSharedStorage({ notes: 'v1', notesRev: 1, notesStamp: 's1' });
+const reviewCoord = noteSync.createNoteCoordinator(reviewStore);
+const reviewer = page(reviewStore, 'rev', reviewCoord);
+const mover = page(reviewStore, 'mov', reviewCoord);
+wire(reviewStore, [reviewer.keeper, mover.keeper]);
+reviewer.keeper.remember('my draft');
+mover.keeper.remember('v2');
+const wroteV2 = await mover.keeper.commit('v2');
+assert.strictEqual(wroteV2.ok, true);
+assert.strictEqual(reviewer.keeper.snapshot().conflict.remoteText, 'v2');
+reviewer.keeper.armForce();
+mover.keeper.remember('v3');
+const wroteV3 = await mover.keeper.commit('v3');
+assert.strictEqual(wroteV3.ok, true);
+const lateForce = await reviewer.keeper.commit('my draft');
+assert.strictEqual(lateForce.ok, false);
+assert.strictEqual(lateForce.conflict, true);
+assert.strictEqual(reviewStore.store.notes, 'v3');
+assert.notStrictEqual(reviewStore.store.notes, 'my draft');
+assert.strictEqual(reviewer.keeper.snapshot().text, 'my draft');
+
+function createBarrier(n) {
+  let arrived = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  return {
+    wait() {
+      arrived += 1;
+      if (arrived >= n) release();
+      return gate;
+    },
+  };
+}
+
+const originalA = 'left text';
+const originalB = 'right text';
 const overlapStore = createSharedStorage({ notes: '', notesRev: 0, delay: 30 });
-const left = page(overlapStore, 'L');
-const right = page(overlapStore, 'R');
+const overlapCoord = noteSync.createNoteCoordinator(overlapStore);
+assert.strictEqual(typeof noteSync.createNoteCoordinator, 'function');
+const left = page(overlapStore, 'L', overlapCoord);
+const right = page(overlapStore, 'R', overlapCoord);
 wire(overlapStore, [left.keeper, right.keeper]);
-left.keeper.remember('left text');
-right.keeper.remember('right text');
+left.keeper.remember(originalA);
+right.keeper.remember(originalB);
+const barrier = createBarrier(2);
+async function startSide(side, text) {
+  await barrier.wait();
+  return side.keeper.commit(text);
+}
 const pair = await Promise.all([
-  left.keeper.commit('left text', saver(overlapStore)),
-  right.keeper.commit('right text', saver(overlapStore)),
+  startSide(left, originalA),
+  startSide(right, originalB),
 ]);
 await settleStatus(left.box, pair[0]);
 await settleStatus(right.box, pair[1]);
-const stored = overlapStore.store.notes;
-assert.ok(stored === 'left text' || stored === 'right text', stored);
-[left, right].forEach((p, i) => {
-  const snap = p.keeper.snapshot();
-  if (pair[i].ok && snap.text !== stored && !snap.conflict) {
-    assert.fail(`${p === left ? 'left' : 'right'} reported success for text that is not stored`);
-  }
-  if (p.box.status === '已存在本机') assert.strictEqual(snap.text, stored);
-});
-assert.ok(pair.filter((r) => r.ok).length >= 1, 'one writer can still land');
-assert.ok(overlapStore.events.filter((e) => e === 'change').length >= 1);
+assert.strictEqual(pair[0].ok, true);
+assert.strictEqual(pair[1].ok, false);
+assert.strictEqual(pair[1].conflict, true);
+assert.strictEqual(overlapStore.store.notes, originalA);
+assert.notStrictEqual(overlapStore.store.notes, originalB);
+assert.strictEqual(left.keeper.snapshot().text, originalA);
+assert.strictEqual(right.keeper.snapshot().text, originalB);
+assert.strictEqual(overlapStore.events.filter((e) => e === 'change').length, 1);
+const bg = read('background.js');
+assert.ok(bg.includes("importScripts('note-sync.js')"));
+assert.ok(bg.includes('sopify-note-commit'));
+assert.ok(bg.includes('createNoteCoordinator'));
 
 const rejectStore = createSharedStorage({ notes: 'safe', notesRev: 3, notesStamp: 's' });
 const rejectPage = page(rejectStore, 'E');
@@ -519,9 +581,44 @@ const persistBody = braceBlock(js, 'async function persistWorksets');
 assert.ok(persistBody.includes('confirmDeskWrite'));
 assert.ok(persistBody.indexOf('chrome.storage.local.set({ worksets })') < persistBody.indexOf('state.worksets = worksets'));
 assert.ok(braceBlock(js, 'async function commitDesk').includes('confirmDeskWrite'));
+assert.ok(braceBlock(js, 'async function commitDesk').includes('refuseUnreadWrite'));
+assert.ok(braceBlock(js, 'async function persistWorksets').includes("domainWriteAllowed(domainUnread, 'worksets')"));
+assert.ok(braceBlock(js, 'function queueNoteSave()').includes("domainWriteAllowed(domainUnread, 'notes')"));
+assert.ok(braceBlock(js, 'async function loadWorksets(').includes('return null'));
+const bootFn = braceBlock(js, 'async function boot()');
+assert.ok(bootFn.includes('markDeskUnread'));
+assert.ok(!bootFn.slice(bootFn.lastIndexOf('catch')).includes('applyDesk'));
+for (const key of ['todos', 'sites', 'notes', 'worksets']) {
+  assert.strictEqual(helpers.domainWriteAllowed({ [key]: true }, key), false, key);
+  assert.deepStrictEqual(helpers.refuseUnreadWrite({ [key]: true }, key), { ok: false, blocked: true });
+  assert.strictEqual(helpers.domainWriteAllowed({ [key]: false }, key), true, key);
+}
+const originalTodos = [{ id: 'keep', text: '原来的待办', done: false }];
+const todoStore = { todos: originalTodos.map((t) => ({ id: t.id, text: t.text, done: t.done })) };
+let todoSets = 0;
+async function addTodoAfterFailedRead(text) {
+  const refused = helpers.refuseUnreadWrite({ todos: true }, 'todos');
+  if (refused) return Object.assign({ stored: todoStore.todos.map((t) => ({ ...t })) }, refused);
+  todoSets += 1;
+  todoStore.todos = todoStore.todos.concat([{ id: 'new', text: text, done: false }]);
+  return { ok: true, stored: todoStore.todos.map((t) => ({ ...t })) };
+}
+const blockedAdd = await addTodoAfterFailedRead('不该盖掉');
+assert.strictEqual(blockedAdd.ok, false);
+assert.strictEqual(blockedAdd.blocked, true);
+assert.strictEqual(todoSets, 0);
+assert.strictEqual(blockedAdd.stored.length, 1);
+assert.strictEqual(blockedAdd.stored[0].text, '原来的待办');
+assert.ok(!blockedAdd.stored.some((t) => t.text === '不该盖掉'));
 assert.ok(braceBlock(js, 'async function commitTodoFromDialog').includes('await replaceTodos'));
 assert.ok(html.includes('id="todo-save-error"') && html.includes('id="site-save-error"') && html.includes('id="workset-save-error"'));
 
+try {
+  fs.mkdirSync(artifactDir, { recursive: true });
+  fs.writeFileSync(path.join(artifactDir, 'static-ok'), 'pass\n');
+} catch (err) {
+  console.log(`static marker skipped: ${err && err.code ? err.code : err}`);
+}
 console.log('test-r1-r7: ok');
 }
 

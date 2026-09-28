@@ -305,7 +305,19 @@ function stubSource(seed) {
       },
       runtime: {
         onMessage: { addListener() {} },
-        sendMessage() {},
+        sendMessage(msg, cb) {
+          const done = (res) => { if (typeof cb === 'function') cb(res); };
+          if (!msg || msg.type !== 'sopify-note-commit') {
+            done({ ok: true });
+            return;
+          }
+          const run = window.__sopifyNoteCommit;
+          if (typeof run !== 'function') {
+            done({ ok: false, error: true });
+            return;
+          }
+          Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+        },
         getURL(p) { return String(p || ''); },
         lastError: null,
       },

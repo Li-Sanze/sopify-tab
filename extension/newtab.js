@@ -37,6 +37,25 @@
   const desk3dSubs = [];
   let deskLoadBroken = false;
   let noteWriteMeta = null;
+  const domainUnread = {
+    todos: false,
+    sites: false,
+    notes: false,
+    name: false,
+    worksets: false,
+  };
+  function markDeskUnread() {
+    domainUnread.todos = true;
+    domainUnread.sites = true;
+    domainUnread.notes = true;
+    domainUnread.name = true;
+  }
+  function clearDeskUnread() {
+    domainUnread.todos = false;
+    domainUnread.sites = false;
+    domainUnread.notes = false;
+    domainUnread.name = false;
+  }
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -152,14 +171,39 @@
   }
 
   function noteConflictView(local, remote) {
-    function clip(text) {
-      const flat = String(text || '').replace(/\s+/g, ' ').trim();
-      if (!flat) return '还没写';
+    function parts(text) {
+      const raw = String(text == null ? '' : text);
+      const trimmed = raw.replace(/^\s+|\s+$/g, '');
+      if (!trimmed) return { full: '还没写', preview: '还没写', long: false };
+      const flat = trimmed.replace(/\s+/g, ' ');
       const chars = [...flat];
-      if (chars.length > 72) return chars.slice(0, 72).join('') + '…';
-      return flat;
+      const long = chars.length > 72;
+      return {
+        full: trimmed,
+        preview: long ? chars.slice(0, 72).join('') + '…' : flat,
+        long: long,
+      };
     }
-    return { local: clip(local), remote: clip(remote) };
+    const left = parts(local);
+    const right = parts(remote);
+    return {
+      local: left.preview,
+      remote: right.preview,
+      localFull: left.full,
+      remoteFull: right.full,
+      localLong: left.long,
+      remoteLong: right.long,
+    };
+  }
+
+  function domainWriteAllowed(unread, key) {
+    if (!unread || typeof unread !== 'object') return true;
+    return unread[key] !== true;
+  }
+
+  function refuseUnreadWrite(unread, key) {
+    if (domainWriteAllowed(unread, key)) return null;
+    return { ok: false, blocked: true };
   }
 
   function confirmDeskWrite(saveResult, readback) {
@@ -498,6 +542,11 @@
   }
 
   async function commitDesk(partial) {
+    const keys = Object.keys(partial || {}).filter((k) => DESK_KEYS.includes(k));
+    for (let i = 0; i < keys.length; i += 1) {
+      const refused = refuseUnreadWrite(domainUnread, keys[i]);
+      if (refused) return refused;
+    }
     let result;
     try {
       result = await saveDesk(partial);
@@ -505,7 +554,6 @@
       return confirmDeskWrite(null, null);
     }
     if (!result || result.ok !== true || result.empty) return confirmDeskWrite(result, null);
-    const keys = Object.keys(partial).filter((k) => DESK_KEYS.includes(k));
     try {
       const defaults = {};
       keys.forEach((k) => { defaults[k] = null; });
@@ -520,7 +568,7 @@
   async function replaceTodos(next, errorId, message) {
     const saved = await commitDesk({ todos: next });
     if (!saved || saved.ok !== true) {
-      showWriteError(errorId, message);
+      showWriteError(errorId, writeFailMessage(saved, message));
       renderTodos();
       return false;
     }
@@ -559,15 +607,18 @@
     if (!hasStorage) return [];
     try {
       const data = await chrome.storage.local.get({ worksets: [] });
+      domainUnread.worksets = false;
       return normalizeWorksets(data.worksets);
     } catch {
       deskLoadBroken = true;
-      return [];
+      domainUnread.worksets = true;
+      return null;
     }
   }
 
   async function persistWorksets(list) {
     const worksets = normalizeWorksets(list);
+    if (!domainWriteAllowed(domainUnread, 'worksets')) return { ok: false, blocked: true };
     if (!hasStorage) return confirmDeskWrite({ ok: false, skipped: true }, null);
     let saved;
     try {
@@ -930,7 +981,7 @@
       persistWorksets(list).then((saved) => {
         if (!saved || saved.ok !== true) {
           done = false;
-          showWriteError('last-save-error', '名字没存上，再按一次回车');
+          showWriteError('last-save-error', writeFailMessage(saved, '名字没存上，再按一次回车'));
           if (input.isConnected) input.focus();
           return;
         }
@@ -1420,7 +1471,7 @@
       }
       const overwritten = await persistWorksets(next.worksets);
       if (!overwritten || overwritten.ok !== true) {
-        showWriteError('workset-save-error', '窗口没存上，再点一次保存');
+        showWriteError('workset-save-error', writeFailMessage(overwritten, '窗口没存上，再点一次保存'));
         return;
       }
       hideWriteError('workset-save-error');
@@ -1430,7 +1481,7 @@
     }
     const savedWindow = await persistWorksets(proposal.worksets);
     if (!savedWindow || savedWindow.ok !== true) {
-      showWriteError('workset-save-error', '窗口没存上，再点一次保存');
+      showWriteError('workset-save-error', writeFailMessage(savedWindow, '窗口没存上，再点一次保存'));
       return;
     }
     hideWriteError('workset-save-error');
@@ -1504,7 +1555,7 @@
     const current = (state.worksets || []).find((w) => w.id === id);
     const saved = await persistWorksets(removeWorksetById(state.worksets, id));
     if (!saved || saved.ok !== true) {
-      showWriteError('worksets-save-error', '没删掉，再点一次');
+      showWriteError('worksets-save-error', writeFailMessage(saved, '没删掉，再点一次'));
       return;
     }
     hideWriteError('worksets-save-error');
@@ -1517,7 +1568,7 @@
     if (!ok) return;
     const saved = await persistWorksets([]);
     if (!saved || saved.ok !== true) {
-      showWriteError('worksets-save-error', '没清空，再点一次');
+      showWriteError('worksets-save-error', writeFailMessage(saved, '没清空，再点一次'));
       return;
     }
     hideWriteError('worksets-save-error');
@@ -1719,6 +1770,10 @@
       desk.classList.toggle('is-saved', text === '已存在本机');
     }
   }
+  function writeFailMessage(saved, fallback) {
+    if (saved && saved.blocked) return '还没读上来，先别改。点再试一次';
+    return fallback;
+  }
   function showWriteError(id, message) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1731,19 +1786,33 @@
     el.hidden = true;
     el.textContent = '';
   }
+  const noteConflictExpanded = { local: false, remote: false };
+  function paintConflictSide(which, preview, full, long) {
+    const body = which === 'local' ? $('#note-local-preview') : $('#note-remote-preview');
+    const btn = which === 'local' ? $('#note-local-expand') : $('#note-remote-expand');
+    const open = noteConflictExpanded[which] === true;
+    if (body) body.textContent = (!long || open) ? full : preview;
+    if (btn) {
+      btn.hidden = !long;
+      btn.textContent = open ? '收起' : '展开全文';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+  }
   function showNoteConflict(on) {
     const box = $('#note-conflict');
     if (box) box.hidden = !on;
-    if (!on) return;
-    const localEl = $('#note-local-preview');
-    const remoteEl = $('#note-remote-preview');
+    if (!on) {
+      noteConflictExpanded.local = false;
+      noteConflictExpanded.remote = false;
+      return;
+    }
     const snap = noteKeeper.snapshot();
     const remote = snap.conflict ? snap.conflict.remoteText : '';
     const ta = $('#notes');
     const local = ta ? ta.value : (snap.text || '');
     const view = noteConflictView(local, remote);
-    if (localEl) localEl.textContent = view.local;
-    if (remoteEl) remoteEl.textContent = view.remote;
+    paintConflictSide('local', view.local, view.localFull, view.localLong);
+    paintConflictSide('remote', view.remote, view.remoteFull, view.remoteLong);
   }
   function showDeskLoadError() {
     const el = $('#desk-load-error');
@@ -1763,10 +1832,40 @@
     if (editor && noteDraftIsDirty(editor.value, snap.acked, false)) return true;
     return false;
   }
+  if (typeof window !== 'undefined' && window.SopifyNoteSync && hasStorage && typeof window.__sopifyNoteCommit !== 'function') {
+    const pageQueue = window.SopifyNoteSync.createNoteCoordinator({
+      get: (defaults) => chrome.storage.local.get(defaults),
+      set: (partial) => chrome.storage.local.set(partial),
+    });
+    window.__sopifyNoteCommit = (req) => pageQueue.commit(req);
+  }
+  function requestNoteCommit(req) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      return new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage({ type: 'sopify-note-commit', req: req }, (res) => {
+            const failed = chrome.runtime.lastError;
+            if (failed) {
+              resolve({ ok: false, error: true });
+              return;
+            }
+            resolve(res && typeof res === 'object' ? res : { ok: false, error: true });
+          });
+        } catch {
+          resolve({ ok: false, error: true });
+        }
+      });
+    }
+    if (typeof window !== 'undefined' && typeof window.__sopifyNoteCommit === 'function') {
+      return window.__sopifyNoteCommit(req);
+    }
+    return Promise.resolve({ ok: false, skipped: true });
+  }
   const noteKeeper = (typeof window !== 'undefined' && window.SopifyNoteSync
     ? window.SopifyNoteSync.createNoteKeeper({
       pageId: 'nt-' + Math.random().toString(16).slice(2),
       storage: hasStorage ? { get: (defaults) => chrome.storage.local.get(defaults) } : null,
+      coordinator: { commit: requestNoteCommit },
       isEditing: noteFieldEditing,
       onStatus(text) {
         if (text === '另一页改过，没覆盖') {
@@ -1855,6 +1954,10 @@
   }
   function queueNoteSave() {
     noteKeeper.remember(state.notes);
+    if (!domainWriteAllowed(domainUnread, 'notes')) {
+      setNotesSavedStatus('还没读上来，先别改。点再试一次');
+      return;
+    }
     if (noteKeeper.hasConflict() && !noteKeeper.peekForce()) {
       setNotesSavedStatus('另一页改过，没覆盖');
       showNoteConflict(true);
@@ -1913,6 +2016,11 @@
     $('#name').addEventListener('input', (e) => {
       state.name = e.target.value;
       tick();
+      if (!domainWriteAllowed(domainUnread, 'name')) {
+        showWriteError('name-save-error', '还没读上来，先别改。点再试一次');
+        return;
+      }
+      hideWriteError('name-save-error');
       saveDesk({ name: state.name });
     });
 
@@ -1963,7 +2071,7 @@
       const saved = await commitDesk({ sites: next });
       siteAddBusy = false;
       if (!saved || saved.ok !== true) {
-        showWriteError('site-save-error', '没加上，再点一次加入');
+        showWriteError('site-save-error', writeFailMessage(saved, '没加上，再点一次加入'));
         return;
       }
       hideWriteError('site-save-error');
@@ -1986,8 +2094,8 @@
       const [removed] = next.splice(i, 1);
       const saved = await commitDesk({ sites: next });
       if (!saved || saved.ok !== true) {
-        showWriteError('sites-save-error', '没去掉，再点一次');
-        showWriteError('site-save-error', '没去掉，再点一次');
+        showWriteError('sites-save-error', writeFailMessage(saved, '没去掉，再点一次'));
+        showWriteError('site-save-error', writeFailMessage(saved, '没去掉，再点一次'));
         return;
       }
       hideWriteError('sites-save-error');
@@ -2085,6 +2193,20 @@
         noteKeeper.armForce();
         noteKeeper.remember(state.notes);
         queueNoteSave();
+      });
+    }
+    const localExpand = $('#note-local-expand');
+    if (localExpand) {
+      localExpand.addEventListener('click', () => {
+        noteConflictExpanded.local = !noteConflictExpanded.local;
+        showNoteConflict(true);
+      });
+    }
+    const remoteExpand = $('#note-remote-expand');
+    if (remoteExpand) {
+      remoteExpand.addEventListener('click', () => {
+        noteConflictExpanded.remote = !noteConflictExpanded.remote;
+        showNoteConflict(true);
       });
     }
     const loadRetry = $('#desk-load-retry');
@@ -2266,11 +2388,19 @@
     try { data = await loadDesk(); } catch { data = { loadError: true }; }
     if (!data || data.loadError) {
       deskLoadBroken = true;
+      markDeskUnread();
       showDeskLoadError();
       return;
     }
+    clearDeskUnread();
     applyDesk(data);
-    state.worksets = await loadWorksets();
+    const loadedSets = await loadWorksets();
+    if (loadedSets == null) {
+      deskLoadBroken = true;
+      showDeskLoadError();
+      return;
+    }
+    state.worksets = loadedSets;
     state.cwd = await loadCwd();
     state.hostUpstream = await loadUpstream();
     if (deskLoadBroken) {
@@ -2278,6 +2408,7 @@
       return;
     }
     hideDeskLoadError();
+    ['todo-save-error', 'todo-dialog-save-error', 'site-save-error', 'sites-save-error', 'workset-save-error', 'last-save-error', 'worksets-save-error', 'name-save-error'].forEach(hideWriteError);
     const cwdEl = $('#cwd');
     if (cwdEl && cwdEl !== document.activeElement) cwdEl.value = state.cwd;
     renderWorkset();
@@ -2290,14 +2421,21 @@
   async function boot() {
     try {
       const data = await loadDesk();
-      if (data && data.loadError) deskLoadBroken = true;
-      applyDesk(data || { sites: [], todos: [], notes: '', name: '' });
-      state.worksets = await loadWorksets();
+      if (!data || data.loadError) {
+        deskLoadBroken = true;
+        markDeskUnread();
+      } else {
+        clearDeskUnread();
+        applyDesk(data);
+      }
+      const loadedSets = await loadWorksets();
+      if (loadedSets == null) deskLoadBroken = true;
+      else state.worksets = loadedSets;
       state.cwd = await loadCwd();
       state.hostUpstream = await loadUpstream();
     } catch {
       deskLoadBroken = true;
-      try { applyDesk({ sites: [], todos: [], notes: '', name: '' }); } catch { /* desk stays usable */ }
+      markDeskUnread();
     }
     const cwdEl = $('#cwd');
     if (cwdEl) cwdEl.value = state.cwd;

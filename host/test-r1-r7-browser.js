@@ -168,7 +168,19 @@ function stubSource(seed) {
       },
       runtime: {
         onMessage: { addListener() {} },
-        sendMessage() {},
+        sendMessage(msg, cb) {
+          const done = (res) => { if (typeof cb === 'function') cb(res); };
+          if (!msg || msg.type !== 'sopify-note-commit') {
+            done({ ok: true });
+            return;
+          }
+          const run = window.__sopifyNoteCommit;
+          if (typeof run !== 'function') {
+            done({ ok: false, error: true });
+            return;
+          }
+          Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+        },
         getURL(p) { return String(p || ''); },
         lastError: null,
       },
@@ -563,16 +575,59 @@ async function main() {
     })()`);
     check('dirty note keeps the local draft', conflict.value === '这边草稿' && conflict.status === '另一页改过，没覆盖' && conflict.buttons, JSON.stringify(conflict));
     check('conflict shows both drafts before a choice', conflict.local === '这边草稿' && conflict.remote === '那边改的' && conflict.local !== conflict.remote, JSON.stringify(conflict));
+    const expanded = await evalJson(`(() => {
+      const ta = document.getElementById('notes');
+      const long = '长'.repeat(80);
+      ta.value = long;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      window.__pushNotes('页'.repeat(90), 9, 'other:9:long');
+      const btn = document.getElementById('note-remote-expand');
+      const before = document.getElementById('note-remote-preview').textContent;
+      btn.click();
+      const after = document.getElementById('note-remote-preview').textContent;
+      return {
+        hidden: btn.hidden,
+        label: btn.textContent,
+        beforeEnd: before.slice(-1),
+        afterLen: [...after].length,
+        kept: ta.value === long,
+      };
+    })()`);
+    check('conflict expands the full remote text', expanded.hidden === false && expanded.beforeEnd === '…' && expanded.afterLen === 90 && expanded.kept === true && expanded.label === '收起', JSON.stringify(expanded));
     await shot('stub-note-conflict-1440.png');
 
     await loadSeed(1440, 900, {
       todos: [{ id: 'later', text: '读回来了', done: false }],
       sites: sites(1, false),
+      notes: '原便签',
       failReads: 1,
     }, 'day');
     const bootFail = await box();
     check('boot read failure stays usable', bootFail.loadError === true && bootFail.has !== 'pending' && bootFail.text.includes('下一件事'), JSON.stringify(bootFail));
     await shot('stub-boot-fail-1440.png');
+    const blockedAdd = await evalJson(`(async () => {
+      const ta = document.getElementById('notes');
+      ta.value = '不该盖掉便签';
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      const input = document.getElementById('todo-input');
+      input.value = '不该盖掉待办';
+      input.form.requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('todo-save-error');
+      const toast = document.getElementById('toast');
+      return {
+        todoValue: input.value,
+        error: err ? err.textContent : '',
+        hidden: err ? err.hidden : true,
+        todos: window.__sopifyStore.todos.map((t) => t.text),
+        notes: window.__sopifyStore.notes,
+        sites: window.__sopifyStore.sites.length,
+        noteStatus: document.getElementById('notes-saved').textContent,
+        toastOn: toast.classList.contains('show'),
+        toast: toast.textContent,
+      };
+    })()`);
+    check('read failure blocks the add and keeps the original todos', blockedAdd.todos.length === 1 && blockedAdd.todos[0] === '读回来了' && !blockedAdd.todos.includes('不该盖掉待办') && blockedAdd.todoValue === '不该盖掉待办' && blockedAdd.hidden === false && blockedAdd.error.includes('还没读上来') && blockedAdd.notes === '原便签' && blockedAdd.noteStatus.includes('还没读上来') && blockedAdd.sites === 1 && !(blockedAdd.toastOn && /已加入|已存下|已存在/.test(blockedAdd.toast)), JSON.stringify(blockedAdd));
     await evalJson(`document.getElementById('desk-load-retry').click()`);
     await sleep(80);
     const retried = await box();
@@ -921,9 +976,61 @@ async function main() {
     checks,
     realExtension: real,
   };
+  const failedNames = new Set(failures.map((line) => line.split(':')[0]));
+  let staticCol = '未测';
+  try {
+    const markerDir = process.env.SOPIFY_ARTIFACT_DIR || '/opt/cursor/artifacts/r1-r7';
+    if (fs.existsSync(path.join(markerDir, 'static-ok'))) staticCol = 'pass';
+  } catch { /* leave 未测 */ }
+  function col(name) {
+    const row = checks.find((c) => c.name === name);
+    if (!row) return '未测';
+    return row.ok ? 'pass' : 'fail';
+  }
+  const acceptance = {
+    columns: ['静态', '替身', '真扩展', 'IME', '未测'],
+    note: '替身是桩浏览器里的界面。真扩展、Host、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
+    rows: [
+      {
+        item: 'A 读失败不当成空数据，禁止覆盖写',
+        静态: staticCol,
+        替身: col('read failure blocks the add and keeps the original todos'),
+        真扩展: '未测',
+        IME: '未测',
+        未测: '真扩展 / Host / 真中文 IME',
+      },
+      {
+        item: 'B 便签同一队列，先写的留下，后写的冲突并保留草稿',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '双页并发只在静态单测里走 createNoteCoordinator。替身只验证单页保存。真扩展 / Host / 真中文 IME',
+      },
+      {
+        item: 'C 确认只覆盖刚看过的版本，冲突可展开全文',
+        静态: staticCol,
+        替身: col('conflict expands the full remote text'),
+        真扩展: '未测',
+        IME: '未测',
+        未测: '版本被改掉后再确认只在静态单测。真扩展 / Host / 真中文 IME',
+      },
+      {
+        item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',
+        静态: staticCol,
+        替身: failures.length ? 'fail' : 'pass',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '真扩展 / Host / 真中文 IME。桩里的 Enter/229 只是合成事件',
+      },
+    ],
+    realExtension: real.ok ? { ok: false, detail: 'target appeared but this run did not exercise the loaded extension' } : real,
+    failedChecks: [...failedNames],
+  };
   if (ARTIFACTS) {
     try {
       fs.writeFileSync(path.join(ARTIFACTS, 'report.json'), JSON.stringify(report, null, 2));
+      fs.writeFileSync(path.join(ARTIFACTS, 'acceptance.json'), JSON.stringify(acceptance, null, 2));
     } catch (err) {
       console.log(`report skipped: ${err && err.code ? err.code : err}`);
     }
