@@ -47,9 +47,9 @@
 bash scripts/test-reliability.sh
 ```
 
-先跑静态和多页便签单测（`node host/test-r1-r7.js`），再跑浏览器行为（`node host/test-r1-r7-browser.js`）。退出码：`0` 两边都过了；`1` 有断言失败；`2` 没找到浏览器或浏览器起不来。退出码 `2` 是跳过，不是通过。
+先跑静态和多页便签单测（`node host/test-r1-r7.js`、w11、w12、w4、天空层、伴随模块已移除、三维书桌门禁、`host/test-w13-firstscreen.js`），再跑浏览器行为（`node host/test-r1-r7-browser.js`）。脚本会逐项打印 pass / fail / skip。退出码：`0` 每一项都过了；`1` 有断言失败，或浏览器检查因为缺少全局 `WebSocket` 跑不起来；`2` 只在找不到 Chrome / Chromium 时出现。退出码 `2` 是跳过，不是通过。不会因为少跑某项而变成 `0`。
 
-`CHROME_BIN` 指向 Chrome 或 Chromium，Linux 和 macOS 路径都可以。`SOPIFY_CDP_PORT` 指定调试端口；不设就挑一个空闲端口。临时用户目录在结束时删掉。
+浏览器检查需要带全局 `WebSocket` 的 Node（Node 22 及以上）。`CHROME_BIN` 指向 Chrome 或 Chromium，Linux 和 macOS 路径都可以。`SOPIFY_CDP_PORT` 指定调试端口；不设就挑一个空闲端口。`SOPIFY_ARTIFACT_DIR` 指定截图目录；写不进去时改用临时目录，截图失败本身不会把整组测试判失败。临时用户目录在结束时删掉。
 
 浏览器脚本里的存储是桩，用来看界面和失败态，不是已经加载的扩展。真扩展按上面的「加载已解压」安装。品牌版 Chrome 148 会忽略命令行 `--load-extension`。这些测试不调用本机 Host，也不改 Host 的安装。
 

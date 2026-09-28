@@ -223,6 +223,7 @@ assert.ok(!/chrome\.storage/.test(ui));
 console.log('test-w13-firstscreen static: ok');
 
 const http = require('http');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const FOUR_LINE_TITLE = `${'把首屏长标题排满'.repeat(24)}第四行`;
@@ -322,11 +323,44 @@ function stubSource(seed) {
 }
 
 function chromeBin() {
-  const list = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome-stable', 'google-chrome'];
-  for (const bin of list) {
-    if (bin.includes('/') && fs.existsSync(bin)) return bin;
+  if (process.env.CHROME_BIN) {
+    if (fs.existsSync(process.env.CHROME_BIN)) return process.env.CHROME_BIN;
+    console.log(`SKIP browser: CHROME_BIN does not exist (${process.env.CHROME_BIN})`);
+    process.exit(2);
   }
-  return 'google-chrome';
+  const list = [
+    '/usr/local/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ];
+  for (const bin of list) {
+    if (fs.existsSync(bin)) return bin;
+  }
+  console.log('SKIP browser: no Chrome/Chromium binary found. Set CHROME_BIN.');
+  process.exit(2);
+}
+
+function writableDir(candidates) {
+  let last = null;
+  for (const dir of candidates) {
+    if (!dir) continue;
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const probe = path.join(dir, '.write-probe');
+      fs.writeFileSync(probe, 'ok');
+      fs.unlinkSync(probe);
+      return dir;
+    } catch (err) {
+      last = err;
+      console.log(`screenshot dir unavailable: ${dir} (${err && err.code ? err.code : err})`);
+    }
+  }
+  console.log(`screenshots skipped: ${last && last.message ? last.message : last}`);
+  return null;
 }
 
 function serve(root) {
@@ -436,12 +470,17 @@ function sleep(ms) {
 }
 
 async function main() {
+  const chromePath = chromeBin();
+  if (typeof WebSocket !== 'function') {
+    console.error('FAIL browser: global WebSocket is missing. Browser checks need Node 22 or newer.');
+    process.exit(1);
+  }
   const server = await serve(EXT);
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
   const profile = fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-'));
   const cdpPort = 9477;
-  const chrome = spawn(chromeBin(), [
+  const chrome = spawn(chromePath, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -457,8 +496,12 @@ async function main() {
   let chromeLog = '';
   chrome.stdout.on('data', (d) => { chromeLog += d; });
   chrome.stderr.on('data', (d) => { chromeLog += d; });
-  const shotDir = '/opt/cursor/artifacts/firstscreen-reliability';
-  fs.mkdirSync(shotDir, { recursive: true });
+  const shotDir = writableDir([
+    process.env.SOPIFY_ARTIFACT_DIR
+      ? path.join(process.env.SOPIFY_ARTIFACT_DIR, 'firstscreen-reliability')
+      : '/opt/cursor/artifacts/firstscreen-reliability',
+    path.join(os.tmpdir(), 'sopify-firstscreen-reliability'),
+  ]);
   let cdp;
   try {
     const version = await waitJson(cdpPort);
@@ -572,8 +615,13 @@ async function main() {
 
     async function shoot(name) {
       await evalJson(`if (document.activeElement && document.activeElement.blur) document.activeElement.blur()`);
+      if (!shotDir) return;
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(shotDir, name), Buffer.from(shot.data, 'base64'));
+      try {
+        fs.writeFileSync(path.join(shotDir, name), Buffer.from(shot.data, 'base64'));
+      } catch (err) {
+        console.log(`screenshot skipped: ${name} (${err && err.code ? err.code : err})`);
+      }
     }
 
     const behavior = [];
@@ -926,9 +974,17 @@ async function main() {
       const result = row.exception ? 'exception-recorded' : (row.pass ? 'pass' : 'FAIL');
       console.log(`${row.size}\t${row.todos}\t${row.sites}\t${row.overflow}\t${row.wheel}\t${row.lines}\t${result}`);
     }
-    const matrixPath = path.join(shotDir, 'matrix.json');
-    fs.writeFileSync(matrixPath, JSON.stringify({ behavior, rows, version: version.Browser || '' }, null, 2));
-    console.log(`matrix ${matrixPath}`);
+    if (shotDir) {
+      const matrixPath = path.join(shotDir, 'matrix.json');
+      try {
+        fs.writeFileSync(matrixPath, JSON.stringify({ behavior, rows, version: version.Browser || '' }, null, 2));
+        console.log(`matrix ${matrixPath}`);
+      } catch (err) {
+        console.log(`matrix skipped: ${err && err.code ? err.code : err}`);
+      }
+    } else {
+      console.log('matrix skipped: no writable artifact dir');
+    }
     const behaviorFails = [];
     for (const item of behavior) {
       if (!item.ok) behaviorFails.push(`behavior ${item.name}: ${item.detail}`);

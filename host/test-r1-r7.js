@@ -37,7 +37,7 @@ assert.ok(start !== -1 && end > start);
 const helpers = new Function(
   'const WORKSET_TAB_CAP = 50; const WORKSET_TITLE_MAX = 200; ' +
   js.slice(start, end) +
-  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, confirmDeskWrite, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
+  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, confirmDeskWrite, beginRestore, noteDraftIsDirty, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
 )();
 
 const tabs = [
@@ -54,6 +54,10 @@ assert.deepStrictEqual(helpers.tabsToCloseForHost(tabs, 'alpha', 'example.com').
 const closeBody = braceBlock(js, 'async function closeHost(');
 assert.ok(closeBody.includes('tabsToCloseForHost(state.tabs, state.filter, host)'));
 assert.ok(closeBody.includes('筛选外的还在'));
+assert.ok(closeBody.includes('没关掉'));
+assert.ok(closeBody.includes('还有'));
+assert.ok(closeBody.indexOf('if (failed > 0)') < closeBody.indexOf('已关闭'));
+assert.ok(!/catch \{[^}]*已关闭/.test(closeBody));
 assert.ok(js.includes('只关闭筛选里显示的这组'));
 assert.strictEqual(helpers.closeHostButtonLabel(filtered.length), '关闭这 1 个标签');
 assert.strictEqual(helpers.closeHostButtonLabel(all.length), '关闭这 2 个标签');
@@ -114,6 +118,22 @@ const full = await helpers.executeRestore(
 const fullSummary = helpers.summarizeRestore({ activate: [], create: ['https://new.example/'] }, full);
 assert.strictEqual(fullSummary.complete, true);
 assert.strictEqual(helpers.restoreToast('上午', fullSummary), '已恢复「上午」');
+assert.strictEqual(helpers.beginRestore(false, [{ id: 1 }]).abort, true);
+assert.deepStrictEqual(helpers.beginRestore(false, [{ id: 1 }]).open, []);
+assert.strictEqual(helpers.beginRestore(true, [{ id: 3 }]).abort, false);
+assert.deepStrictEqual(helpers.beginRestore(true, [{ id: 3 }]).open, [{ id: 3 }]);
+const restoreFn = braceBlock(js, 'async function restoreWorksetById');
+assert.ok(restoreFn.includes('beginRestore'));
+assert.ok(restoreFn.includes('没有恢复'));
+assert.ok(!restoreFn.includes('catch { open = [] }'));
+assert.ok(restoreFn.indexOf('started.abort') < restoreFn.indexOf('planRestore'));
+assert.strictEqual(helpers.noteDraftIsDirty('这边', '这边', false), false);
+assert.strictEqual(helpers.noteDraftIsDirty('这边草稿', '这边', false), true);
+assert.strictEqual(helpers.noteDraftIsDirty('这边', '这边', true), true);
+const fieldFn = braceBlock(js, 'function noteFieldEditing()');
+assert.ok(fieldFn.includes('noteDraftIsDirty'));
+assert.ok(fieldFn.includes('notePending'));
+assert.ok(!fieldFn.includes('activeElement'));
 
 const loaded = await helpers.readDeskStorage(async () => ({
   sites: [{ name: '站', url: 'https://example.com' }],

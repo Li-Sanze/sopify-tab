@@ -175,6 +175,16 @@
     return { ok: true };
   }
 
+  function beginRestore(queryOk, openTabs) {
+    if (queryOk !== true) return { abort: true, open: [] };
+    return { abort: false, open: Array.isArray(openTabs) ? openTabs : [] };
+  }
+
+  function noteDraftIsDirty(local, acked, pending) {
+    if (pending) return true;
+    return String(local == null ? '' : local) !== String(acked == null ? '' : acked);
+  }
+
   function noteOneLiner(notes) {
     const line = String(notes || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
     return line || '';
@@ -1429,9 +1439,18 @@
       toast('没有可恢复的窗口');
       return { opened: 0, skipped: 0, failed: 0, complete: false, tone: 'fail' };
     }
-    let open = [];
-    try { open = await queryWindowTabs(); } catch { open = []; }
-    const plan = planRestore(w.tabs, open);
+    let queried = { ok: false, tabs: [] };
+    try {
+      queried = { ok: true, tabs: await queryWindowTabs() };
+    } catch {
+      queried = { ok: false, tabs: [] };
+    }
+    const started = beginRestore(queried.ok, queried.tabs);
+    if (started.abort) {
+      toast('没看清当前窗口，没有恢复「' + w.name + '」');
+      return { opened: 0, skipped: 0, failed: 0, complete: false, tone: 'fail', aborted: true };
+    }
+    const plan = planRestore(w.tabs, started.open);
     const exec = await executeRestore(plan, hasTabs ? {
       create: (tabOpts) => chrome.tabs.create(tabOpts),
       activate: (tabId) => activateTab(tabId, { rethrow: true }),
@@ -1616,13 +1635,29 @@
     const visible = tabsToCloseForHost(state.tabs, state.filter, host);
     const ids = visible.map((t) => t.id);
     if (!ids.length || !hasTabs) return;
-    try { await chrome.tabs.remove(ids); } catch { /* already gone */ }
-    const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
-    if (String(state.filter || '').trim() && all > ids.length) {
-      toast(`已关闭 ${ids.length} 个 ${host}，筛选外的还在`);
-    } else {
-      toast(`已关闭 ${host}`);
+    let closed = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await chrome.tabs.remove(id);
+        closed += 1;
+      } catch {
+        failed += 1;
+      }
     }
+    const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
+    const hiddenLeft = String(state.filter || '').trim() && all > ids.length;
+    const tail = hiddenLeft ? '，筛选外的还在' : '';
+    if (closed === 0) {
+      toast(`没关掉 ${host}${tail}`);
+      return;
+    }
+    if (failed > 0) {
+      toast(`关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`);
+      return;
+    }
+    if (hiddenLeft) toast(`已关闭 ${closed} 个 ${host}，筛选外的还在`);
+    else toast(`已关闭 ${host}`);
   }
 
   let noteSaveActive = false;
@@ -1681,10 +1716,13 @@
     if (el) el.hidden = true;
   }
   function noteFieldEditing() {
+    if (noteSaveActive || notePending !== null) return true;
+    const snap = noteKeeper.snapshot();
     const ta = $('#notes');
+    if (ta && noteDraftIsDirty(ta.value, snap.acked, false)) return true;
     const editor = $('#desk3d-note-editor');
-    const active = document.activeElement;
-    return active === ta || (!!editor && active === editor) || noteSaveActive || notePending !== null;
+    if (editor && noteDraftIsDirty(editor.value, snap.acked, false)) return true;
+    return false;
   }
   const noteKeeper = (typeof window !== 'undefined' && window.SopifyNoteSync
     ? window.SopifyNoteSync.createNoteKeeper({
@@ -1724,9 +1762,11 @@
     if (!outcome) return;
     if (outcome.action === 'apply') {
       state.notes = outcome.text;
-      renderNotes();
+      const ta = $('#notes');
+      if (ta) ta.value = state.notes;
       const editor = $('#desk3d-note-editor');
-      if (editor && editor !== document.activeElement) editor.value = state.notes;
+      if (editor) editor.value = state.notes;
+      renderNotes();
       return;
     }
     if (outcome.action === 'conflict') {

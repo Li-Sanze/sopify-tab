@@ -9,7 +9,35 @@ const { spawn } = require('child_process');
 
 const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
-const ARTIFACTS = process.env.SOPIFY_ARTIFACT_DIR || '/opt/cursor/artifacts/r1-r7';
+function writableDir(candidates) {
+  let last = null;
+  for (const dir of candidates) {
+    if (!dir) continue;
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const probe = path.join(dir, '.write-probe');
+      fs.writeFileSync(probe, 'ok');
+      fs.unlinkSync(probe);
+      return dir;
+    } catch (err) {
+      last = err;
+      console.log(`screenshot dir unavailable: ${dir} (${err && err.code ? err.code : err})`);
+    }
+  }
+  console.log(`screenshots skipped: ${last && last.message ? last.message : last}`);
+  return null;
+}
+
+const ARTIFACTS = writableDir([
+  process.env.SOPIFY_ARTIFACT_DIR || '/opt/cursor/artifacts/r1-r7',
+  path.join(os.tmpdir(), 'sopify-r1-r7'),
+]);
+
+function requireWebSocket() {
+  if (typeof WebSocket === 'function') return;
+  console.error('FAIL browser: global WebSocket is missing. Browser checks need Node 22 or newer.');
+  process.exit(1);
+}
 
 function findChrome() {
   if (process.env.CHROME_BIN) {
@@ -143,7 +171,10 @@ function stubSource(seed) {
         lastError: null,
       },
       tabs: {
-        query() { return Promise.resolve(seed.tabs || []); },
+        query() {
+          if (seed.failQuery) return Promise.reject(new Error('query failed'));
+          return Promise.resolve(seed.tabs || []);
+        },
         create(opts) {
           const url = opts && opts.url ? String(opts.url) : '';
           if (seed.failCreate && url.includes(seed.failCreate)) return Promise.reject(new Error('blocked'));
@@ -154,6 +185,8 @@ function stubSource(seed) {
         update() { return Promise.resolve(); },
         remove(ids) {
           const list = Array.isArray(ids) ? ids : [ids];
+          const blocked = (id) => seed.failRemove === true || (Array.isArray(seed.failRemove) && seed.failRemove.indexOf(id) !== -1);
+          if (list.some(blocked)) return Promise.reject(new Error('remove failed'));
           list.forEach((id) => removed.push(id));
           return Promise.resolve();
         },
@@ -257,12 +290,12 @@ function rmDir(dir) {
 
 async function main() {
   const bin = findChrome();
+  requireWebSocket();
   const liveHits = [];
   const live = await serve(EXT, liveHits);
   const origin = `http://127.0.0.1:${live.address().port}`;
   const cdpPort = process.env.SOPIFY_CDP_PORT ? Number(process.env.SOPIFY_CDP_PORT) : await freePort();
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-'));
-  fs.mkdirSync(ARTIFACTS, { recursive: true });
   const chrome = spawn(bin, [
     '--headless=new',
     '--no-sandbox',
@@ -352,8 +385,13 @@ async function main() {
     }
 
     async function shot(name) {
+      if (!ARTIFACTS) return;
       const png = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(ARTIFACTS, name), Buffer.from(png.data, 'base64'));
+      try {
+        fs.writeFileSync(path.join(ARTIFACTS, name), Buffer.from(png.data, 'base64'));
+      } catch (err) {
+        console.log(`screenshot skipped: ${name} (${err && err.code ? err.code : err})`);
+      }
     }
 
     async function box() {
@@ -492,9 +530,25 @@ async function main() {
     check('failed write says 没存上 and keeps the draft', failed.status === '没存上' && failed.notes === '原样' && failed.value === '写不进去', JSON.stringify(failed));
 
     await loadSeed(1440, 900, { todos: [], sites: [], notes: '这边', notesRev: 1, notesStamp: 'seed' }, 'day');
+    const focusedClean = await evalJson(`(() => {
+      const ta = document.getElementById('notes');
+      ta.focus();
+      window.__pushNotes('那边改的', 2, 'other:2:x');
+      const box = document.getElementById('note-conflict');
+      return {
+        value: ta.value,
+        status: document.getElementById('notes-saved').textContent,
+        hidden: box.hidden,
+      };
+    })()`);
+    check('focused clean note applies the other page', focusedClean.value === '那边改的' && focusedClean.hidden === true && focusedClean.status !== '另一页改过，没覆盖', JSON.stringify(focusedClean));
+
+    await loadSeed(1440, 900, { todos: [], sites: [], notes: '这边', notesRev: 1, notesStamp: 'seed' }, 'day');
     const conflict = await evalJson(`(() => {
       const ta = document.getElementById('notes');
       ta.focus();
+      ta.value = '这边草稿';
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
       window.__pushNotes('那边改的', 2, 'other:2:x');
       const box = document.getElementById('note-conflict');
       return {
@@ -505,8 +559,8 @@ async function main() {
         remote: document.getElementById('note-remote-preview').textContent,
       };
     })()`);
-    check('focused note shows conflict and keeps local text', conflict.value === '这边' && conflict.status === '另一页改过，没覆盖' && conflict.buttons, JSON.stringify(conflict));
-    check('conflict shows both drafts before a choice', conflict.local === '这边' && conflict.remote === '那边改的' && conflict.local !== conflict.remote, JSON.stringify(conflict));
+    check('dirty note keeps the local draft', conflict.value === '这边草稿' && conflict.status === '另一页改过，没覆盖' && conflict.buttons, JSON.stringify(conflict));
+    check('conflict shows both drafts before a choice', conflict.local === '这边草稿' && conflict.remote === '那边改的' && conflict.local !== conflict.remote, JSON.stringify(conflict));
     await shot('stub-note-conflict-1440.png');
 
     await loadSeed(1440, 900, {
@@ -585,6 +639,64 @@ async function main() {
       return { title, count, label: btn ? btn.textContent.trim() : '', removed: window.__sopifyRemoved.slice() };
     })()`);
     check('filtered close removes only the visible host tabs', JSON.stringify(closed.removed) === '[1]' && closed.count === '1' && closed.title.includes('筛选') && closed.label === '关闭这 1 个标签', JSON.stringify(closed));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 1, title: 'one', url: 'https://github.com/a' },
+        { id: 2, title: 'two', url: 'https://github.com/b' },
+      ],
+      failRemove: [2],
+    }, 'day');
+    const partialClose = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      const btn = document.querySelector('[data-close-host="github.com"]');
+      btn.click();
+      await new Promise((r) => setTimeout(r, 40));
+      const toast = document.getElementById('toast');
+      return {
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        removed: window.__sopifyRemoved.slice(),
+      };
+    })()`);
+    check('partial close does not claim full success', partialClose.toastOn && partialClose.toast.includes('还有 1 个没关掉') && !partialClose.toast.includes('已关闭') && JSON.stringify(partialClose.removed) === '[1]', JSON.stringify(partialClose));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [{ id: 8, title: 'stuck', url: 'https://github.com/stuck' }],
+      failRemove: true,
+    }, 'day');
+    const failedClose = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="github.com"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const toast = document.getElementById('toast');
+      return {
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        removed: window.__sopifyRemoved.slice(),
+      };
+    })()`);
+    check('failed close does not toast success', failedClose.toastOn && failedClose.toast.includes('没关掉') && !failedClose.toast.includes('已关闭') && failedClose.removed.length === 0, JSON.stringify(failedClose));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      worksets: workset,
+      failQuery: true,
+    }, 'day');
+    const queryAbort = await evalJson(`(async () => {
+      document.getElementById('workset-restore-recent').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        toast: document.getElementById('toast').textContent,
+        created: window.__sopifyCreated.map((t) => t.url),
+      };
+    })()`);
+    check('query failure aborts restore', queryAbort.toast.includes('没有恢复') && !queryAbort.toast.includes('已恢复') && queryAbort.created.length === 0, JSON.stringify(queryAbort));
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -790,7 +902,13 @@ async function main() {
     checks,
     realExtension: real,
   };
-  fs.writeFileSync(path.join(ARTIFACTS, 'report.json'), JSON.stringify(report, null, 2));
+  if (ARTIFACTS) {
+    try {
+      fs.writeFileSync(path.join(ARTIFACTS, 'report.json'), JSON.stringify(report, null, 2));
+    } catch (err) {
+      console.log(`report skipped: ${err && err.code ? err.code : err}`);
+    }
+  }
   if (failures.length) {
     console.log(`test-r1-r7-browser: FAIL ${failures.length}`);
     throw new Error(failures.join('\n'));
