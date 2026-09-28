@@ -783,6 +783,92 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   color: var(--studio-danger);
 }
 #ops-sites-dialog .tiles { flex-wrap: wrap; overflow: visible; }
+#ops-sites-dialog #sites-all {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  overflow: visible;
+}
+#ops-sites-dialog .siterow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 4px 0;
+}
+#ops-sites-dialog .siterow + .siterow { box-shadow: inset 0 1px 0 var(--studio-line); }
+#ops-sites-dialog .siterow .tile {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 4px 4px 4px 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  text-decoration: none;
+}
+#ops-sites-dialog .siterow .tile:hover,
+#ops-sites-dialog .siterow .tile:active {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+#ops-sites-dialog .siterow .tile .glyph {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  flex: none;
+  font-size: 13px;
+}
+#ops-sites-dialog .siterow-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+#ops-sites-dialog .siterow .lbl {
+  max-width: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--studio-ink);
+}
+#ops-sites-dialog .siterow .url {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--studio-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#ops-sites-dialog .siterow .btn {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+#ops-sites-dialog .siterow .iconbtn {
+  position: static;
+  opacity: 1;
+  width: 32px;
+  height: 32px;
+}
+#ops-sites-dialog .siterow-editing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+#ops-sites-dialog .siterow-editing .field { flex: 1 1 8em; min-width: 0; }
+#ops-sites-dialog .siterow-editing .desk-write-error {
+  flex: 1 0 100%;
+  margin-top: 0;
+}
 
 .desk-aux[hidden] { display: none !important; }
 
@@ -1422,6 +1508,45 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
   border: 0;
 }
 .studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }
+/* Trailing zone keeps a single-letter name clear of the remove control. */
+.studio-desk .sites .tile {
+  padding-right: 30px;
+  min-width: 80px;
+}
+.studio-desk .sites .tile:hover,
+.studio-desk .sites .tile:active { transform: none; }
+.studio-desk .sites .tile .glyph { flex: none; }
+.studio-desk .sites .tile .lbl { flex: none; min-width: 1ch; }
+.studio-desk .sites .tile-remove {
+  top: 9px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  background: var(--studio-solid);
+  border: 1px solid var(--studio-line-2);
+  color: var(--studio-ink-2);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.studio-desk .sites .tilewrap:hover .tile-remove,
+.studio-desk .sites .tilewrap:focus-within .tile-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+.studio-desk .sites .tile-remove:hover,
+.studio-desk .sites .tile-remove:focus-visible {
+  background: var(--studio-paper);
+  color: var(--studio-ink);
+}
+.studio-desk .sites .tile-remove .i {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.2;
+}
 .studio-desk .sites .fs-btn.text { height: 36px; padding: 0 10px; }
 @media (max-height: 760px) {
   body.studio-home:not(.sidepanel) .main { padding-bottom: 12px; }

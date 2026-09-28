@@ -130,7 +130,16 @@
         for (n = 0; n < items.length; n += 1) {
           if (itemKey(items[n], domain) === addKey) { exists = n; break; }
         }
-        if (exists === -1) items.push(added);
+        if (exists === -1) {
+          var slot = -1;
+          if (op.replaces) {
+            for (n = 0; n < items.length; n += 1) {
+              if (itemKey(items[n], domain) === op.replaces) { slot = n; break; }
+            }
+          }
+          if (slot === -1) items.push(added);
+          else items.splice(slot, 0, added);
+        }
       } else if (op.op === 'update') {
         var updated = normalizeItem(op.item, domain);
         if (!updated || itemKey(updated, domain) !== key || at === -1) return { ok: false, missing: true };
