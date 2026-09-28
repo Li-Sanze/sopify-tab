@@ -146,6 +146,35 @@
     return out;
   }
 
+  function closeHostButtonLabel(count) {
+    const n = Math.max(0, Math.floor(Number(count) || 0));
+    return '关闭这 ' + n + ' 个标签';
+  }
+
+  function noteConflictView(local, remote) {
+    function clip(text) {
+      const flat = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!flat) return '还没写';
+      const chars = [...flat];
+      if (chars.length > 72) return chars.slice(0, 72).join('') + '…';
+      return flat;
+    }
+    return { local: clip(local), remote: clip(remote) };
+  }
+
+  function confirmDeskWrite(saveResult, readback) {
+    if (!saveResult || saveResult.ok !== true) {
+      return {
+        ok: false,
+        skipped: !!(saveResult && saveResult.skipped),
+        error: true,
+      };
+    }
+    if (saveResult.empty) return { ok: true, empty: true };
+    if (!readback || readback.ok !== true) return { ok: false, error: true };
+    return { ok: true };
+  }
+
   function noteOneLiner(notes) {
     const line = String(notes || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
     return line || '';
@@ -452,6 +481,40 @@
     return { ok: true };
   }
 
+  async function commitDesk(partial) {
+    let result;
+    try {
+      result = await saveDesk(partial);
+    } catch {
+      return confirmDeskWrite(null, null);
+    }
+    if (!result || result.ok !== true || result.empty) return confirmDeskWrite(result, null);
+    const keys = Object.keys(partial).filter((k) => DESK_KEYS.includes(k));
+    try {
+      const defaults = {};
+      keys.forEach((k) => { defaults[k] = null; });
+      const got = await chrome.storage.local.get(defaults);
+      const match = keys.every((k) => JSON.stringify(got[k]) === JSON.stringify(partial[k]));
+      return confirmDeskWrite(result, { ok: match });
+    } catch {
+      return confirmDeskWrite(result, { ok: false });
+    }
+  }
+
+  async function replaceTodos(next, errorId, message) {
+    const saved = await commitDesk({ todos: next });
+    if (!saved || saved.ok !== true) {
+      showWriteError(errorId, message);
+      renderTodos();
+      return false;
+    }
+    hideWriteError('todo-save-error');
+    hideWriteError('todo-dialog-save-error');
+    state.todos = next;
+    renderTodos();
+    return true;
+  }
+
   let spaceViewOn = false;
 
   function publishSpaceView() {
@@ -489,10 +552,22 @@
 
   async function persistWorksets(list) {
     const worksets = normalizeWorksets(list);
+    if (!hasStorage) return confirmDeskWrite({ ok: false, skipped: true }, null);
+    let saved;
+    try {
+      await chrome.storage.local.set({ worksets });
+      const again = await chrome.storage.local.get({ worksets: [] });
+      const stored = normalizeWorksets(again && again.worksets);
+      const match = JSON.stringify(stored) === JSON.stringify(worksets);
+      saved = confirmDeskWrite({ ok: true }, { ok: match });
+    } catch {
+      saved = confirmDeskWrite(null, null);
+    }
+    if (!saved.ok) return saved;
     state.worksets = worksets;
     renderSavedWorksets();
-    if (hasStorage) await chrome.storage.local.set({ worksets });
     notifyDesk3d();
+    return saved;
   }
 
   async function loadCwd() {
@@ -836,7 +911,14 @@
       const list = (state.worksets || []).map((w) => (
         w.id === id ? { id: w.id, name: next, savedAt: w.savedAt, tabs: w.tabs } : w
       ));
-      persistWorksets(list).then(() => {
+      persistWorksets(list).then((saved) => {
+        if (!saved || saved.ok !== true) {
+          done = false;
+          showWriteError('last-save-error', '名字没存上，再按一次回车');
+          if (input.isConnected) input.focus();
+          return;
+        }
+        hideWriteError('last-save-error');
         toast('已改名');
         if (refocus) {
           const again = $('#last-name');
@@ -964,7 +1046,7 @@
         <div class="grouphead">
           <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
           <b>${esc(host)}</b><span class="count">${tabs.length}</span>
-          <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">关闭这组</button>
+          <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">${esc(closeHostButtonLabel(tabsToCloseForHost(state.tabs, q, host).length))}</button>
         </div>
         ${tabs.map((t) => {
           const port = portLabel(t.url || '');
@@ -1320,12 +1402,22 @@
         toast('未保存');
         return;
       }
-      await persistWorksets(next.worksets);
+      const overwritten = await persistWorksets(next.worksets);
+      if (!overwritten || overwritten.ok !== true) {
+        showWriteError('workset-save-error', '窗口没存上，再点一次保存');
+        return;
+      }
+      hideWriteError('workset-save-error');
       flashLastSaved();
       toast(`已覆盖『${label}』`);
       return;
     }
-    await persistWorksets(proposal.worksets);
+    const savedWindow = await persistWorksets(proposal.worksets);
+    if (!savedWindow || savedWindow.ok !== true) {
+      showWriteError('workset-save-error', '窗口没存上，再点一次保存');
+      return;
+    }
+    hideWriteError('workset-save-error');
     flashLastSaved();
     toast('已存下这个窗口');
   }
@@ -1352,7 +1444,12 @@
   async function deleteWorksetById(id) {
     if (!id) return;
     const current = (state.worksets || []).find((w) => w.id === id);
-    await persistWorksets(removeWorksetById(state.worksets, id));
+    const saved = await persistWorksets(removeWorksetById(state.worksets, id));
+    if (!saved || saved.ok !== true) {
+      showWriteError('worksets-save-error', '没删掉，再点一次');
+      return;
+    }
+    hideWriteError('worksets-save-error');
     toast(current ? `已删除『${current.name}』` : '已删除');
   }
 
@@ -1360,7 +1457,12 @@
     if (!(state.worksets || []).length) return;
     const ok = window.confirm('清空全部存下的窗口？只影响本机，不可撤销。');
     if (!ok) return;
-    await persistWorksets([]);
+    const saved = await persistWorksets([]);
+    if (!saved || saved.ok !== true) {
+      showWriteError('worksets-save-error', '没清空，再点一次');
+      return;
+    }
+    hideWriteError('worksets-save-error');
     toast('已清空');
   }
 
@@ -1381,7 +1483,7 @@
     completingId = id;
     const title = $('#resume-title');
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const finish = () => {
+    const finish = async () => {
       if (completingId !== id) return;
       completingId = null;
       if (title) title.classList.remove('leaving');
@@ -1391,9 +1493,12 @@
         return;
       }
       const openBefore = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
-      target.done = true;
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      const next = state.todos.map((t) => (t.id === id ? { id: t.id, text: t.text, done: true } : t));
+      const savedDone = await replaceTodos(next, 'todo-save-error', '没存上，再点一次完成');
+      if (!savedDone) {
+        renderResume();
+        return;
+      }
       if (openBefore <= 1) {
         const input = $('#todo-input');
         if (input) input.focus();
@@ -1462,23 +1567,24 @@
       </div>
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
-    body.onclick = (e) => {
+    body.onclick = async (e) => {
       const del = e.target.closest('[data-del-todo]');
       if (!del) return;
-      state.todos = state.todos.filter((t) => t.id !== del.dataset.delTodo);
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      openTodosDialog();
+      const next = state.todos.filter((t) => t.id !== del.dataset.delTodo);
+      const removed = await replaceTodos(next, 'todo-dialog-save-error', '没删掉，再点一次');
+      if (dialog.open) openTodosDialog();
+      if (!removed) return;
     };
-    body.onchange = (e) => {
+    body.onchange = async (e) => {
       const cb = e.target.closest('input[type="checkbox"][data-todo-id]');
       if (!cb) return;
       const item = state.todos.find((t) => t.id === cb.dataset.todoId);
       if (!item) return;
-      item.done = cb.checked;
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      openTodosDialog();
+      const next = state.todos.map((t) => (
+        t.id === cb.dataset.todoId ? { id: t.id, text: t.text, done: cb.checked } : t
+      ));
+      await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
+      if (dialog.open) openTodosDialog();
     };
     if (firstOpen) dialog.showModal();
     const focusInput = body.querySelector('#todo-input-dialog');
@@ -1539,9 +1645,31 @@
       desk.classList.toggle('is-saved', text === '已存在本机');
     }
   }
+  function showWriteError(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = message;
+  }
+  function hideWriteError(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = '';
+  }
   function showNoteConflict(on) {
     const box = $('#note-conflict');
     if (box) box.hidden = !on;
+    if (!on) return;
+    const localEl = $('#note-local-preview');
+    const remoteEl = $('#note-remote-preview');
+    const snap = noteKeeper.snapshot();
+    const remote = snap.conflict ? snap.conflict.remoteText : '';
+    const ta = $('#notes');
+    const local = ta ? ta.value : (snap.text || '');
+    const view = noteConflictView(local, remote);
+    if (localEl) localEl.textContent = view.local;
+    if (remoteEl) remoteEl.textContent = view.remote;
   }
   function showDeskLoadError() {
     const el = $('#desk-load-error');
@@ -1737,34 +1865,56 @@
         }
       });
     }
-    $('#site-form').addEventListener('submit', (e) => {
+    let siteAddBusy = false;
+    $('#site-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = $('#site-name').value.trim();
+      if (siteAddBusy) return;
+      const nameInput = $('#site-name');
+      const urlInput = $('#site-url');
+      const name = nameInput.value.trim();
       let url;
-      try { url = normalizeSiteUrl($('#site-url').value); } catch {
+      try { url = normalizeSiteUrl(urlInput.value); } catch {
         showSiteUrlError('网址需要是 http(s)');
         return;
       }
       if (!name) return;
       clearSiteUrlError();
-      state.sites.push({ name, url });
-      $('#site-name').value = '';
-      $('#site-url').value = '';
+      siteAddBusy = true;
+      const next = state.sites.concat([{ name, url }]);
+      const saved = await commitDesk({ sites: next });
+      siteAddBusy = false;
+      if (!saved || saved.ok !== true) {
+        showWriteError('site-save-error', '没加上，再点一次加入');
+        return;
+      }
+      hideWriteError('site-save-error');
+      hideWriteError('sites-save-error');
+      state.sites = next;
+      nameInput.value = '';
+      urlInput.value = '';
       renderSites();
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
-      saveDesk({ sites: state.sites });
       toast(`已加入 ${name}`);
     });
-    const onSiteRemoveClick = (e) => {
+    const onSiteRemoveClick = async (e) => {
       const b = e.target.closest('[data-remove-site]');
       if (!b) return;
       e.preventDefault();
       const i = Number(b.dataset.removeSite);
       if (!Number.isInteger(i) || i < 0 || i >= state.sites.length) return;
-      const [removed] = state.sites.splice(i, 1);
+      const next = state.sites.slice();
+      const [removed] = next.splice(i, 1);
+      const saved = await commitDesk({ sites: next });
+      if (!saved || saved.ok !== true) {
+        showWriteError('sites-save-error', '没去掉，再点一次');
+        showWriteError('site-save-error', '没去掉，再点一次');
+        return;
+      }
+      hideWriteError('sites-save-error');
+      hideWriteError('site-save-error');
+      state.sites = next;
       renderSites();
-      saveDesk({ sites: state.sites });
       if (removed) toast(`已移除 ${removed.name}`);
     };
     $('#sites').addEventListener('click', onSiteRemoveClick);
@@ -1783,39 +1933,46 @@
         }
       });
     }
-    $('#todo-form').addEventListener('submit', (e) => {
+    let todoAddBusy = false;
+    $('#todo-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const text = $('#todo-input').value.trim();
+      if (todoAddBusy) return;
+      const input = $('#todo-input');
+      const text = input.value.trim();
       if (!text) return;
-      state.todos.push({ id: uid(), text, done: false });
-      $('#todo-input').value = '';
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      todoAddBusy = true;
+      const next = state.todos.concat([{ id: uid(), text, done: false }]);
+      const saved = await replaceTodos(next, 'todo-save-error', '待办没存上，再按一次回车');
+      todoAddBusy = false;
+      if (!saved) {
+        input.focus();
+        return;
+      }
+      input.value = '';
       const act = $('#resume-act');
       if (act) act.focus();
     });
-    $('#todos').addEventListener('change', (e) => {
+    $('#todos').addEventListener('change', async (e) => {
       const id = e.target.dataset.todoId;
       if (id == null) return;
       const item = state.todos.find((t) => t.id === id);
       if (!item) return;
-      item.done = e.target.checked;
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      const next = state.todos.map((t) => (
+        t.id === id ? { id: t.id, text: t.text, done: e.target.checked } : t
+      ));
+      await replaceTodos(next, 'todo-save-error', '没存上，再点一次');
     });
-    $('#todos').addEventListener('click', (e) => {
+    $('#todos').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-del-todo]');
       if (!b) return;
-      state.todos = state.todos.filter((t) => t.id !== b.dataset.delTodo);
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      $('#todo-input').focus();
+      const next = state.todos.filter((t) => t.id !== b.dataset.delTodo);
+      const saved = await replaceTodos(next, 'todo-save-error', '没删掉，再点一次');
+      if (saved) $('#todo-input').focus();
     });
-    $('#todo-clear').addEventListener('click', () => {
-      state.todos = state.todos.filter((t) => !t.done);
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      toast('已清除完成项');
+    $('#todo-clear').addEventListener('click', async () => {
+      const next = state.todos.filter((t) => !t.done);
+      const saved = await replaceTodos(next, 'todo-save-error', '没清掉，再点一次');
+      if (saved) toast('已清除完成项');
     });
 
     $('#notes').addEventListener('input', (e) => {
@@ -2116,12 +2273,17 @@
     renderNotes();
     queueNoteSave();
   }
-  function commitTodoFromDialog(input) {
+  async function commitTodoFromDialog(input) {
     const text = input.value.trim();
-    if (!text) return;
-    state.todos.push({ id: uid(), text, done: false });
-    renderTodos();
-    saveDesk({ todos: state.todos });
+    if (!text || input.dataset.busy === '1') return;
+    input.dataset.busy = '1';
+    const next = state.todos.concat([{ id: uid(), text, done: false }]);
+    const saved = await replaceTodos(next, 'todo-dialog-save-error', '待办没存上，再按一次回车');
+    input.dataset.busy = '';
+    if (!saved) {
+      input.focus();
+      return;
+    }
     openTodosDialog();
   }
 

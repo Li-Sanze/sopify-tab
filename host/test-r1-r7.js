@@ -37,7 +37,7 @@ assert.ok(start !== -1 && end > start);
 const helpers = new Function(
   'const WORKSET_TAB_CAP = 50; const WORKSET_TITLE_MAX = 200; ' +
   js.slice(start, end) +
-  '; return { tabsToCloseForHost, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
+  '; return { tabsToCloseForHost, closeHostButtonLabel, noteConflictView, confirmDeskWrite, planRestore, executeRestore, summarizeRestore, restoreToast, readDeskStorage };'
 )();
 
 const tabs = [
@@ -55,7 +55,10 @@ const closeBody = braceBlock(js, 'async function closeHost(');
 assert.ok(closeBody.includes('tabsToCloseForHost(state.tabs, state.filter, host)'));
 assert.ok(closeBody.includes('筛选外的还在'));
 assert.ok(js.includes('只关闭筛选里显示的这组'));
-assert.ok(js.includes('>关闭这组</button>') || js.includes('关闭这组</button>'));
+assert.strictEqual(helpers.closeHostButtonLabel(filtered.length), '关闭这 1 个标签');
+assert.strictEqual(helpers.closeHostButtonLabel(all.length), '关闭这 2 个标签');
+assert.ok(js.includes('closeHostButtonLabel(tabsToCloseForHost(state.tabs, q, host).length)'));
+assert.ok(!js.includes('>关闭这组</button>'));
 
 const plan = helpers.planRestore(
   [
@@ -142,6 +145,16 @@ const saveBody = braceBlock(js, 'async function saveDesk(');
 assert.ok(saveBody.includes('skipped: true'));
 assert.ok(saveBody.includes('notesRev'));
 assert.ok(html.includes('id="note-conflict"') && html.includes('用那边的') && html.includes('仍保存这边'));
+assert.ok(html.includes('id="note-local-preview"') && html.includes('id="note-remote-preview"'));
+assert.ok(html.includes('>这边<') && html.includes('>另一页<'));
+const both = helpers.noteConflictView('这边还在写', '另一页已经改好');
+assert.strictEqual(both.local, '这边还在写');
+assert.strictEqual(both.remote, '另一页已经改好');
+assert.notStrictEqual(both.local, both.remote);
+assert.strictEqual(helpers.noteConflictView('', '  ').local, '还没写');
+assert.ok(braceBlock(js, 'function showNoteConflict').includes('noteConflictView'));
+assert.ok(braceBlock(js, 'function showNoteConflict').includes('note-local-preview'));
+assert.ok(braceBlock(js, 'function showNoteConflict').includes('note-remote-preview'));
 
 const guard = noteSync.createImeGuard(() => 1000);
 let now = 1000;
@@ -359,7 +372,120 @@ const remoteSaved = await remote.keeper.commit('remote saved', saver(dirtyStore)
 assert.strictEqual(remoteSaved.ok, true);
 assert.strictEqual(editing.keeper.snapshot().text, 'still typing');
 assert.ok(editing.keeper.snapshot().conflict, 'in-progress edit is not overwritten');
+assert.strictEqual(editing.keeper.snapshot().conflict.remoteText, 'remote saved');
+assert.notStrictEqual(editing.keeper.snapshot().text, editing.keeper.snapshot().conflict.remoteText);
 assert.strictEqual(editing.box.status, '另一页改过，没覆盖');
+assert.strictEqual(pageA.keeper.snapshot().conflict, null, 'own save echo does not open a conflict');
+
+assert.deepStrictEqual(helpers.confirmDeskWrite({ ok: true }, { ok: true }), { ok: true });
+assert.strictEqual(helpers.confirmDeskWrite({ ok: false, skipped: true }, null).ok, false);
+assert.strictEqual(helpers.confirmDeskWrite({ ok: false, skipped: true }, null).skipped, true);
+assert.strictEqual(helpers.confirmDeskWrite({ ok: true }, { ok: false }).ok, false);
+assert.strictEqual(helpers.confirmDeskWrite(null, null).ok, false);
+
+function memoryStorage(initial) {
+  const store = Object.assign({}, initial || {});
+  return {
+    store,
+    fail: false,
+    lie: false,
+    async get(defaults) {
+      const out = {};
+      Object.keys(defaults || {}).forEach((k) => {
+        out[k] = Object.prototype.hasOwnProperty.call(store, k) ? store[k] : defaults[k];
+      });
+      return out;
+    },
+    async set(partial) {
+      if (this.fail) throw new Error('storage failed');
+      if (this.lie) return;
+      Object.assign(store, partial || {});
+    },
+  };
+}
+
+async function commitKey(storage, key, value) {
+  if (!storage) return helpers.confirmDeskWrite({ ok: false, skipped: true }, null);
+  try {
+    await storage.set({ [key]: value });
+  } catch {
+    return helpers.confirmDeskWrite(null, null);
+  }
+  const got = await storage.get({ [key]: null });
+  const match = JSON.stringify(got[key]) === JSON.stringify(value);
+  return helpers.confirmDeskWrite({ ok: true }, { ok: match });
+}
+
+function formAfter(outcome, storage, key, draft, previous) {
+  if (outcome.ok) return { value: '', toast: 'ok', error: '', stored: storage.store[key] };
+  return {
+    value: draft,
+    toast: '',
+    error: '没存上',
+    stored: storage ? storage.store[key] : previous,
+  };
+}
+
+for (const key of ['todos', 'sites', 'worksets']) {
+  const previous = key === 'notes' ? '' : [];
+  const draft = [{ id: '1', text: key }];
+  const okStore = memoryStorage({ [key]: previous });
+  const landed = await commitKey(okStore, key, draft);
+  const okUi = formAfter(landed, okStore, key, draft, previous);
+  assert.strictEqual(landed.ok, true, key);
+  assert.strictEqual(okUi.toast, 'ok');
+  assert.strictEqual(okUi.value, '');
+  assert.deepStrictEqual(okUi.stored, draft);
+
+  const bad = memoryStorage({ [key]: previous });
+  bad.fail = true;
+  const rejected = await commitKey(bad, key, draft);
+  const badUi = formAfter(rejected, bad, key, draft, previous);
+  assert.strictEqual(rejected.ok, false, key);
+  assert.strictEqual(badUi.toast, '');
+  assert.deepStrictEqual(badUi.value, draft);
+  assert.deepStrictEqual(badUi.stored, previous);
+
+  const liar = memoryStorage({ [key]: previous });
+  liar.lie = true;
+  const liedKey = await commitKey(liar, key, draft);
+  const lieUi = formAfter(liedKey, liar, key, draft, previous);
+  assert.strictEqual(liedKey.ok, false, key);
+  assert.strictEqual(lieUi.toast, '');
+  assert.deepStrictEqual(lieUi.stored, previous);
+}
+
+const skippedWrite = await commitKey(null, 'todos', [{ id: 'x' }]);
+assert.strictEqual(skippedWrite.ok, false);
+assert.strictEqual(skippedWrite.skipped, true);
+const skippedUi = formAfter(skippedWrite, null, 'todos', [{ id: 'x' }], []);
+assert.strictEqual(skippedUi.toast, '');
+assert.deepStrictEqual(skippedUi.value, [{ id: 'x' }]);
+
+function between(src, a, b) {
+  const i = src.indexOf(a);
+  const j = src.indexOf(b, i + a.length);
+  assert.ok(i !== -1 && j > i, a);
+  return src.slice(i, j);
+}
+const todoForm = between(js, "$('#todo-form').addEventListener('submit'", "$('#todos').addEventListener('change'");
+assert.ok(todoForm.includes('await replaceTodos('));
+assert.ok(todoForm.indexOf('await replaceTodos') < todoForm.indexOf("input.value = ''"));
+assert.ok(!todoForm.includes('saveDesk({ todos'));
+const siteForm = between(js, "$('#site-form').addEventListener('submit'", 'const onSiteRemoveClick');
+assert.ok(siteForm.includes('await commitDesk({ sites:'));
+assert.ok(siteForm.indexOf('await commitDesk') < siteForm.indexOf("nameInput.value = ''"));
+assert.ok(siteForm.indexOf('await commitDesk') < siteForm.indexOf('已加入'));
+const saveWin = braceBlock(js, 'async function saveThisWindow');
+assert.ok(saveWin.includes('await persistWorksets(proposal.worksets)'));
+assert.ok(saveWin.indexOf('await persistWorksets(proposal.worksets)') < saveWin.indexOf('已存下这个窗口'));
+assert.ok(saveWin.includes('savedWindow.ok !== true'));
+const persistBody = braceBlock(js, 'async function persistWorksets');
+assert.ok(persistBody.includes('confirmDeskWrite'));
+assert.ok(persistBody.indexOf('chrome.storage.local.set({ worksets })') < persistBody.indexOf('state.worksets = worksets'));
+assert.ok(braceBlock(js, 'async function commitDesk').includes('confirmDeskWrite'));
+assert.ok(braceBlock(js, 'async function commitTodoFromDialog').includes('await replaceTodos'));
+assert.ok(html.includes('id="todo-save-error"') && html.includes('id="site-save-error"') && html.includes('id="workset-save-error"'));
 
 console.log('test-r1-r7: ok');
 }

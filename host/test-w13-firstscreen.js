@@ -842,7 +842,7 @@ async function main() {
     });
     const mixedLabel = await evalJson(`document.getElementById('todos-open').textContent`);
     check('one open plus done says 已完成', mixedLabel === '全部待办 · 已完成 2 件', mixedLabel);
-    const lastClose = await evalJson(`(() => {
+    const lastClose = await evalJson(`(async () => {
       document.getElementById('todos-open').click();
       const box = document.querySelector('#todos-dialog-list input[type="checkbox"]:not(:checked)');
       const id = box.dataset.todoId;
@@ -851,6 +851,7 @@ async function main() {
       box.dispatchEvent(new Event('change', { bubbles: true }));
       const after = document.activeElement;
       const kept = !!(after && after.dataset && after.dataset.todoId === id);
+      await new Promise((r) => setTimeout(r, 40));
       document.querySelector('#ops-todos-dialog [data-dialog-close]').click();
       const dialog = document.getElementById('ops-todos-dialog');
       const filled = document.querySelector('.next-filled');

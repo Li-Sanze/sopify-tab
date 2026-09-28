@@ -113,6 +113,18 @@ function stubSource(seed) {
                   reject(new Error('storage failed'));
                   return;
                 }
+                if (seed.failTodos && partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) {
+                  reject(new Error('storage failed'));
+                  return;
+                }
+                if (seed.failSites && partial && Object.prototype.hasOwnProperty.call(partial, 'sites')) {
+                  reject(new Error('storage failed'));
+                  return;
+                }
+                if (seed.failWorksets && partial && Object.prototype.hasOwnProperty.call(partial, 'worksets')) {
+                  reject(new Error('storage failed'));
+                  return;
+                }
                 if (partial && Object.prototype.hasOwnProperty.call(partial, 'notes')) noteWrites += 1;
                 deliver(partial || {});
                 resolve();
@@ -437,12 +449,13 @@ async function main() {
     })()`);
     check('IME Enter does not add a todo', ime.prevented === true && ime.hasDuring === '0' && ime.during === 0, JSON.stringify(ime));
     await sleep(50);
-    const typed = await evalJson(`(() => {
+    const typed = await evalJson(`(async () => {
       const input = document.getElementById('todo-input');
       input.focus();
       input.value = '写一条真的';
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       input.form.requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
       return document.getElementById('resume-title').textContent;
     })()`);
     check('Enter after IME still submits', typed === '写一条真的', String(typed));
@@ -483,13 +496,17 @@ async function main() {
       const ta = document.getElementById('notes');
       ta.focus();
       window.__pushNotes('那边改的', 2, 'other:2:x');
+      const box = document.getElementById('note-conflict');
       return {
         value: ta.value,
         status: document.getElementById('notes-saved').textContent,
-        buttons: !document.getElementById('note-conflict').hidden,
+        buttons: !box.hidden,
+        local: document.getElementById('note-local-preview').textContent,
+        remote: document.getElementById('note-remote-preview').textContent,
       };
     })()`);
     check('focused note shows conflict and keeps local text', conflict.value === '这边' && conflict.status === '另一页改过，没覆盖' && conflict.buttons, JSON.stringify(conflict));
+    check('conflict shows both drafts before a choice', conflict.local === '这边' && conflict.remote === '那边改的' && conflict.local !== conflict.remote, JSON.stringify(conflict));
     await shot('stub-note-conflict-1440.png');
 
     await loadSeed(1440, 900, {
@@ -565,9 +582,9 @@ async function main() {
       const count = btn ? btn.parentElement.querySelector('.count').textContent : '';
       btn.click();
       await new Promise((r) => setTimeout(r, 30));
-      return { title, count, removed: window.__sopifyRemoved.slice() };
+      return { title, count, label: btn ? btn.textContent.trim() : '', removed: window.__sopifyRemoved.slice() };
     })()`);
-    check('filtered close removes only the visible host tabs', JSON.stringify(closed.removed) === '[1]' && closed.count === '1' && closed.title.includes('筛选'), JSON.stringify(closed));
+    check('filtered close removes only the visible host tabs', JSON.stringify(closed.removed) === '[1]' && closed.count === '1' && closed.title.includes('筛选') && closed.label === '关闭这 1 个标签', JSON.stringify(closed));
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -588,9 +605,123 @@ async function main() {
     check('partial restore opened the healthy url only', restored.created.length === 1 && restored.created[0].includes('ok.example'), JSON.stringify(restored.created));
     await shot('stub-partial-restore-1440.png');
 
+    await loadSeed(1440, 900, { todos: [], sites: [], failTodos: true }, 'day');
+    const todoFail = await evalJson(`(async () => {
+      const input = document.getElementById('todo-input');
+      input.value = '新待办';
+      input.form.requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('todo-save-error');
+      return {
+        value: input.value,
+        has: document.getElementById('resume').dataset.has,
+        error: err ? err.textContent : '',
+        hidden: err ? err.hidden : true,
+        stored: window.__sopifyStore.todos.length,
+      };
+    })()`);
+    check('todo save failure keeps the input', todoFail.value === '新待办' && todoFail.has === '0' && todoFail.hidden === false && todoFail.error.includes('再按一次') && todoFail.stored === 0, JSON.stringify(todoFail));
+
+    await loadSeed(1440, 900, { todos: [], sites: [] }, 'day');
+    const todoOk = await evalJson(`(async () => {
+      const input = document.getElementById('todo-input');
+      input.value = '存得下';
+      input.form.requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('todo-save-error');
+      return {
+        value: input.value,
+        title: document.getElementById('resume-title').textContent,
+        hidden: err ? err.hidden : true,
+        stored: window.__sopifyStore.todos.map((t) => t.text),
+      };
+    })()`);
+    check('todo save success clears only after persist', todoOk.value === '' && todoOk.title === '存得下' && todoOk.hidden === true && todoOk.stored.length === 1 && todoOk.stored[0] === '存得下', JSON.stringify(todoOk));
+
+    await loadSeed(1440, 900, { todos: [], sites: [], failSites: true }, 'day');
+    const siteFail = await evalJson(`(async () => {
+      document.getElementById('site-add-toggle').click();
+      document.getElementById('site-name').value = '没加上的站';
+      document.getElementById('site-url').value = 'https://keep.example';
+      document.getElementById('site-form').requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('site-save-error');
+      const toast = document.getElementById('toast');
+      return {
+        name: document.getElementById('site-name').value,
+        url: document.getElementById('site-url').value,
+        error: err ? err.textContent : '',
+        hidden: err ? err.hidden : true,
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        stored: window.__sopifyStore.sites.length,
+        open: document.getElementById('ops-sites-dialog').open,
+      };
+    })()`);
+    check('site save failure keeps the form', siteFail.name === '没加上的站' && siteFail.url === 'https://keep.example' && siteFail.hidden === false && siteFail.stored === 0 && siteFail.open && !(siteFail.toastOn && siteFail.toast.includes('已加入')), JSON.stringify(siteFail));
+
+    await loadSeed(1440, 900, { todos: [], sites: [] }, 'day');
+    const siteOk = await evalJson(`(async () => {
+      document.getElementById('site-add-toggle').click();
+      document.getElementById('site-name').value = '加上了';
+      document.getElementById('site-url').value = 'https://added.example';
+      document.getElementById('site-form').requestSubmit();
+      await new Promise((r) => setTimeout(r, 40));
+      const toast = document.getElementById('toast');
+      return {
+        name: document.getElementById('site-name').value,
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        stored: window.__sopifyStore.sites.map((s) => s.name),
+      };
+    })()`);
+    check('site save success toasts only after persist', siteOk.name === '' && siteOk.toastOn && siteOk.toast.includes('已加入') && siteOk.stored.length === 1 && siteOk.stored[0] === '加上了', JSON.stringify(siteOk));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [{ id: 3, title: '要存的网页', url: 'https://save.example/' }],
+      failWorksets: true,
+    }, 'day');
+    const windowFail = await evalJson(`(async () => {
+      document.getElementById('workset-save').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const err = document.getElementById('workset-save-error');
+      const toast = document.getElementById('toast');
+      return {
+        error: err ? err.textContent : '',
+        hidden: err ? err.hidden : true,
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        stored: window.__sopifyStore.worksets.length,
+        empty: document.getElementById('last-empty') ? !document.getElementById('last-empty').hidden : null,
+      };
+    })()`);
+    check('window save failure does not claim success', windowFail.hidden === false && windowFail.error.includes('再点一次') && windowFail.stored === 0 && windowFail.empty === true && !(windowFail.toastOn && windowFail.toast.includes('已存下')), JSON.stringify(windowFail));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [{ id: 4, title: '存得下的网页', url: 'https://saved.example/' }],
+    }, 'day');
+    const windowOk = await evalJson(`(async () => {
+      document.getElementById('workset-save').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const toast = document.getElementById('toast');
+      const err = document.getElementById('workset-save-error');
+      return {
+        toast: toast.textContent,
+        toastOn: toast.classList.contains('show'),
+        hidden: err ? err.hidden : true,
+        stored: window.__sopifyStore.worksets.length,
+      };
+    })()`);
+    check('window save success toasts only after persist', windowOk.toastOn && windowOk.toast.includes('已存下这个窗口') && windowOk.hidden === true && windowOk.stored === 1, JSON.stringify(windowOk));
+
     await loadSeed(1440, 900, { todos: oneTodo, sites: [], reduced: true }, 'day');
-    const reduced = await evalJson(`(() => {
+    const reduced = await evalJson(`(async () => {
       document.getElementById('resume-act').click();
+      await new Promise((r) => setTimeout(r, 40));
       return {
         done: document.getElementById('resume').dataset.has,
         title: document.getElementById('resume-title').textContent,
