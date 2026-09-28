@@ -1,0 +1,21 @@
+{
+  "pass": 12,
+  "fail": 0,
+  "skip": 0,
+  "denominator": 12,
+  "exitCode": 0,
+  "parts": [
+    "pass host/test-r1-r7.js",
+    "pass host/test-r3-collection.js",
+    "pass host/test-r3-form-retry.js",
+    "pass host/test-r2-note-ack.js",
+    "pass host/test-w11-resume.js",
+    "pass host/test-w12-workset.js",
+    "pass host/test-w4-theme.js",
+    "pass host/test-sky-layers.js",
+    "pass host/test-desk-companion.js",
+    "pass extension/desk-3d/test-gates.js",
+    "pass host/test-w13-firstscreen.js",
+    "pass host/test-r1-r7-browser.js"
+  ]
+}

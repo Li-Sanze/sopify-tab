@@ -208,17 +208,34 @@
           rev: rev,
         };
       }
-      inflight = '';
       if (result && result.conflict) {
-        conflict = {
-          remoteText: typeof result.remoteText === 'string' ? result.remoteText : '',
-          remoteRev: normalizeRev(result.remoteRev),
-          remoteStamp: typeof result.remoteStamp === 'string' ? result.remoteStamp : '',
-        };
-        const again = result.moved === true;
+        const remoteRev = normalizeRev(result.remoteRev);
+        const remoteText = typeof result.remoteText === 'string' ? result.remoteText : '';
+        const remoteStamp = typeof result.remoteStamp === 'string' ? result.remoteStamp : '';
+        const older = remoteRev < seenRev || (conflict && remoteRev < conflict.remoteRev);
+        if (older) {
+          if (!requestStamp || inflight === requestStamp) inflight = '';
+          return {
+            ok: false,
+            stale: true,
+            conflict: true,
+            applied: false,
+            remoteRev: conflict ? conflict.remoteRev : seenRev,
+            remoteText: conflict ? conflict.remoteText : '',
+          };
+        }
+        const same = !!(conflict && conflict.remoteRev === remoteRev && conflict.remoteText === remoteText);
+        if (!requestStamp || inflight === requestStamp) inflight = '';
+        if (same) {
+          return { ok: false, conflict: true, idempotent: true, remoteText: remoteText, remoteRev: remoteRev };
+        }
+        const again = !!(conflict && remoteRev > conflict.remoteRev) || result.moved === true;
+        if (remoteRev > seenRev) seenRev = remoteRev;
+        conflict = { remoteText: remoteText, remoteRev: remoteRev, remoteStamp: remoteStamp };
         setStatus(again ? '另一页又有更新，请重新确认。' : '便签在另一页更新了');
         return { ok: false, conflict: true, remoteText: conflict.remoteText, remoteRev: conflict.remoteRev };
       }
+      if (!requestStamp || inflight === requestStamp) inflight = '';
       return { ok: false, skipped: !!(result && result.skipped), error: true };
     }
 
@@ -321,8 +338,12 @@
       return applyCommitResult(body, { stamp: inflight }, ack);
     }
 
-    function acceptRemote() {
+    function acceptRemote(expectedRev) {
       if (!conflict) return null;
+      if (conflict.remoteRev < seenRev || (expectedRev != null && normalizeRev(expectedRev) !== conflict.remoteRev)) {
+        setStatus('另一页又有更新，请重新确认。');
+        return null;
+      }
       text = conflict.remoteText;
       acked = conflict.remoteText;
       rev = conflict.remoteRev;

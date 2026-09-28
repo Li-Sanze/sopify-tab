@@ -80,6 +80,18 @@
     return (m ? m[0] : t.slice(0, 1) || '?').toUpperCase();
   };
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `t-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  let todoAddRecord = null;
+  let dialogTodoAdd = null;
+  let siteAddRecord = null;
+  let todoRemoveRecord = null;
+  let siteRemoveRecord = null;
+  let clearDoneRecord = null;
+  let worksetSaveRecord = null;
+  let worksetRemoveRecord = null;
+
+  function formOps() {
+    return window.SopifyFormOps;
+  }
 
   const hasStorage = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
   const hasTabs = typeof chrome !== 'undefined' && chrome.tabs;
@@ -1564,10 +1576,12 @@
   }
 
   async function saveThisWindow() {
+    const planned = formOps().planWorksetSave(worksetSaveRecord, uid, Date.now());
+    worksetSaveRecord = planned.record;
     const proposal = proposeSaveWorkset(state.worksets, state.tabs, {
-      id: uid(),
-      name: savedWindowTitle(state.tabs, new Date()),
-      savedAt: Date.now(),
+      id: planned.itemId,
+      name: savedWindowTitle(state.tabs, new Date(planned.savedAt)),
+      savedAt: planned.savedAt,
     });
     if (proposal.reason === 'empty') {
       toast('这个窗口没有可保存的网页');
@@ -1600,6 +1614,7 @@
         if (overwritten && overwritten.blocked) showWorksetLoadError();
         return;
       }
+      worksetSaveRecord = null;
       hideWriteError('workset-save-error');
       flashLastSaved();
       toast(`已覆盖『${label}』`);
@@ -1611,6 +1626,7 @@
       if (savedWindow && savedWindow.blocked) showWorksetLoadError();
       return;
     }
+    worksetSaveRecord = null;
     hideWriteError('workset-save-error');
     flashLastSaved();
     toast('已存下这个窗口');
@@ -1679,12 +1695,15 @@
 
   async function deleteWorksetById(id) {
     if (!id) return;
-    const current = (state.worksets || []).find((w) => w.id === id);
-    const saved = await persistWorksets(removeWorksetById(state.worksets, id));
+    const planned = formOps().planRemove(worksetRemoveRecord, id, uid);
+    worksetRemoveRecord = planned.record;
+    const current = (state.worksets || []).find((w) => w.id === planned.itemId);
+    const saved = await persistWorksets(removeWorksetById(state.worksets, planned.itemId));
     if (!saved || saved.ok !== true) {
       showWriteError('worksets-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '没删掉，再点一次'));
       return;
     }
+    worksetRemoveRecord = null;
     hideWriteError('worksets-save-error');
     toast(current ? `已删除『${current.name}』` : '已删除');
   }
@@ -1809,8 +1828,11 @@
     body.onclick = async (e) => {
       const del = e.target.closest('[data-del-todo]');
       if (!del) return;
-      const next = state.todos.filter((t) => t.id !== del.dataset.delTodo);
+      const planned = formOps().planRemove(todoRemoveRecord, del.dataset.delTodo, uid);
+      todoRemoveRecord = planned.record;
+      const next = state.todos.filter((t) => t.id !== planned.itemId);
       const removed = await replaceTodos(next, 'todo-dialog-save-error', '没删掉，再点一次');
+      if (removed) todoRemoveRecord = null;
       if (dialog.open) openTodosDialog();
       if (!removed) return;
     };
@@ -2269,8 +2291,14 @@
       if (!name) return;
       clearSiteUrlError();
       siteAddBusy = true;
-      const next = state.sites.concat([{ name, url }]);
+      const planned = formOps().planSiteAdd(siteAddRecord, name, url, uid);
+      siteAddRecord = planned.record;
+      const next = state.sites.concat([{ name: planned.name, url: planned.url }]);
       const saved = await commitDesk({ sites: next });
+      let currentUrl = '';
+      try { currentUrl = normalizeSiteUrl(urlInput.value); } catch { currentUrl = urlInput.value.trim(); }
+      const settled = formOps().settleSiteSubmit(siteAddRecord, nameInput.value.trim(), currentUrl, !!(saved && saved.ok === true));
+      siteAddRecord = settled.record;
       siteAddBusy = false;
       if (!saved || saved.ok !== true) {
         showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没加上，再点一次加入'));
@@ -2279,12 +2307,13 @@
       hideWriteError('site-save-error');
       hideWriteError('sites-save-error');
       adoptCollection('sites', saved);
+      renderSites();
+      if (!settled.clearInput) return;
       nameInput.value = '';
       urlInput.value = '';
-      renderSites();
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
-      toast(`已加入 ${name}`);
+      toast(`已加入 ${planned.name}`);
     });
     const onSiteRemoveClick = async (e) => {
       const b = e.target.closest('[data-remove-site]');
@@ -2292,14 +2321,18 @@
       e.preventDefault();
       const i = Number(b.dataset.removeSite);
       if (!Number.isInteger(i) || i < 0 || i >= state.sites.length) return;
-      const next = state.sites.slice();
-      const [removed] = next.splice(i, 1);
+      const target = state.sites[i];
+      const planned = formOps().planRemove(siteRemoveRecord, target.url, uid);
+      siteRemoveRecord = planned.record;
+      const next = state.sites.filter((site) => site.url !== planned.itemId);
+      const removed = state.sites.find((site) => site.url === planned.itemId) || target;
       const saved = await commitDesk({ sites: next });
       if (!saved || saved.ok !== true) {
         showWriteError('sites-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
         showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
         return;
       }
+      siteRemoveRecord = null;
       hideWriteError('sites-save-error');
       hideWriteError('site-save-error');
       adoptCollection('sites', saved);
@@ -2330,13 +2363,18 @@
       const text = input.value.trim();
       if (!text) return;
       todoAddBusy = true;
-      const next = state.todos.concat([{ id: uid(), text, done: false }]);
+      const planned = formOps().planTodoAdd(todoAddRecord, text, uid);
+      todoAddRecord = planned.record;
+      const next = state.todos.concat([{ id: planned.itemId, text: planned.snapshot, done: false }]);
       const saved = await replaceTodos(next, 'todo-save-error', '待办没存上，再按一次回车');
+      const settled = formOps().settleFormSubmit(todoAddRecord, input.value.trim(), saved === true);
+      todoAddRecord = settled.record;
       todoAddBusy = false;
       if (!saved) {
         input.focus();
         return;
       }
+      if (!settled.clearInput) return;
       input.value = '';
       const act = $('#resume-act');
       if (act) act.focus();
@@ -2354,14 +2392,24 @@
     $('#todos').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-del-todo]');
       if (!b) return;
-      const next = state.todos.filter((t) => t.id !== b.dataset.delTodo);
+      const planned = formOps().planRemove(todoRemoveRecord, b.dataset.delTodo, uid);
+      todoRemoveRecord = planned.record;
+      const next = state.todos.filter((t) => t.id !== planned.itemId);
       const saved = await replaceTodos(next, 'todo-save-error', '没删掉，再点一次');
-      if (saved) $('#todo-input').focus();
+      if (!saved) return;
+      todoRemoveRecord = null;
+      $('#todo-input').focus();
     });
     $('#todo-clear').addEventListener('click', async () => {
-      const next = state.todos.filter((t) => !t.done);
+      const doneIds = state.todos.filter((t) => t.done).map((t) => t.id);
+      const planned = formOps().planClearDone(clearDoneRecord, doneIds, uid);
+      clearDoneRecord = planned.record;
+      const drop = new Set(planned.ids);
+      const next = state.todos.filter((t) => !drop.has(t.id));
       const saved = await replaceTodos(next, 'todo-save-error', '没清掉，再点一次');
-      if (saved) toast('已清除完成项');
+      if (!saved) return;
+      clearDoneRecord = null;
+      toast('已清除完成项');
     });
 
     $('#notes').addEventListener('input', (e) => {
@@ -2399,8 +2447,13 @@
     const useRemote = $('#note-use-remote');
     if (useRemote) {
       useRemote.addEventListener('click', () => {
-        const text = noteKeeper.acceptRemote();
-        if (text == null) return;
+        const shown = noteKeeper.snapshot();
+        const expectedRev = shown.conflict ? shown.conflict.remoteRev : null;
+        const text = noteKeeper.acceptRemote(expectedRev);
+        if (typeof text !== 'string') {
+          showNoteConflict(true);
+          return;
+        }
         state.notes = text;
         const ta = $('#notes');
         if (ta) ta.value = text;
@@ -2761,14 +2814,26 @@
     const text = input.value.trim();
     if (!text || input.dataset.busy === '1') return;
     input.dataset.busy = '1';
-    const next = state.todos.concat([{ id: uid(), text, done: false }]);
+    const planned = formOps().planTodoAdd(dialogTodoAdd, text, uid);
+    dialogTodoAdd = planned.record;
+    const next = state.todos.concat([{ id: planned.itemId, text: planned.snapshot, done: false }]);
     const saved = await replaceTodos(next, 'todo-dialog-save-error', '待办没存上，再按一次回车');
+    const typed = input.value;
+    const settled = formOps().settleFormSubmit(dialogTodoAdd, typed.trim(), saved === true);
+    dialogTodoAdd = settled.record;
     input.dataset.busy = '';
     if (!saved) {
       input.focus();
       return;
     }
     openTodosDialog();
+    if (!settled.clearInput) {
+      const again = $('#todo-input-dialog');
+      if (again) {
+        again.value = typed;
+        again.focus();
+      }
+    }
   }
 
   const desk3dHost = {

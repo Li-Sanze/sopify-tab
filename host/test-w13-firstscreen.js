@@ -490,6 +490,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitUntil(read, ok, timeout = 3000) {
+  const start = Date.now();
+  let last;
+  while (Date.now() - start < timeout) {
+    last = await read();
+    if (ok(last)) return last;
+    await sleep(16);
+  }
+  return last;
+}
+
 async function main() {
   const chromePath = chromeBin();
   if (typeof WebSocket !== 'function') {
@@ -630,8 +641,22 @@ async function main() {
       await cdp.send('Input.dispatchMouseEvent', {
         type: 'mouseWheel', x: 480, y: 140, deltaX: 0, deltaY: 360, button: 'none',
       });
-      await sleep(40);
-      return evalJson(`(document.scrollingElement || document.documentElement).scrollTop`);
+      let previous = null;
+      let stable = 0;
+      let top = 0;
+      const start = Date.now();
+      while (Date.now() - start < 1000) {
+        top = await evalJson(`(document.scrollingElement || document.documentElement).scrollTop`);
+        if (top === previous) {
+          stable += 1;
+          if (stable >= 2) return top;
+        } else {
+          stable = 0;
+        }
+        previous = top;
+        await sleep(16);
+      }
+      return top;
     }
 
     async function shoot(name) {
@@ -751,13 +776,16 @@ async function main() {
       return true;
     })()`);
     assert.ok(note);
-    await sleep(400);
-    const saved = await evalJson(`({
-      status: document.getElementById('notes-saved').textContent,
-      notes: window.__sopifyStore.notes,
-      writes: window.__sopifyNoteWrites(),
-      desk: (document.getElementById('desk3d-note-status') || {}).textContent || '',
-    })`);
+    const saved = await waitUntil(
+      () => evalJson(`({
+        status: document.getElementById('notes-saved').textContent,
+        notes: window.__sopifyStore.notes,
+        writes: window.__sopifyNoteWrites(),
+        desk: (document.getElementById('desk3d-note-status') || {}).textContent || '',
+      })`),
+      (row) => row && row.writes === 2 && row.status === '已存在本机' && row.notes === '最新一笔',
+      4000,
+    );
     check('note status matches persisted text', saved.status === '已存在本机' && saved.notes === '最新一笔', JSON.stringify(saved));
     check('note writes coalesce to in-flight plus latest', saved.writes === 2, JSON.stringify(saved));
 
@@ -807,8 +835,11 @@ async function main() {
       dialog.close();
       return { open: dialog.open, has: document.getElementById('resume').dataset.has };
     })()`);
-    await sleep(40);
-    const closeActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    const closeActive = await waitUntil(
+      () => evalJson(`document.activeElement && document.activeElement.id`),
+      (id) => id === 'resume-act',
+      2000,
+    );
     check('todos dialog close focuses 完成', !closeFocus.open && closeActive === 'resume-act' && closeFocus.has === '1', JSON.stringify({ ...closeFocus, active: closeActive }));
     await evalJson(`document.getElementById('todos-open').click()`);
     await cdp.send('Input.dispatchKeyEvent', {
@@ -817,7 +848,11 @@ async function main() {
     await cdp.send('Input.dispatchKeyEvent', {
       type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
     });
-    await sleep(40);
+    await waitUntil(
+      () => evalJson(`document.getElementById('ops-todos-dialog').open`),
+      (open) => open === false,
+      2000,
+    );
     const escFocus = await evalJson(`(() => {
       const dialog = document.getElementById('ops-todos-dialog');
       return {
@@ -832,7 +867,11 @@ async function main() {
       if (!dialog.open) document.getElementById('todos-open').click();
       dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     })()`);
-    await sleep(40);
+    await waitUntil(
+      () => evalJson(`document.getElementById('ops-todos-dialog').open`),
+      (open) => open === false,
+      2000,
+    );
     const backdropFocus = await evalJson(`(() => {
       const dialog = document.getElementById('ops-todos-dialog');
       return {
@@ -888,11 +927,14 @@ async function main() {
       ta.value = '写不进去';
       ta.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
-    await sleep(50);
-    const failed = await evalJson(`({
-      status: document.getElementById('notes-saved').textContent,
-      notes: window.__sopifyStore.notes,
-    })`);
+    const failed = await waitUntil(
+      () => evalJson(`({
+        status: document.getElementById('notes-saved').textContent,
+        notes: window.__sopifyStore.notes,
+      })`),
+      (row) => row && row.status === '没存上',
+      3000,
+    );
     check('failed write says 没存上', failed.status === '没存上' && failed.notes === '', JSON.stringify(failed));
 
     await loadSeed(1440, 900, {
@@ -920,7 +962,13 @@ async function main() {
       box.dispatchEvent(new Event('change', { bubbles: true }));
       const after = document.activeElement;
       const kept = !!(after && after.dataset && after.dataset.todoId === id);
-      await new Promise((r) => setTimeout(r, 40));
+      const start = Date.now();
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === id);
+        const boxNow = document.querySelector('#todos-dialog-list input[data-todo-id="' + id + '"]');
+        if (row && row.done && boxNow && boxNow.checked) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
       document.querySelector('#ops-todos-dialog [data-dialog-close]').click();
       const dialog = document.getElementById('ops-todos-dialog');
       const filled = document.querySelector('.next-filled');
@@ -932,8 +980,11 @@ async function main() {
         label: document.getElementById('todos-open').textContent,
       };
     })()`);
-    await sleep(40);
-    const lastActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    const lastActive = await waitUntil(
+      () => evalJson(`document.activeElement && document.activeElement.id`),
+      (id) => id === 'todo-input',
+      2000,
+    );
     check('close after the last open todo focuses the input', lastClose.kept && !lastClose.open && lastClose.has === '0' && lastActive === 'todo-input' && lastClose.openerHidden && lastClose.label === '全部待办 · 已完成 3 件', JSON.stringify({ ...lastClose, active: lastActive }));
     await loadSeed(1366, 650, { todos: todoItems('5'), sites: siteItems(6, false) });
     await shoot('short-1366x650.png');
@@ -992,7 +1043,7 @@ async function main() {
 
     console.log('size\ttodos\tsites\toverflow_px\twheel_scrollTop\tlines\tresult');
     for (const row of rows) {
-      const result = row.exception ? 'exception-recorded' : (row.pass ? 'pass' : 'FAIL');
+      const result = row.exception ? 'exception-case' : (row.pass ? 'pass' : 'FAIL');
       console.log(`${row.size}\t${row.todos}\t${row.sites}\t${row.overflow}\t${row.wheel}\t${row.lines}\t${result}`);
     }
     if (shotDir) {

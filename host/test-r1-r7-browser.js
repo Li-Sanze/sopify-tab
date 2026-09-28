@@ -33,6 +33,57 @@ const ARTIFACTS = writableDir([
   path.join(os.tmpdir(), 'sopify-r1-r7'),
 ]);
 
+const SOPIFY_EXTENSION_ID = 'cgkhllpelkjmfamddkjpnmchjikdcbgp';
+
+function isThisExtensionTarget(target, extensionId) {
+  const id = String(extensionId || '');
+  if (!id) return false;
+  const url = String(target && target.url || '');
+  const prefix = 'chrome-extension://' + id;
+  return url === prefix || url.startsWith(prefix + '/');
+}
+
+function classifyExtensionTargets(targets, extensionId) {
+  const list = Array.isArray(targets) ? targets : [];
+  const ours = list.filter((target) => isThisExtensionTarget(target, extensionId));
+  const foreign = list.filter((target) => /^chrome-extension:/.test(String(target && target.url || '')) && !isThisExtensionTarget(target, extensionId));
+  if (ours.length) {
+    return { ok: true, id: extensionId, detail: ours[0].url || '', foreign: foreign.length };
+  }
+  if (foreign.length) {
+    return {
+      ok: false,
+      id: extensionId,
+      detail: 'foreign extension target is not ' + extensionId + ': ' + (foreign[0].url || ''),
+    };
+  }
+  return {
+    ok: false,
+    id: extensionId,
+    detail: 'CLI load did not expose chrome-extension://' + extensionId + '/; branded Chrome ignores --load-extension',
+  };
+}
+
+function assertExtensionIdentity() {
+  const id = SOPIFY_EXTENSION_ID;
+  const manifest = JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));
+  if (!manifest.key) throw new Error('manifest.key missing');
+  if (!isThisExtensionTarget({ url: 'chrome-extension://' + id + '/newtab.html' }, id)) {
+    throw new Error('own extension url was rejected');
+  }
+  const foreign = { url: 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/newtab.html', title: 'Sopify Tab' };
+  if (isThisExtensionTarget(foreign, id)) throw new Error('foreign extension was accepted');
+  const onlyForeign = classifyExtensionTargets([
+    foreign,
+    { url: 'https://example.com/', title: 'Sopify' },
+  ], id);
+  if (onlyForeign.ok) throw new Error('foreign-only targets counted as this extension');
+  if (!/foreign extension/.test(onlyForeign.detail)) throw new Error('foreign-only check did not fail');
+  const titled = classifyExtensionTargets([{ url: 'about:blank', title: 'Sopify Tab' }], id);
+  if (titled.ok) throw new Error('a Sopify title counted as this extension');
+  console.log('extension id check: foreign target fails, id ' + id);
+}
+
 function requireWebSocket() {
   if (typeof WebSocket === 'function') return;
   console.error('FAIL browser: global WebSocket is missing. Browser checks need Node 22 or newer.');
@@ -321,6 +372,7 @@ function rmDir(dir) {
 }
 
 async function main() {
+  assertExtensionIdentity();
   const bin = findChrome();
   requireWebSocket();
   const liveHits = [];
@@ -1142,10 +1194,16 @@ async function main() {
         });
       }).on('error', reject);
     });
-    const extTarget = targets.find((t) => /chrome-extension:/.test(t.url || '') || /Sopify/.test(t.title || ''));
-    real = extTarget
-      ? { ok: true, detail: extTarget.url || extTarget.title || 'extension target' }
-      : { ok: false, detail: 'CLI load did not expose an extension target; branded Chrome ignores --load-extension' };
+    const classified = classifyExtensionTargets(targets, SOPIFY_EXTENSION_ID);
+    real = {
+      ok: classified.ok === true,
+      id: SOPIFY_EXTENSION_ID,
+      detail: classified.detail,
+      twoPage: false,
+    };
+    if (classified.ok) {
+      real.detail = classified.detail + '; id matched, two-page storage.onChanged was not exercised';
+    }
   } catch (err) {
     real = { ok: false, detail: String(err && err.message ? err.message : err) };
   } finally {
@@ -1233,6 +1291,30 @@ async function main() {
         未测: '真双页扩展 / 3D 便签 / 真扩展 / Host / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
       },
       {
+        item: '表单重试复用同一条编号，不按文字去重',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '重试编号在 node 里走 form-ops 和协调器。替身 / 真扩展 / Host / 真中文 IME / 3D',
+      },
+      {
+        item: '旧冲突回执不盖掉较新冲突，确认只用当前有效冲突',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '冲突门闸在 node 里走 note-sync。真双页 / 3D / 真扩展 / Host / 真中文 IME',
+      },
+      {
+        item: '扩展目标只认 cgkhllpelkjmfamddkjpnmchjikdcbgp',
+        静态: 'pass',
+        替身: '未测',
+        真扩展: '未测',
+        IME: '未测',
+        未测: '反例在 node 里拒绝其他 chrome-extension。真双页 onChanged / Host / 真中文 IME / 3D 运行时',
+      },
+      {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',
         静态: staticCol,
         替身: failures.length ? 'fail' : 'pass',
@@ -1241,7 +1323,9 @@ async function main() {
         未测: '真扩展 / Host / 真中文 IME。桩里的 Enter/229 只是合成事件',
       },
     ],
-    realExtension: real.ok ? { ok: false, detail: 'target appeared but this run did not exercise the loaded extension' } : real,
+    realExtension: real.twoPage === true
+      ? { ok: true, id: SOPIFY_EXTENSION_ID, detail: real.detail }
+      : { ok: false, id: SOPIFY_EXTENSION_ID, detail: real.detail || 'two-page onChanged was not run' },
     failedChecks: [...failedNames],
   };
   if (ARTIFACTS) {

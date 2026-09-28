@@ -174,6 +174,133 @@ async function main() {
   assert.strictEqual(pipeStore.notes, 'second');
   assert.ok(pipeStore.notesRev >= 2);
 
+  const gate = realm(file);
+  let gateReply = async () => ({ ok: false, conflict: true, remoteText: '第二版', remoteRev: 2, remoteStamp: 's2' });
+  const gated = gate.createNoteKeeper({
+    pageId: 'G',
+    isEditing: () => true,
+    coordinator: { commit: () => gateReply() },
+  });
+  gated.absorbBoot({ notes: '', notesRev: 0, notesStamp: '' });
+  gated.remember('草稿');
+  const seenV2 = await gated.commit('草稿');
+  assert.strictEqual(seenV2.conflict, true);
+  assert.strictEqual(gated.snapshot().conflict.remoteRev, 2);
+  assert.strictEqual(gated.snapshot().conflict.remoteText, '第二版');
+  gateReply = async () => ({ ok: false, conflict: true, remoteText: '第一版', remoteRev: 1, remoteStamp: 's1' });
+  const lateConflict = await gated.commit('草稿');
+  assert.strictEqual(lateConflict.stale, true, 'A late V1 conflict is stale');
+  assert.strictEqual(gated.snapshot().conflict.remoteRev, 2, 'A still shows V2');
+  assert.strictEqual(gated.snapshot().conflict.remoteText, '第二版');
+  assert.strictEqual(gate.shouldMarkNoteSaved(lateConflict, gated.snapshot()), false);
+
+  const notice = realm(file);
+  let noticeReply = async () => ({ ok: true, rev: 2, stamp: 'fresh', notes: '远端第二版' });
+  const noticed = notice.createNoteKeeper({
+    pageId: 'N',
+    isEditing: () => false,
+    coordinator: { commit: () => noticeReply() },
+  });
+  noticed.absorbBoot({ notes: 'base', notesRev: 0, notesStamp: 'seed' });
+  noticed.handleRemote({ notes: '远端第二版', notesRev: 2, notesStamp: 'remote-2' });
+  assert.strictEqual(noticed.snapshot().seenRev, 2);
+  assert.strictEqual(noticed.snapshot().rev, 2);
+  noticeReply = async () => ({ ok: false, conflict: true, remoteText: '第一版', remoteRev: 1, remoteStamp: 's1' });
+  noticed.remember('本地还在写');
+  const afterNotice = await noticed.commit('本地还在写');
+  assert.strictEqual(afterNotice.stale, true, 'B late V1 conflict does not roll back a V2 notice');
+  assert.notStrictEqual(noticed.snapshot().conflict && noticed.snapshot().conflict.remoteRev, 1);
+  assert.strictEqual(noticed.snapshot().rev, 2);
+  assert.strictEqual(notice.shouldMarkNoteSaved(afterNotice, noticed.snapshot()), false, 'B does not look saved');
+
+  gateReply = async () => ({ ok: false, conflict: true, remoteText: '第三版', remoteRev: 3, remoteStamp: 's3' });
+  const moved = await gated.commit('草稿');
+  assert.strictEqual(moved.conflict, true);
+  assert.strictEqual(gated.snapshot().conflict.remoteRev, 3);
+  const refused = gated.acceptRemote(2);
+  assert.strictEqual(refused, null, 'C accept of a replaced conflict does not apply the old one');
+  assert.strictEqual(gated.snapshot().status, '另一页又有更新，请重新确认。');
+  assert.strictEqual(gated.snapshot().conflict.remoteText, '第三版');
+  const accepted = gated.acceptRemote(3);
+  assert.strictEqual(accepted, '第三版', 'C accept uses the current conflict');
+  assert.strictEqual(gated.snapshot().conflict, null);
+  assert.strictEqual(gated.snapshot().text, '第三版');
+
+  const dup = realm(file);
+  let dupReply = async () => ({ ok: false, conflict: true, remoteText: '同一版', remoteRev: 4, remoteStamp: 's4' });
+  const duper = dup.createNoteKeeper({
+    pageId: 'D',
+    isEditing: () => true,
+    coordinator: { commit: () => dupReply() },
+  });
+  duper.absorbBoot({ notes: '', notesRev: 0, notesStamp: '' });
+  duper.remember('草稿');
+  await duper.commit('草稿');
+  const statusBefore = duper.snapshot().status;
+  const repeated = await duper.commit('草稿');
+  assert.strictEqual(repeated.idempotent, true, 'D repeated conflict is idempotent');
+  assert.strictEqual(duper.snapshot().conflict.remoteRev, 4);
+  assert.strictEqual(duper.snapshot().status, statusBefore);
+  dupReply = async () => ({ ok: false, conflict: true, remoteText: '更早', remoteRev: 2, remoteStamp: 'old' });
+  const outOfOrder = await duper.commit('草稿');
+  assert.strictEqual(outOfOrder.stale, true, 'D out-of-order conflict is stale');
+  assert.strictEqual(duper.snapshot().conflict.remoteText, '同一版');
+
+  const mixed = realm(file);
+  const mixedStore = { notes: 'base', notesRev: 0, notesStamp: 'seed' };
+  const mixedSubs = [];
+  const mixedStorage = {
+    async get() { return structuredClone(mixedStore); },
+    async set(partial) {
+      Object.assign(mixedStore, structuredClone(partial));
+      mixedSubs.forEach((fn) => fn(structuredClone(mixedStore)));
+    },
+  };
+  const mixedBg = realm(file);
+  const mixedPage = realm(file);
+  const mixedCoord = mixedBg.createNoteCoordinator(mixedStorage);
+  const heldAck = deferred();
+  const wrote = deferred();
+  const mixedA = mixedPage.createNoteKeeper({
+    pageId: 'MA',
+    storage: mixedStorage,
+    isEditing: () => true,
+    coordinator: {
+      async commit(request) {
+        const result = await mixedCoord.commit(request);
+        wrote.release();
+        await heldAck.gate;
+        return result;
+      },
+    },
+  });
+  mixedA.absorbBoot(mixedStore);
+  mixedSubs.push((data) => mixedA.handleRemote(data));
+  mixedA.remember('旧稿');
+  const pendingMixed = mixedA.commit('旧稿');
+  await wrote.gate;
+  await mixedStorage.set({ notes: '新稿', notesRev: 2, notesStamp: 'newer' });
+  assert.strictEqual(mixedA.snapshot().conflict.remoteRev, 2);
+  const oldOk = mixedA.considerAck({ ok: true, stamp: mixedA.snapshot().inflight, rev: 1, notes: '旧稿' });
+  assert.strictEqual(oldOk.stale, true, 'E old ok stays stale');
+  assert.strictEqual(mixedA.snapshot().conflict.remoteText, '新稿');
+  heldAck.release();
+  await pendingMixed;
+  const oldConflict = mixedPage.createNoteKeeper({
+    pageId: 'MB',
+    isEditing: () => true,
+    coordinator: {
+      commit: async () => ({ ok: false, conflict: true, remoteText: '旧冲突', remoteRev: 1, remoteStamp: 'c1' }),
+    },
+  });
+  oldConflict.absorbBoot({ notes: '新稿', notesRev: 2, notesStamp: 'newer' });
+  oldConflict.remember('还在改');
+  const ignoredConflict = await oldConflict.commit('还在改');
+  assert.strictEqual(ignoredConflict.stale, true, 'E old conflict cannot override a newer rev');
+  assert.notStrictEqual(oldConflict.snapshot().conflict && oldConflict.snapshot().conflict.remoteText, '旧冲突');
+  assert.ok(oldConflict.snapshot().seenRev >= 2);
+  assert.strictEqual(mixedBg.shouldMarkNoteSaved(ignoredConflict, oldConflict.snapshot()), false);
+
   const js = fs.readFileSync(path.join(__dirname, '../extension/newtab.js'), 'utf8');
   const pump = js.slice(js.indexOf('function pumpNoteSave()'), js.indexOf('function queueNoteSave()'));
   assert.ok(pump.includes('shouldMarkNoteSaved'));
@@ -182,6 +309,8 @@ async function main() {
   assert.ok(pump.includes('hasConflict'));
   const save3d = js.slice(js.indexOf('function saveDeskNoteFrom3d'), js.indexOf('async function commitTodoFromDialog'));
   assert.ok(save3d.includes('queueNoteSave()'), 'N8 3D uses the same note save path');
+  const useRemote = js.slice(js.indexOf("const useRemote = $('#note-use-remote')"), js.indexOf("const keepLocal = $('#note-keep-local')"));
+  assert.ok(useRemote.includes('acceptRemote(expectedRev)'), 'accept passes the conflict rev on screen');
   console.log('N8 3D runtime: 未测');
   console.log('test-r2-note-ack: ok');
 }
