@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="newtab.css">
   <link rel="stylesheet" href="desk-3d/desk-3d.css">
+  <script src="note-sync.js" defer></script>
   <script src="newtab.js" defer></script>
 </head>
 <body>
@@ -115,6 +116,10 @@
       <section class="view active studio-desk" data-view="desk" aria-labelledby="resume-kicker">
         <div class="stars-layer" aria-hidden="true"></div>
         <div class="studio-screen">
+          <p class="desk-load-error" id="desk-load-error" hidden>
+            没读上来
+            <button type="button" id="desk-load-retry">再试一次</button>
+          </p>
           <section class="hero" aria-labelledby="resume-kicker">
             <p class="eyebrow">
               <span id="greet-word">你好</span><span class="sep" aria-hidden="true">·</span><span id="date-line"></span><span class="sep" aria-hidden="true">·</span><time id="clock-hm">00:00</time>
@@ -171,6 +176,10 @@
               <h2 class="col-h" id="note-h"><label for="notes">随手记</label></h2>
               <textarea class="note" id="notes" rows="4" maxlength="2000" placeholder="记点什么，自动存在本机"></textarea>
               <p class="col-sub note-status" id="notes-saved" aria-live="polite"></p>
+              <p class="note-conflict" id="note-conflict" hidden>
+                <button type="button" class="fs-btn text" id="note-use-remote">用那边的</button>
+                <button type="button" class="fs-btn text" id="note-keep-local">仍保存这边</button>
+              </p>
             </article>
           </section>
 

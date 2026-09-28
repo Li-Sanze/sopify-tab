@@ -35,6 +35,8 @@
   };
 
   const desk3dSubs = [];
+  let deskLoadBroken = false;
+  let noteWriteMeta = null;
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -130,6 +132,18 @@
       const url = (t.url || '').toLowerCase();
       return title.includes(needle) || url.includes(needle);
     });
+  }
+
+  function tabsToCloseForHost(list, filter, host) {
+    const seen = new Set();
+    const out = [];
+    const matched = filterTabs(list || [], filter).filter((t) => domainOf((t && t.url) || '') === host);
+    for (const t of matched) {
+      if (!t || t.id == null || seen.has(t.id)) continue;
+      seen.add(t.id);
+      out.push(t);
+    }
+    return out;
   }
 
   function noteOneLiner(notes) {
@@ -283,7 +297,107 @@
       if (existing && existing.id != null) activate.push({ id: existing.id, url: tab.url });
       else create.push(tab.url);
     }
-    return { activate: activate, create: create };
+    return {
+      activate: activate,
+      create: create,
+      skip: activate.map(function (t) { return { id: t.id, url: t.url }; }),
+    };
+  }
+
+  async function executeRestore(plan, api) {
+    const creates = (plan && plan.create) || [];
+    const activates = (plan && plan.activate) || [];
+    if (!api || typeof api.create !== 'function') {
+      return {
+        opened: 0,
+        skipped: 0,
+        failed: creates.length + activates.length,
+        focusOk: false,
+      };
+    }
+    let opened = 0;
+    let failed = 0;
+    const openedIds = [];
+    for (let i = 0; i < creates.length; i += 1) {
+      try {
+        const tab = await api.create({ url: creates[i], active: false });
+        if (tab && tab.id != null) {
+          opened += 1;
+          openedIds.push(tab.id);
+        } else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    const skipped = activates.length;
+    const focusId = (activates[0] && activates[0].id != null) ? activates[0].id : openedIds[0];
+    let focusOk = true;
+    if (focusId != null) {
+      if (typeof api.activate !== 'function') focusOk = false;
+      else {
+        try { await api.activate(focusId); } catch { focusOk = false; }
+      }
+    }
+    return { opened: opened, skipped: skipped, failed: failed, focusOk: focusOk };
+  }
+
+  function summarizeRestore(plan, exec) {
+    const opened = exec && Number.isFinite(exec.opened) ? exec.opened : 0;
+    const skipped = exec && Number.isFinite(exec.skipped) ? exec.skipped : 0;
+    const failed = exec && Number.isFinite(exec.failed) ? exec.failed : 0;
+    const planned = ((plan && plan.activate) ? plan.activate.length : 0) + ((plan && plan.create) ? plan.create.length : 0);
+    const focusOk = !exec || exec.focusOk !== false;
+    const complete = failed === 0 && focusOk && opened + skipped === planned && planned > 0;
+    let tone = 'fail';
+    if (complete) tone = 'ok';
+    else if (opened + skipped > 0) tone = 'partial';
+    return {
+      opened: opened,
+      skipped: skipped,
+      failed: failed,
+      planned: planned,
+      focusOk: focusOk,
+      complete: complete,
+      tone: tone,
+    };
+  }
+
+  function restoreToast(name, summary) {
+    const label = '「' + name + '」';
+    const s = summary || {};
+    if (!s.focusOk && s.failed === 0 && (s.opened || 0) + (s.skipped || 0) > 0) {
+      return label + '的网页在，没能切过去';
+    }
+    if (s.complete && s.opened && s.skipped) {
+      return '已恢复' + label + '，新开 ' + s.opened + '，已有 ' + s.skipped;
+    }
+    if (s.complete && s.skipped && !s.opened) return label + '里的网页都还开着';
+    if (s.complete) return '已恢复' + label;
+    if ((s.opened || 0) + (s.skipped || 0) === 0) return '没能恢复' + label;
+    return label + '新开 ' + (s.opened || 0) + '，已有 ' + (s.skipped || 0) + '，没打开 ' + (s.failed || 0);
+  }
+
+  async function readDeskStorage(getFn) {
+    const empty = {
+      sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: true,
+    };
+    try {
+      const data = await getFn({
+        sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '',
+      });
+      const src = data && typeof data === 'object' ? data : {};
+      return {
+        sites: src.sites,
+        todos: src.todos,
+        notes: src.notes,
+        name: src.name,
+        notesRev: src.notesRev,
+        notesStamp: src.notesStamp,
+        loadError: false,
+      };
+    } catch {
+      return empty;
+    }
   }
 
   function formatWorksetWhen(savedAt) {
@@ -317,8 +431,10 @@
   }
 
   async function loadDesk() {
-    if (!hasStorage) return { sites: [], todos: [], notes: '', name: '' };
-    return chrome.storage.local.get({ sites: [], todos: [], notes: '', name: '' });
+    if (!hasStorage) {
+      return { sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', loadError: false };
+    }
+    return readDeskStorage((defaults) => chrome.storage.local.get(defaults));
   }
 
   async function saveDesk(partial) {
@@ -326,8 +442,14 @@
     for (const k of Object.keys(partial)) {
       if (DESK_KEYS.includes(k)) payload[k] = partial[k];
     }
-    if (!Object.keys(payload).length) return;
-    if (hasStorage) await chrome.storage.local.set(payload);
+    if (noteWriteMeta && Object.prototype.hasOwnProperty.call(payload, 'notes')) {
+      payload.notesRev = noteWriteMeta.rev;
+      payload.notesStamp = noteWriteMeta.stamp;
+    }
+    if (!Object.keys(payload).length) return { ok: true, empty: true };
+    if (!hasStorage) return { ok: false, skipped: true };
+    await chrome.storage.local.set(payload);
+    return { ok: true };
   }
 
   let spaceViewOn = false;
@@ -356,8 +478,13 @@
 
   async function loadWorksets() {
     if (!hasStorage) return [];
-    const data = await chrome.storage.local.get({ worksets: [] });
-    return normalizeWorksets(data.worksets);
+    try {
+      const data = await chrome.storage.local.get({ worksets: [] });
+      return normalizeWorksets(data.worksets);
+    } catch {
+      deskLoadBroken = true;
+      return [];
+    }
   }
 
   async function persistWorksets(list) {
@@ -370,8 +497,13 @@
 
   async function loadCwd() {
     if (!hasStorage) return '';
-    const data = await chrome.storage.local.get({ cwd: '' });
-    return typeof data.cwd === 'string' ? data.cwd : '';
+    try {
+      const data = await chrome.storage.local.get({ cwd: '' });
+      return typeof data.cwd === 'string' ? data.cwd : '';
+    } catch {
+      deskLoadBroken = true;
+      return '';
+    }
   }
 
   async function saveCwd(cwd) {
@@ -385,8 +517,13 @@
 
   async function loadUpstream() {
     if (!hasStorage) return 'cursor';
-    const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
-    return normalizeUpstream(data.hostUpstream);
+    try {
+      const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
+      return normalizeUpstream(data.hostUpstream);
+    } catch {
+      deskLoadBroken = true;
+      return 'cursor';
+    }
   }
 
   async function saveUpstream(id) {
@@ -707,8 +844,11 @@
         }
       });
     };
+    const renameIme = createImeGuard();
+    input.addEventListener('compositionstart', () => renameIme.onCompositionStart());
+    input.addEventListener('compositionend', () => renameIme.onCompositionEnd());
     input.addEventListener('keydown', (e) => {
-      if (e.isComposing || e.key === 'Process') return;
+      if (e.isComposing || e.key === 'Process' || renameIme.blocks(e)) return;
       if (e.key !== 'Enter' && e.key !== 'Escape') return;
       e.preventDefault();
       finish(e.key === 'Enter', true);
@@ -817,12 +957,14 @@
     const allGroups = groupTabs(state.tabs);
     const savable = worksetTabs(state.tabs).length;
     $('#tabs-sub').textContent = `当前标签 ${state.tabs.length} / 可保存网页 ${savable} · ${allGroups.length} 个域名，localhost 端口只是标签。`;
+    const filterOn = String(q || '').trim().length > 0;
+    const closeTitle = filterOn ? '只关闭筛选里显示的这组' : '关闭这个域名下的标签';
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
           <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
           <b>${esc(host)}</b><span class="count">${tabs.length}</span>
-          <button type="button" class="linkbtn act" data-close-host="${esc(host)}">关闭这组</button>
+          <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">关闭这组</button>
         </div>
         ${tabs.map((t) => {
           const port = portLabel(t.url || '');
@@ -1091,21 +1233,23 @@
     toastT = setTimeout(() => t.classList.remove('show'), 2400);
   }
 
-  function applyDesk(data) {
-    state.sites = Array.isArray(data.sites)
-      ? data.sites.filter((s) => s && typeof s.name === 'string' && typeof s.url === 'string')
+  function applyDesk(data, opts) {
+    const src = data || {};
+    state.sites = Array.isArray(src.sites)
+      ? src.sites.filter((s) => s && typeof s.name === 'string' && typeof s.url === 'string')
       : [];
-    state.todos = Array.isArray(data.todos)
-      ? data.todos.filter((t) => t && typeof t.text === 'string').map((t) => ({
+    state.todos = Array.isArray(src.todos)
+      ? src.todos.filter((t) => t && typeof t.text === 'string').map((t) => ({
         id: typeof t.id === 'string' && t.id ? t.id : uid(),
         text: t.text,
         done: Boolean(t.done),
       }))
       : [];
-    if (!noteSaveActive && notePending === null) {
-      state.notes = typeof data.notes === 'string' ? data.notes : '';
+    if (!opts || opts.notes !== false) {
+      const absorbed = noteKeeper.absorbBoot(src);
+      if (absorbed.action === 'apply') state.notes = absorbed.text;
     }
-    state.name = typeof data.name === 'string' ? data.name : '';
+    state.name = typeof src.name === 'string' ? src.name : '';
     $('#name').value = state.name;
     renderSites();
     renderTodos();
@@ -1125,12 +1269,13 @@
     if (state.view === 'tabs') renderGroups();
   }
 
-  async function activateTab(id) {
+  async function activateTab(id, opts) {
     const n = Number(id);
     if (!hasTabs || !Number.isFinite(n)) return;
     try {
       await chrome.tabs.update(n, { active: true });
-    } catch {
+    } catch (err) {
+      if (opts && opts.rethrow) throw err;
       toast('标签已经关掉');
       refreshTabs();
     }
@@ -1190,23 +1335,18 @@
     const w = id ? list.find((x) => x.id === id) : list[0];
     if (!w) {
       toast('没有可恢复的窗口');
-      return;
+      return { opened: 0, skipped: 0, failed: 0, complete: false, tone: 'fail' };
     }
     let open = [];
     try { open = await queryWindowTabs(); } catch { open = []; }
     const plan = planRestore(w.tabs, open);
-    const createdIds = [];
-    if (hasTabs) {
-      for (const url of plan.create) {
-        try {
-          const tab = await chrome.tabs.create({ url, active: false });
-          if (tab && tab.id != null) createdIds.push(tab.id);
-        } catch { /* blocked or invalid */ }
-      }
-    }
-    const focusId = (plan.activate[0] && plan.activate[0].id) || createdIds[0];
-    if (focusId != null) await activateTab(focusId);
-    toast(`已恢复「${w.name}」`);
+    const exec = await executeRestore(plan, hasTabs ? {
+      create: (tabOpts) => chrome.tabs.create(tabOpts),
+      activate: (tabId) => activateTab(tabId, { rethrow: true }),
+    } : null);
+    const summary = summarizeRestore(plan, exec);
+    toast(restoreToast(w.name, summary));
+    return Object.assign({ name: w.name }, summary);
   }
 
   async function deleteWorksetById(id) {
@@ -1367,14 +1507,29 @@
   }
 
   async function closeHost(host) {
-    const ids = state.tabs.filter((t) => domainOf(t.url || '') === host).map((t) => t.id);
+    const visible = tabsToCloseForHost(state.tabs, state.filter, host);
+    const ids = visible.map((t) => t.id);
     if (!ids.length || !hasTabs) return;
-    try { await chrome.tabs.remove(ids); } catch { /* ignore */ }
-    toast(`已关闭 ${host}`);
+    try { await chrome.tabs.remove(ids); } catch { /* already gone */ }
+    const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
+    if (String(state.filter || '').trim() && all > ids.length) {
+      toast(`已关闭 ${ids.length} 个 ${host}，筛选外的还在`);
+    } else {
+      toast(`已关闭 ${host}`);
+    }
   }
 
   let noteSaveActive = false;
   let notePending = null;
+  function createImeGuard() {
+    const api = typeof window !== 'undefined' ? window.SopifyNoteSync : null;
+    if (api && typeof api.createImeGuard === 'function') return api.createImeGuard();
+    return {
+      onCompositionStart() {},
+      onCompositionEnd() {},
+      blocks(e) { return !!(e && (e.isComposing || e.key === 'Process' || e.keyCode === 229)); },
+    };
+  }
   function setNotesSavedStatus(text) {
     const saved = $('#notes-saved');
     if (saved) saved.textContent = text;
@@ -1382,6 +1537,73 @@
     if (desk) {
       desk.textContent = text || '输入即保存到书桌便签。';
       desk.classList.toggle('is-saved', text === '已存在本机');
+    }
+  }
+  function showNoteConflict(on) {
+    const box = $('#note-conflict');
+    if (box) box.hidden = !on;
+  }
+  function showDeskLoadError() {
+    const el = $('#desk-load-error');
+    if (!el) return;
+    el.hidden = false;
+  }
+  function hideDeskLoadError() {
+    const el = $('#desk-load-error');
+    if (el) el.hidden = true;
+  }
+  function noteFieldEditing() {
+    const ta = $('#notes');
+    const editor = $('#desk3d-note-editor');
+    const active = document.activeElement;
+    return active === ta || (!!editor && active === editor) || noteSaveActive || notePending !== null;
+  }
+  const noteKeeper = (typeof window !== 'undefined' && window.SopifyNoteSync
+    ? window.SopifyNoteSync.createNoteKeeper({
+      pageId: 'nt-' + Math.random().toString(16).slice(2),
+      storage: hasStorage ? { get: (defaults) => chrome.storage.local.get(defaults) } : null,
+      isEditing: noteFieldEditing,
+      onStatus(text) {
+        if (text === '另一页改过，没覆盖') {
+          setNotesSavedStatus(text);
+          showNoteConflict(true);
+          return;
+        }
+        if (text === '') {
+          const cur = $('#notes-saved');
+          if (cur && cur.textContent === '已存在本机') setNotesSavedStatus('');
+          showNoteConflict(false);
+        }
+      },
+    })
+    : {
+      absorbBoot(data) {
+        return { action: 'apply', text: data && typeof data.notes === 'string' ? data.notes : '' };
+      },
+      remember() {},
+      hasConflict() { return false; },
+      peekForce() { return false; },
+      armForce() {},
+      acceptRemote() { return null; },
+      handleRemote() { return { action: 'sync' }; },
+      commit: async (_payload, saveFn) => {
+        const saved = await saveFn(_payload, null);
+        return saved && saved.ok ? { ok: true } : { ok: false, skipped: !!(saved && saved.skipped) };
+      },
+      snapshot() { return { text: '', rev: 0, stamp: '' }; },
+    });
+  function applyRemoteNote(outcome) {
+    if (!outcome) return;
+    if (outcome.action === 'apply') {
+      state.notes = outcome.text;
+      renderNotes();
+      const editor = $('#desk3d-note-editor');
+      if (editor && editor !== document.activeElement) editor.value = state.notes;
+      return;
+    }
+    if (outcome.action === 'conflict') {
+      setNotesSavedStatus('另一页改过，没覆盖');
+      showNoteConflict(true);
     }
   }
   function pumpNoteSave() {
@@ -1394,9 +1616,25 @@
           notePending = null;
           state.notes = payload;
           try {
-            await saveDesk({ notes: state.notes });
+            const outcome = await noteKeeper.commit(payload, async (text, meta) => {
+              noteWriteMeta = meta;
+              state.notes = text;
+              try {
+                return await saveDesk({ notes: state.notes });
+              } finally {
+                noteWriteMeta = null;
+              }
+            });
             if (notePending !== null) continue;
-            setNotesSavedStatus('已存在本机');
+            if (outcome && outcome.ok) {
+              setNotesSavedStatus('已存在本机');
+              showNoteConflict(false);
+            } else if (outcome && outcome.conflict) {
+              setNotesSavedStatus('另一页改过，没覆盖');
+              showNoteConflict(true);
+            } else {
+              setNotesSavedStatus('没存上');
+            }
           } catch {
             if (notePending !== null) continue;
             setNotesSavedStatus('没存上');
@@ -1409,6 +1647,12 @@
     })();
   }
   function queueNoteSave() {
+    noteKeeper.remember(state.notes);
+    if (noteKeeper.hasConflict() && !noteKeeper.peekForce()) {
+      setNotesSavedStatus('另一页改过，没覆盖');
+      showNoteConflict(true);
+      return;
+    }
     notePending = state.notes;
     setNotesSavedStatus('保存中…');
     pumpNoteSave();
@@ -1481,6 +1725,18 @@
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
     });
+    const siteIme = createImeGuard();
+    const siteForm = $('#site-form');
+    if (siteForm) {
+      siteForm.addEventListener('compositionstart', () => siteIme.onCompositionStart());
+      siteForm.addEventListener('compositionend', () => siteIme.onCompositionEnd());
+      siteForm.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && siteIme.blocks(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
     $('#site-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const name = $('#site-name').value.trim();
@@ -1515,6 +1771,18 @@
     const sitesAll = $('#sites-all');
     if (sitesAll) sitesAll.addEventListener('click', onSiteRemoveClick);
 
+    const todoIme = createImeGuard();
+    const todoInput = $('#todo-input');
+    if (todoInput) {
+      todoInput.addEventListener('compositionstart', () => todoIme.onCompositionStart());
+      todoInput.addEventListener('compositionend', () => todoIme.onCompositionEnd());
+      todoInput.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === 'Process') && todoIme.blocks(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
     $('#todo-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const text = $('#todo-input').value.trim();
@@ -1558,6 +1826,33 @@
       renderResume();
       queueNoteSave();
     });
+    const useRemote = $('#note-use-remote');
+    if (useRemote) {
+      useRemote.addEventListener('click', () => {
+        const text = noteKeeper.acceptRemote();
+        if (text == null) return;
+        state.notes = text;
+        const ta = $('#notes');
+        if (ta) ta.value = text;
+        const editor = $('#desk3d-note-editor');
+        if (editor && editor !== document.activeElement) editor.value = text;
+        renderNotes();
+        showNoteConflict(false);
+        setNotesSavedStatus('');
+      });
+    }
+    const keepLocal = $('#note-keep-local');
+    if (keepLocal) {
+      keepLocal.addEventListener('click', () => {
+        const ta = $('#notes');
+        if (ta) state.notes = ta.value;
+        noteKeeper.armForce();
+        noteKeeper.remember(state.notes);
+        queueNoteSave();
+      });
+    }
+    const loadRetry = $('#desk-load-retry');
+    if (loadRetry) loadRetry.addEventListener('click', () => { retryDeskLoad(); });
 
     $('#resume-act').addEventListener('click', () => runResumeAction());
     const todosOpen = $('#todos-open');
@@ -1595,7 +1890,11 @@
       todosDialog.addEventListener('click', (e) => {
         if (e.target === todosDialog) todosDialog.close();
       });
+      const dialogIme = createImeGuard();
+      todosDialog.addEventListener('compositionstart', () => dialogIme.onCompositionStart());
+      todosDialog.addEventListener('compositionend', () => dialogIme.onCompositionEnd());
       todosDialog.addEventListener('keydown', (e) => {
+        if (dialogIme.blocks(e)) return;
         if (e.key !== 'Enter') return;
         const input = todosDialog.querySelector('#todo-input-dialog');
         if (!input || e.target !== input) return;
@@ -1658,13 +1957,22 @@
           renderSavedWorksets();
           notifyDesk3d();
         }
-        if (!DESK_KEYS.some((k) => k in changes)) return;
-        applyDesk({
-          sites: changes.sites ? changes.sites.newValue : state.sites,
-          todos: changes.todos ? changes.todos.newValue : state.todos,
-          notes: changes.notes ? changes.notes.newValue : state.notes,
-          name: changes.name ? changes.name.newValue : state.name,
-        });
+        if ('sites' in changes || 'todos' in changes || 'name' in changes) {
+          applyDesk({
+            sites: changes.sites ? changes.sites.newValue : state.sites,
+            todos: changes.todos ? changes.todos.newValue : state.todos,
+            notes: state.notes,
+            name: changes.name ? changes.name.newValue : state.name,
+          }, { notes: false });
+        }
+        if ('notes' in changes || 'notesRev' in changes || 'notesStamp' in changes) {
+          const snap = noteKeeper.snapshot();
+          applyRemoteNote(noteKeeper.handleRemote({
+            notes: changes.notes ? changes.notes.newValue : snap.text,
+            notesRev: changes.notesRev ? changes.notesRev.newValue : snap.rev,
+            notesStamp: changes.notesStamp ? changes.notesStamp.newValue : snap.stamp,
+          }));
+        }
       });
     }
 
@@ -1714,12 +2022,47 @@
     });
   }
 
-  async function boot() {
-    applyDesk(await loadDesk());
+  async function retryDeskLoad() {
+    deskLoadBroken = false;
+    let data;
+    try { data = await loadDesk(); } catch { data = { loadError: true }; }
+    if (!data || data.loadError) {
+      deskLoadBroken = true;
+      showDeskLoadError();
+      return;
+    }
+    applyDesk(data);
     state.worksets = await loadWorksets();
     state.cwd = await loadCwd();
     state.hostUpstream = await loadUpstream();
-    $('#cwd').value = state.cwd;
+    if (deskLoadBroken) {
+      showDeskLoadError();
+      return;
+    }
+    hideDeskLoadError();
+    const cwdEl = $('#cwd');
+    if (cwdEl && cwdEl !== document.activeElement) cwdEl.value = state.cwd;
+    renderWorkset();
+    renderSavedWorksets();
+    renderHost();
+    renderUpstream();
+    renderTheme();
+  }
+
+  async function boot() {
+    try {
+      const data = await loadDesk();
+      if (data && data.loadError) deskLoadBroken = true;
+      applyDesk(data || { sites: [], todos: [], notes: '', name: '' });
+      state.worksets = await loadWorksets();
+      state.cwd = await loadCwd();
+      state.hostUpstream = await loadUpstream();
+    } catch {
+      deskLoadBroken = true;
+      try { applyDesk({ sites: [], todos: [], notes: '', name: '' }); } catch { /* desk stays usable */ }
+    }
+    const cwdEl = $('#cwd');
+    if (cwdEl) cwdEl.value = state.cwd;
     renderWorkset();
     renderSavedWorksets();
     renderResume();
@@ -1727,6 +2070,7 @@
     renderUpstream();
     renderTheme();
     bind();
+    if (deskLoadBroken) showDeskLoadError();
     notifyDesk3d();
     tick();
     setInterval(tick, 1000);

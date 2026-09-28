@@ -353,7 +353,13 @@
       prompt.style.height = 'auto';
       prompt.style.height = `${Math.min(prompt.scrollHeight, 160)}px`;
     });
+    const composeIme = (typeof window !== 'undefined' && window.SopifyNoteSync && window.SopifyNoteSync.createImeGuard)
+      ? window.SopifyNoteSync.createImeGuard()
+      : { onCompositionStart() {}, onCompositionEnd() {}, blocks(e) { return !!(e && (e.isComposing || e.key === 'Process' || e.keyCode === 229)); } };
+    prompt.addEventListener('compositionstart', () => composeIme.onCompositionStart());
+    prompt.addEventListener('compositionend', () => composeIme.onCompositionEnd());
     prompt.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.key === 'Process' || composeIme.blocks(e)) return;
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         $('#compose').requestSubmit();
