@@ -1,0 +1,24 @@
+{
+  "caseA": {
+    "failedOk": false,
+    "retryOk": true,
+    "sameId": true,
+    "ids": [
+      "old",
+      "id-2"
+    ],
+    "milkRows": 1
+  },
+  "caseE": {
+    "firstOk": false,
+    "retryOk": true,
+    "idempotent": true,
+    "sameId": true,
+    "rowCount": 1
+  },
+  "conflict": {
+    "lateStale": true,
+    "shownRev": 2,
+    "shownText": "第二版"
+  }
+}

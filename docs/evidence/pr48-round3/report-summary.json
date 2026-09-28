@@ -1,0 +1,14 @@
+{
+  "kind": "stub-browser",
+  "browser": "Chrome/148.0.7778.96",
+  "os": "linux 6.12.94+",
+  "port": 43589,
+  "checks": 55,
+  "failed": 0,
+  "realExtension": {
+    "ok": false,
+    "id": "cgkhllpelkjmfamddkjpnmchjikdcbgp",
+    "detail": "CLI load did not expose chrome-extension://cgkhllpelkjmfamddkjpnmchjikdcbgp/; branded Chrome ignores --load-extension",
+    "twoPage": false
+  }
+}

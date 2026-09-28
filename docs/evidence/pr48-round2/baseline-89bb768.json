@@ -1,0 +1,21 @@
+{
+  "tip": "89bb7686a4688d19574745b0be58f97955deefc0",
+  "n1PassExpected": false,
+  "n1": {
+    "resultOk": true,
+    "stale": false,
+    "conflictCleared": true,
+    "rev": 1,
+    "stored": "B 后来保存的新内容",
+    "storedRev": 2,
+    "wouldMarkSaved": true
+  },
+  "p1": {
+    "bothOk": true,
+    "texts": [
+      "old",
+      "B"
+    ],
+    "lostA": true
+  }
+}

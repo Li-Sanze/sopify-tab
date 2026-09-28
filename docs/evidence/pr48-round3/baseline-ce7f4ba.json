@@ -1,0 +1,34 @@
+{
+  "tip": "ce7f4ba1b50f20aa51e35713159fd4ca00582c5d",
+  "formSourceMintsUid": true,
+  "caseA": {
+    "firstOk": false,
+    "retryOk": true,
+    "firstId": "id-1",
+    "retryId": "id-2",
+    "sameId": false,
+    "rows": [
+      "id-2"
+    ]
+  },
+  "caseE": {
+    "landedOk": true,
+    "retryOk": true,
+    "firstId": "id-3",
+    "retryId": "id-4",
+    "ids": [
+      "id-3",
+      "id-4"
+    ],
+    "rowCount": 2
+  },
+  "conflict": {
+    "lateStale": false,
+    "shownRev": 1,
+    "shownText": "第一版",
+    "acceptReturned": "第一版"
+  },
+  "caseAFails": true,
+  "caseEFails": true,
+  "conflictFails": true
+}

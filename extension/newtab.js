@@ -35,6 +35,34 @@
   };
 
   const desk3dSubs = [];
+  let deskLoadBroken = false;
+  let noteWriteMeta = null;
+  const domainUnread = {
+    todos: false,
+    sites: false,
+    notes: false,
+    name: false,
+    worksets: false,
+  };
+  function markDeskUnread() {
+    domainUnread.todos = true;
+    domainUnread.sites = true;
+    domainUnread.notes = true;
+    domainUnread.name = true;
+  }
+  function clearDeskUnread() {
+    domainUnread.todos = false;
+    domainUnread.sites = false;
+    domainUnread.notes = false;
+    domainUnread.name = false;
+  }
+  let todosSeen = 0;
+  let sitesSeen = 0;
+  let worksetsSeen = 0;
+  function collectionRev(n) {
+    const v = typeof n === 'string' && String(n).trim() ? Number(n) : n;
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  }
 
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -52,6 +80,18 @@
     return (m ? m[0] : t.slice(0, 1) || '?').toUpperCase();
   };
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `t-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  let todoAddRecord = null;
+  let dialogTodoAdd = null;
+  let siteAddRecord = null;
+  let todoRemoveRecord = null;
+  let siteRemoveRecord = null;
+  let clearDoneRecord = null;
+  let worksetSaveRecord = null;
+  let worksetRemoveRecord = null;
+
+  function formOps() {
+    return window.SopifyFormOps;
+  }
 
   const hasStorage = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
   const hasTabs = typeof chrome !== 'undefined' && chrome.tabs;
@@ -130,6 +170,86 @@
       const url = (t.url || '').toLowerCase();
       return title.includes(needle) || url.includes(needle);
     });
+  }
+
+  function tabsToCloseForHost(list, filter, host) {
+    const seen = new Set();
+    const out = [];
+    const matched = filterTabs(list || [], filter).filter((t) => domainOf((t && t.url) || '') === host);
+    for (const t of matched) {
+      if (!t || t.id == null || seen.has(t.id)) continue;
+      seen.add(t.id);
+      out.push(t);
+    }
+    return out;
+  }
+
+  function closeHostButtonLabel(count) {
+    const n = Math.max(0, Math.floor(Number(count) || 0));
+    return '关闭这 ' + n + ' 个标签';
+  }
+
+  function noteConflictView(local, remote) {
+    function parts(text) {
+      const raw = String(text == null ? '' : text);
+      const trimmed = raw.replace(/^\s+|\s+$/g, '');
+      if (!trimmed) return { full: '还没写', preview: '还没写', long: false };
+      const flat = trimmed.replace(/\s+/g, ' ');
+      const chars = [...flat];
+      const long = chars.length > 72;
+      return {
+        full: trimmed,
+        preview: long ? chars.slice(0, 72).join('') + '…' : flat,
+        long: long,
+      };
+    }
+    const left = parts(local);
+    const right = parts(remote);
+    return {
+      local: left.preview,
+      remote: right.preview,
+      localFull: left.full,
+      remoteFull: right.full,
+      localLong: left.long,
+      remoteLong: right.long,
+    };
+  }
+
+  function domainWriteAllowed(unread, key) {
+    if (!unread || typeof unread !== 'object') return true;
+    return unread[key] !== true;
+  }
+
+  function refuseUnreadWrite(unread, key) {
+    if (domainWriteAllowed(unread, key)) return null;
+    return { ok: false, blocked: true };
+  }
+
+  function confirmDeskWrite(saveResult, readback) {
+    if (!saveResult || saveResult.ok !== true) {
+      return {
+        ok: false,
+        skipped: !!(saveResult && saveResult.skipped),
+        error: true,
+      };
+    }
+    if (saveResult.empty) return { ok: true, empty: true };
+    if (!readback || readback.ok !== true) return { ok: false, error: true };
+    const out = { ok: true };
+    if (saveResult && saveResult.items) out.items = saveResult.items;
+    if (saveResult && saveResult.rev != null) out.rev = saveResult.rev;
+    if (saveResult && saveResult.idempotent) out.idempotent = true;
+    return out;
+  }
+
+  function beginRestore(queryOk, openTabs) {
+    if (queryOk !== true) return { abort: true, open: [] };
+    return { abort: false, open: Array.isArray(openTabs) ? openTabs : [] };
+  }
+
+  function noteDraftIsDirty(local, acked, pending) {
+    if (pending) return true;
+    return String(local == null ? '' : local) !== String(acked == null ? '' : acked);
   }
 
   function noteOneLiner(notes) {
@@ -283,7 +403,118 @@
       if (existing && existing.id != null) activate.push({ id: existing.id, url: tab.url });
       else create.push(tab.url);
     }
-    return { activate: activate, create: create };
+    return {
+      activate: activate,
+      create: create,
+      skip: activate.map(function (t) { return { id: t.id, url: t.url }; }),
+    };
+  }
+
+  async function executeRestore(plan, api) {
+    const creates = (plan && plan.create) || [];
+    const activates = (plan && plan.activate) || [];
+    if (!api || typeof api.create !== 'function') {
+      return {
+        opened: 0,
+        skipped: 0,
+        failed: creates.length + activates.length,
+        focusOk: false,
+        unopened: creates.slice(),
+      };
+    }
+    let opened = 0;
+    let failed = 0;
+    const openedIds = [];
+    const unopened = [];
+    for (let i = 0; i < creates.length; i += 1) {
+      try {
+        const tab = await api.create({ url: creates[i], active: false });
+        if (tab && tab.id != null) {
+          opened += 1;
+          openedIds.push(tab.id);
+        } else {
+          failed += 1;
+          unopened.push(creates[i]);
+        }
+      } catch {
+        failed += 1;
+        unopened.push(creates[i]);
+      }
+    }
+    const skipped = activates.length;
+    const focusId = (activates[0] && activates[0].id != null) ? activates[0].id : openedIds[0];
+    let focusOk = true;
+    if (focusId != null) {
+      if (typeof api.activate !== 'function') focusOk = false;
+      else {
+        try { await api.activate(focusId); } catch { focusOk = false; }
+      }
+    }
+    return { opened: opened, skipped: skipped, failed: failed, focusOk: focusOk, unopened: unopened };
+  }
+
+  function summarizeRestore(plan, exec) {
+    const opened = exec && Number.isFinite(exec.opened) ? exec.opened : 0;
+    const skipped = exec && Number.isFinite(exec.skipped) ? exec.skipped : 0;
+    const failed = exec && Number.isFinite(exec.failed) ? exec.failed : 0;
+    const planned = ((plan && plan.activate) ? plan.activate.length : 0) + ((plan && plan.create) ? plan.create.length : 0);
+    const focusOk = !exec || exec.focusOk !== false;
+    const complete = failed === 0 && focusOk && opened + skipped === planned && planned > 0;
+    let tone = 'fail';
+    if (complete) tone = 'ok';
+    else if (opened + skipped > 0) tone = 'partial';
+    return {
+      opened: opened,
+      skipped: skipped,
+      failed: failed,
+      planned: planned,
+      focusOk: focusOk,
+      complete: complete,
+      tone: tone,
+    };
+  }
+
+  function restoreToast(name, summary) {
+    const label = '「' + name + '」';
+    const s = summary || {};
+    if (!s.focusOk && s.failed === 0 && (s.opened || 0) + (s.skipped || 0) > 0) {
+      return label + '的网页在，没能切过去';
+    }
+    if (s.complete && s.opened && s.skipped) {
+      return '已恢复' + label + '，新开 ' + s.opened + '，已有 ' + s.skipped;
+    }
+    if (s.complete && s.skipped && !s.opened) return label + '里的网页都还开着';
+    if (s.complete) return '已恢复' + label;
+    if ((s.opened || 0) + (s.skipped || 0) === 0) return '没能恢复' + label;
+    return label + '新开 ' + (s.opened || 0) + '，已有 ' + (s.skipped || 0) + '，没打开 ' + (s.failed || 0);
+  }
+
+  function shouldApplyLoad(gen, latest) {
+    return gen === latest;
+  }
+
+  async function readDeskStorage(getFn) {
+    try {
+      const data = await getFn({
+        sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '',
+        todosRev: 0, sitesRev: 0,
+      });
+      const src = data && typeof data === 'object' ? data : {};
+      return {
+        ok: true,
+        sites: src.sites,
+        todos: src.todos,
+        notes: src.notes,
+        name: src.name,
+        notesRev: src.notesRev,
+        notesStamp: src.notesStamp,
+        todosRev: src.todosRev,
+        sitesRev: src.sitesRev,
+        loadError: false,
+      };
+    } catch {
+      return { ok: false, loadError: true };
+    }
   }
 
   function formatWorksetWhen(savedAt) {
@@ -317,8 +548,10 @@
   }
 
   async function loadDesk() {
-    if (!hasStorage) return { sites: [], todos: [], notes: '', name: '' };
-    return chrome.storage.local.get({ sites: [], todos: [], notes: '', name: '' });
+    if (!hasStorage) {
+      return { ok: true, sites: [], todos: [], notes: '', name: '', notesRev: 0, notesStamp: '', todosRev: 0, sitesRev: 0, loadError: false };
+    }
+    return readDeskStorage((defaults) => chrome.storage.local.get(defaults));
   }
 
   async function saveDesk(partial) {
@@ -326,8 +559,103 @@
     for (const k of Object.keys(partial)) {
       if (DESK_KEYS.includes(k)) payload[k] = partial[k];
     }
-    if (!Object.keys(payload).length) return;
-    if (hasStorage) await chrome.storage.local.set(payload);
+    if (noteWriteMeta && Object.prototype.hasOwnProperty.call(payload, 'notes')) {
+      payload.notesRev = noteWriteMeta.rev;
+      payload.notesStamp = noteWriteMeta.stamp;
+    }
+    if (!Object.keys(payload).length) return { ok: true, empty: true };
+    if (!hasStorage) return { ok: false, skipped: true };
+    await chrome.storage.local.set(payload);
+    return { ok: true };
+  }
+
+  async function commitDesk(partial) {
+    const keys = Object.keys(partial || {}).filter((k) => DESK_KEYS.includes(k));
+    for (let i = 0; i < keys.length; i += 1) {
+      const refused = refuseUnreadWrite(domainUnread, keys[i]);
+      if (refused) return refused;
+    }
+    if (partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) return commitTodoIntent(partial.todos);
+    if (partial && Object.prototype.hasOwnProperty.call(partial, 'sites')) return commitSiteIntent(partial.sites);
+    let result;
+    try {
+      result = await saveDesk(partial);
+    } catch {
+      return confirmDeskWrite(null, null);
+    }
+    if (!result || result.ok !== true || result.empty) return confirmDeskWrite(result, null);
+    try {
+      const defaults = {};
+      keys.forEach((k) => { defaults[k] = null; });
+      const got = await chrome.storage.local.get(defaults);
+      const match = keys.every((k) => JSON.stringify(got[k]) === JSON.stringify(partial[k]));
+      return confirmDeskWrite(result, { ok: match });
+    } catch {
+      return confirmDeskWrite(result, { ok: false });
+    }
+  }
+
+  function adoptCollection(domain, saved) {
+    if (!saved || saved.ok !== true || !saved.items) return;
+    const rev = saved.rev == null ? null : collectionRev(saved.rev);
+    if (domain === 'todos') {
+      if (rev == null || rev >= todosSeen) {
+        state.todos = saved.items;
+        if (rev != null) todosSeen = rev;
+      }
+      return;
+    }
+    if (domain === 'sites') {
+      if (rev == null || rev >= sitesSeen) {
+        state.sites = saved.items;
+        if (rev != null) sitesSeen = rev;
+      }
+    }
+  }
+
+  async function commitTodoIntent(next) {
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffTodos(state.todos, next);
+    let committed;
+    try { committed = await requestCollectionCommit({ domain: 'todos', ops: ops }); } catch { committed = null; }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    return confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
+  }
+
+  async function commitSiteIntent(next) {
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffSites(state.sites, next);
+    let committed;
+    try { committed = await requestCollectionCommit({ domain: 'sites', ops: ops }); } catch { committed = null; }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    return confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
+  }
+
+  async function replaceTodos(next, errorId, message) {
+    const saved = await commitDesk({ todos: next });
+    if (!saved || saved.ok !== true) {
+      showWriteError(errorId, writeFailMessage(saved, '待办暂时没能读取', message));
+      if (saved && saved.blocked) showTodoLoadError();
+      renderTodos();
+      return false;
+    }
+    hideWriteError('todo-save-error');
+    hideWriteError('todo-dialog-save-error');
+    adoptCollection('todos', saved);
+    renderTodos();
+    return true;
   }
 
   let spaceViewOn = false;
@@ -356,22 +684,55 @@
 
   async function loadWorksets() {
     if (!hasStorage) return [];
-    const data = await chrome.storage.local.get({ worksets: [] });
-    return normalizeWorksets(data.worksets);
+    try {
+      const data = await chrome.storage.local.get({ worksets: [], worksetsRev: 0 });
+      const rev = collectionRev(data && data.worksetsRev);
+      if (rev >= worksetsSeen) worksetsSeen = rev;
+      return normalizeWorksets(data.worksets);
+    } catch {
+      return null;
+    }
   }
 
   async function persistWorksets(list) {
     const worksets = normalizeWorksets(list);
-    state.worksets = worksets;
+    if (!domainWriteAllowed(domainUnread, 'worksets')) return { ok: false, blocked: true };
+    if (!hasStorage) return confirmDeskWrite({ ok: false, skipped: true }, null);
+    if (!window.SopifyCollection) return confirmDeskWrite(null, null);
+    const ops = window.SopifyCollection.diffWorksets(state.worksets, worksets);
+    let committed;
+    try {
+      committed = await requestCollectionCommit({ domain: 'worksets', ops: ops });
+    } catch {
+      committed = null;
+    }
+    if (!committed || committed.ok !== true) {
+      if (committed && committed.blocked) return committed;
+      return confirmDeskWrite(committed, null);
+    }
+    const saved = confirmDeskWrite(
+      { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+      { ok: committed.readback !== false },
+    );
+    if (!saved.ok) return saved;
+    const storedRev = committed.rev == null ? null : collectionRev(committed.rev);
+    if (storedRev == null || storedRev >= worksetsSeen) {
+      state.worksets = normalizeWorksets(committed.items);
+      if (storedRev != null) worksetsSeen = storedRev;
+    }
     renderSavedWorksets();
-    if (hasStorage) await chrome.storage.local.set({ worksets });
     notifyDesk3d();
+    return saved;
   }
 
   async function loadCwd() {
     if (!hasStorage) return '';
-    const data = await chrome.storage.local.get({ cwd: '' });
-    return typeof data.cwd === 'string' ? data.cwd : '';
+    try {
+      const data = await chrome.storage.local.get({ cwd: '' });
+      return typeof data.cwd === 'string' ? data.cwd : '';
+    } catch {
+      return null;
+    }
   }
 
   async function saveCwd(cwd) {
@@ -385,8 +746,12 @@
 
   async function loadUpstream() {
     if (!hasStorage) return 'cursor';
-    const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
-    return normalizeUpstream(data.hostUpstream);
+    try {
+      const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
+      return normalizeUpstream(data.hostUpstream);
+    } catch {
+      return null;
+    }
   }
 
   async function saveUpstream(id) {
@@ -433,6 +798,15 @@
   }
 
   function renderSites() {
+    if (domainUnread.sites) {
+      $('#sites').innerHTML = '';
+      const more = $('#sites-more');
+      if (more) more.hidden = true;
+      const all = $('#sites-all');
+      if (all) all.innerHTML = '';
+      $('#c-sites').textContent = '0';
+      return;
+    }
     const home = state.sites.slice(0, 8);
     $('#sites').innerHTML = siteTilesHtml(home);
     const more = $('#sites-more');
@@ -465,6 +839,11 @@
 
   function renderTodos() {
     const ul = $('#todos');
+    if (domainUnread.todos) {
+      if (ul) ul.innerHTML = '';
+      renderResume();
+      return;
+    }
     ul.innerHTML = state.todos.length ? state.todos.map((t) => `
       <li class="todo ${t.done ? 'done' : ''}">
         <label>
@@ -506,6 +885,21 @@
     const title = $('#resume-title');
     const act = $('#resume-act');
     if (!root || !title || !act) return;
+    if (domainUnread.todos) {
+      root.dataset.has = 'unread';
+      root.classList.add('is-empty');
+      title.textContent = '';
+      title.removeAttribute('title');
+      delete title.dataset.size;
+      act.dataset.kind = 'unread';
+      delete act.dataset.todoId;
+      const hint = $('#todo-hint');
+      if (hint) hint.hidden = true;
+      showTodoLoadError();
+      return;
+    }
+    const hintShown = $('#todo-hint');
+    if (hintShown) hintShown.hidden = false;
     const done = state.todos.filter((t) => t && t.done).length;
     const has = next.kind === 'todo';
     root.dataset.has = has ? '1' : '0';
@@ -606,6 +1000,19 @@
     const actions = $('#last-actions');
     const restore = $('#workset-restore-recent');
     const all = $('#last-all');
+    if (domainUnread.worksets) {
+      if (empty) empty.hidden = true;
+      const nameBtn = $('#last-name');
+      if (nameBtn) nameBtn.hidden = true;
+      if (favs) favs.hidden = true;
+      if (meta) meta.hidden = true;
+      if (actions) actions.hidden = true;
+      if (restore) restore.hidden = true;
+      if (all) all.hidden = true;
+      showWorksetLoadError();
+      return;
+    }
+    hideWorksetLoadError();
     if (!ws) {
       const stray = $('#last-col') && $('#last-col').querySelector('.rename-input');
       if (stray) ensureLastNameButton();
@@ -699,7 +1106,15 @@
       const list = (state.worksets || []).map((w) => (
         w.id === id ? { id: w.id, name: next, savedAt: w.savedAt, tabs: w.tabs } : w
       ));
-      persistWorksets(list).then(() => {
+      persistWorksets(list).then((saved) => {
+        if (!saved || saved.ok !== true) {
+          done = false;
+          showWriteError('last-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '名字没存上，再按一次回车'));
+          if (saved && saved.blocked) showWorksetLoadError();
+          if (input.isConnected) input.focus();
+          return;
+        }
+        hideWriteError('last-save-error');
         toast('已改名');
         if (refocus) {
           const again = $('#last-name');
@@ -707,8 +1122,11 @@
         }
       });
     };
+    const renameIme = createImeGuard();
+    input.addEventListener('compositionstart', () => renameIme.onCompositionStart());
+    input.addEventListener('compositionend', () => renameIme.onCompositionEnd());
     input.addEventListener('keydown', (e) => {
-      if (e.isComposing || e.key === 'Process') return;
+      if (e.isComposing || e.key === 'Process' || renameIme.blocks(e)) return;
       if (e.key !== 'Enter' && e.key !== 'Escape') return;
       e.preventDefault();
       finish(e.key === 'Enter', true);
@@ -817,12 +1235,14 @@
     const allGroups = groupTabs(state.tabs);
     const savable = worksetTabs(state.tabs).length;
     $('#tabs-sub').textContent = `当前标签 ${state.tabs.length} / 可保存网页 ${savable} · ${allGroups.length} 个域名，localhost 端口只是标签。`;
+    const filterOn = String(q || '').trim().length > 0;
+    const closeTitle = filterOn ? '只关闭筛选里显示的这组' : '关闭这个域名下的标签';
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
           <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
           <b>${esc(host)}</b><span class="count">${tabs.length}</span>
-          <button type="button" class="linkbtn act" data-close-host="${esc(host)}">关闭这组</button>
+          <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">${esc(closeHostButtonLabel(tabsToCloseForHost(state.tabs, q, host).length))}</button>
         </div>
         ${tabs.map((t) => {
           const port = portLabel(t.url || '');
@@ -1091,21 +1511,31 @@
     toastT = setTimeout(() => t.classList.remove('show'), 2400);
   }
 
-  function applyDesk(data) {
-    state.sites = Array.isArray(data.sites)
-      ? data.sites.filter((s) => s && typeof s.name === 'string' && typeof s.url === 'string')
+  function applyDesk(data, opts) {
+    const src = data || {};
+    state.sites = Array.isArray(src.sites)
+      ? src.sites.filter((s) => s && typeof s.name === 'string' && typeof s.url === 'string')
       : [];
-    state.todos = Array.isArray(data.todos)
-      ? data.todos.filter((t) => t && typeof t.text === 'string').map((t) => ({
+    state.todos = Array.isArray(src.todos)
+      ? src.todos.filter((t) => t && typeof t.text === 'string').map((t) => ({
         id: typeof t.id === 'string' && t.id ? t.id : uid(),
         text: t.text,
         done: Boolean(t.done),
       }))
       : [];
-    if (!noteSaveActive && notePending === null) {
-      state.notes = typeof data.notes === 'string' ? data.notes : '';
+    if (!opts || opts.notes !== false) {
+      const absorbed = noteKeeper.absorbBoot(src);
+      if (absorbed.action === 'apply') state.notes = absorbed.text;
     }
-    state.name = typeof data.name === 'string' ? data.name : '';
+    state.name = typeof src.name === 'string' ? src.name : '';
+    if (src.todosRev != null) {
+      const n = collectionRev(src.todosRev);
+      if (n >= todosSeen) todosSeen = n;
+    }
+    if (src.sitesRev != null) {
+      const n = collectionRev(src.sitesRev);
+      if (n >= sitesSeen) sitesSeen = n;
+    }
     $('#name').value = state.name;
     renderSites();
     renderTodos();
@@ -1125,12 +1555,13 @@
     if (state.view === 'tabs') renderGroups();
   }
 
-  async function activateTab(id) {
+  async function activateTab(id, opts) {
     const n = Number(id);
     if (!hasTabs || !Number.isFinite(n)) return;
     try {
       await chrome.tabs.update(n, { active: true });
-    } catch {
+    } catch (err) {
+      if (opts && opts.rethrow) throw err;
       toast('标签已经关掉');
       refreshTabs();
     }
@@ -1145,10 +1576,12 @@
   }
 
   async function saveThisWindow() {
+    const planned = formOps().planWorksetSave(worksetSaveRecord, uid, Date.now());
+    worksetSaveRecord = planned.record;
     const proposal = proposeSaveWorkset(state.worksets, state.tabs, {
-      id: uid(),
-      name: savedWindowTitle(state.tabs, new Date()),
-      savedAt: Date.now(),
+      id: planned.itemId,
+      name: savedWindowTitle(state.tabs, new Date(planned.savedAt)),
+      savedAt: planned.savedAt,
     });
     if (proposal.reason === 'empty') {
       toast('这个窗口没有可保存的网页');
@@ -1175,12 +1608,26 @@
         toast('未保存');
         return;
       }
-      await persistWorksets(next.worksets);
+      const overwritten = await persistWorksets(next.worksets);
+      if (!overwritten || overwritten.ok !== true) {
+        showWriteError('workset-save-error', writeFailMessage(overwritten, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
+        if (overwritten && overwritten.blocked) showWorksetLoadError();
+        return;
+      }
+      worksetSaveRecord = null;
+      hideWriteError('workset-save-error');
       flashLastSaved();
       toast(`已覆盖『${label}』`);
       return;
     }
-    await persistWorksets(proposal.worksets);
+    const savedWindow = await persistWorksets(proposal.worksets);
+    if (!savedWindow || savedWindow.ok !== true) {
+      showWriteError('workset-save-error', writeFailMessage(savedWindow, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
+      if (savedWindow && savedWindow.blocked) showWorksetLoadError();
+      return;
+    }
+    worksetSaveRecord = null;
+    hideWriteError('workset-save-error');
     flashLastSaved();
     toast('已存下这个窗口');
   }
@@ -1190,29 +1637,74 @@
     const w = id ? list.find((x) => x.id === id) : list[0];
     if (!w) {
       toast('没有可恢复的窗口');
+      return { opened: 0, skipped: 0, failed: 0, complete: false, tone: 'fail' };
+    }
+    let queried = { ok: false, tabs: [] };
+    try {
+      queried = { ok: true, tabs: await queryWindowTabs() };
+    } catch {
+      queried = { ok: false, tabs: [] };
+    }
+    const started = beginRestore(queried.ok, queried.tabs);
+    if (started.abort) {
+      toast('没看清当前窗口，没有恢复「' + w.name + '」');
+      return { opened: 0, skipped: 0, failed: 0, complete: false, tone: 'fail', aborted: true };
+    }
+    const plan = planRestore(w.tabs, started.open);
+    const exec = await executeRestore(plan, hasTabs ? {
+      create: (tabOpts) => chrome.tabs.create(tabOpts),
+      activate: (tabId) => activateTab(tabId, { rethrow: true }),
+    } : null);
+    const summary = summarizeRestore(plan, exec);
+    toast(restoreToast(w.name, summary));
+    setRestoreRetry(w, exec.unopened || []);
+    return Object.assign({ name: w.name }, summary);
+  }
+
+  let restoreRetry = null;
+  function setRestoreRetry(workset, urls) {
+    const list = (urls || []).filter((url) => typeof url === 'string' && url);
+    restoreRetry = workset && list.length ? { id: workset.id, name: workset.name, urls: list.slice() } : null;
+    const btn = $('#workset-retry-unopened');
+    if (btn) btn.hidden = !restoreRetry;
+  }
+  async function retryUnopened() {
+    const pending = restoreRetry;
+    if (!pending || !pending.urls.length) return;
+    let queried = { ok: false, tabs: [] };
+    try {
+      queried = { ok: true, tabs: await queryWindowTabs() };
+    } catch {
+      queried = { ok: false, tabs: [] };
+    }
+    const started = beginRestore(queried.ok, queried.tabs);
+    if (started.abort) {
+      toast('没看清当前窗口，没有恢复「' + pending.name + '」');
       return;
     }
-    let open = [];
-    try { open = await queryWindowTabs(); } catch { open = []; }
-    const plan = planRestore(w.tabs, open);
-    const createdIds = [];
-    if (hasTabs) {
-      for (const url of plan.create) {
-        try {
-          const tab = await chrome.tabs.create({ url, active: false });
-          if (tab && tab.id != null) createdIds.push(tab.id);
-        } catch { /* blocked or invalid */ }
-      }
-    }
-    const focusId = (plan.activate[0] && plan.activate[0].id) || createdIds[0];
-    if (focusId != null) await activateTab(focusId);
-    toast(`已恢复「${w.name}」`);
+    const plan = planRestore(pending.urls.map((url) => ({ title: url, url: url })), started.open);
+    const exec = await executeRestore(plan, hasTabs ? {
+      create: (tabOpts) => chrome.tabs.create(tabOpts),
+      activate: (tabId) => activateTab(tabId, { rethrow: true }),
+    } : null);
+    const summary = summarizeRestore(plan, exec);
+    toast(restoreToast(pending.name, summary));
+    setRestoreRetry(pending, exec.unopened || []);
+    return Object.assign({ name: pending.name }, summary);
   }
 
   async function deleteWorksetById(id) {
     if (!id) return;
-    const current = (state.worksets || []).find((w) => w.id === id);
-    await persistWorksets(removeWorksetById(state.worksets, id));
+    const planned = formOps().planRemove(worksetRemoveRecord, id, uid);
+    worksetRemoveRecord = planned.record;
+    const current = (state.worksets || []).find((w) => w.id === planned.itemId);
+    const saved = await persistWorksets(removeWorksetById(state.worksets, planned.itemId));
+    if (!saved || saved.ok !== true) {
+      showWriteError('worksets-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '没删掉，再点一次'));
+      return;
+    }
+    worksetRemoveRecord = null;
+    hideWriteError('worksets-save-error');
     toast(current ? `已删除『${current.name}』` : '已删除');
   }
 
@@ -1220,7 +1712,12 @@
     if (!(state.worksets || []).length) return;
     const ok = window.confirm('清空全部存下的窗口？只影响本机，不可撤销。');
     if (!ok) return;
-    await persistWorksets([]);
+    const saved = await persistWorksets([]);
+    if (!saved || saved.ok !== true) {
+      showWriteError('worksets-save-error', writeFailMessage(saved, '存下的窗口暂时没能读取', '没清空，再点一次'));
+      return;
+    }
+    hideWriteError('worksets-save-error');
     toast('已清空');
   }
 
@@ -1241,7 +1738,7 @@
     completingId = id;
     const title = $('#resume-title');
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const finish = () => {
+    const finish = async () => {
       if (completingId !== id) return;
       completingId = null;
       if (title) title.classList.remove('leaving');
@@ -1251,9 +1748,12 @@
         return;
       }
       const openBefore = state.todos.filter((t) => t && !t.done && String(t.text || '').trim()).length;
-      target.done = true;
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      const next = state.todos.map((t) => (t.id === id ? { id: t.id, text: t.text, done: true } : t));
+      const savedDone = await replaceTodos(next, 'todo-save-error', '没存上，再点一次完成');
+      if (!savedDone) {
+        renderResume();
+        return;
+      }
       if (openBefore <= 1) {
         const input = $('#todo-input');
         if (input) input.focus();
@@ -1302,9 +1802,9 @@
     const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
-    body.innerHTML = `
-      <ul class="todos" id="todos-dialog-list">
-        ${state.todos.length ? state.todos.map((t) => `
+    const todoRows = domainUnread.todos
+      ? '<li class="empty">待办暂时没能读取</li>'
+      : (state.todos.length ? state.todos.map((t) => `
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
               <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
@@ -1313,7 +1813,10 @@
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </li>`).join('') : '<li class="empty">还没有待办。</li>'}
+          </li>`).join('') : '<li class="empty">还没有待办。</li>');
+    body.innerHTML = `
+      <ul class="todos" id="todos-dialog-list">
+        ${todoRows}
       </ul>
       <div class="todoadd" id="todo-add-dialog">
         <label class="sr-only" for="todo-input-dialog">新待办</label>
@@ -1322,23 +1825,27 @@
       </div>
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
-    body.onclick = (e) => {
+    body.onclick = async (e) => {
       const del = e.target.closest('[data-del-todo]');
       if (!del) return;
-      state.todos = state.todos.filter((t) => t.id !== del.dataset.delTodo);
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      openTodosDialog();
+      const planned = formOps().planRemove(todoRemoveRecord, del.dataset.delTodo, uid);
+      todoRemoveRecord = planned.record;
+      const next = state.todos.filter((t) => t.id !== planned.itemId);
+      const removed = await replaceTodos(next, 'todo-dialog-save-error', '没删掉，再点一次');
+      if (removed) todoRemoveRecord = null;
+      if (dialog.open) openTodosDialog();
+      if (!removed) return;
     };
-    body.onchange = (e) => {
+    body.onchange = async (e) => {
       const cb = e.target.closest('input[type="checkbox"][data-todo-id]');
       if (!cb) return;
       const item = state.todos.find((t) => t.id === cb.dataset.todoId);
       if (!item) return;
-      item.done = cb.checked;
-      renderTodos();
-      saveDesk({ todos: state.todos });
-      openTodosDialog();
+      const next = state.todos.map((t) => (
+        t.id === cb.dataset.todoId ? { id: t.id, text: t.text, done: cb.checked } : t
+      ));
+      await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
+      if (dialog.open) openTodosDialog();
     };
     if (firstOpen) dialog.showModal();
     const focusInput = body.querySelector('#todo-input-dialog');
@@ -1367,14 +1874,45 @@
   }
 
   async function closeHost(host) {
-    const ids = state.tabs.filter((t) => domainOf(t.url || '') === host).map((t) => t.id);
+    const visible = tabsToCloseForHost(state.tabs, state.filter, host);
+    const ids = visible.map((t) => t.id);
     if (!ids.length || !hasTabs) return;
-    try { await chrome.tabs.remove(ids); } catch { /* ignore */ }
-    toast(`已关闭 ${host}`);
+    let closed = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await chrome.tabs.remove(id);
+        closed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
+    const hiddenLeft = String(state.filter || '').trim() && all > ids.length;
+    const tail = hiddenLeft ? '，筛选外的还在' : '';
+    if (closed === 0) {
+      toast(`没关掉 ${host}${tail}`);
+      return;
+    }
+    if (failed > 0) {
+      toast(`关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`);
+      return;
+    }
+    if (hiddenLeft) toast(`已关闭 ${closed} 个 ${host}，筛选外的还在`);
+    else toast(`已关闭 ${host}`);
   }
 
   let noteSaveActive = false;
   let notePending = null;
+  function createImeGuard() {
+    const api = typeof window !== 'undefined' ? window.SopifyNoteSync : null;
+    if (api && typeof api.createImeGuard === 'function') return api.createImeGuard();
+    return {
+      onCompositionStart() {},
+      onCompositionEnd() {},
+      blocks(e) { return !!(e && (e.isComposing || e.key === 'Process' || e.keyCode === 229)); },
+    };
+  }
   function setNotesSavedStatus(text) {
     const saved = $('#notes-saved');
     if (saved) saved.textContent = text;
@@ -1382,6 +1920,209 @@
     if (desk) {
       desk.textContent = text || '输入即保存到书桌便签。';
       desk.classList.toggle('is-saved', text === '已存在本机');
+    }
+  }
+  function writeFailMessage(saved, blockedText, fallback) {
+    if (saved && saved.blocked) return blockedText;
+    return fallback;
+  }
+  function showWriteError(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = message;
+  }
+  function hideWriteError(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = '';
+  }
+  const noteConflictExpanded = { local: false, remote: false };
+  function paintConflictSide(which, preview, full, long) {
+    const body = which === 'local' ? $('#note-local-preview') : $('#note-remote-preview');
+    const btn = which === 'local' ? $('#note-local-expand') : $('#note-remote-expand');
+    const open = noteConflictExpanded[which] === true;
+    if (body) body.textContent = (!long || open) ? full : preview;
+    if (btn) {
+      btn.hidden = !long;
+      btn.textContent = open ? '收起' : '展开全文';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+  }
+  function showConflictNotice(status) {
+    const openBtn = $('#note-show-conflict');
+    if (openBtn) openBtn.hidden = false;
+    const again = $('#note-conflict-again');
+    if (again) again.hidden = status !== '另一页又有更新，请重新确认。';
+    const box = $('#note-conflict');
+    if (box && !box.hidden) showNoteConflict(true);
+  }
+  function showNoteConflict(on) {
+    const box = $('#note-conflict');
+    if (box) box.hidden = !on;
+    if (!on) {
+      noteConflictExpanded.local = false;
+      noteConflictExpanded.remote = false;
+      return;
+    }
+    const snap = noteKeeper.snapshot();
+    const remote = snap.conflict ? snap.conflict.remoteText : '';
+    const ta = $('#notes');
+    const local = ta ? ta.value : (snap.text || '');
+    const view = noteConflictView(local, remote);
+    paintConflictSide('local', view.local, view.localFull, view.localLong);
+    paintConflictSide('remote', view.remote, view.remoteFull, view.remoteLong);
+    const again = $('#note-conflict-again');
+    if (again) again.hidden = snap.status !== '另一页又有更新，请重新确认。';
+  }
+  function showTodoLoadError() {
+    const el = $('#todo-load-error');
+    if (el) el.hidden = false;
+  }
+  function hideTodoLoadError() {
+    const el = $('#todo-load-error');
+    if (el) el.hidden = true;
+  }
+  function showWorksetLoadError() {
+    const el = $('#workset-load-error');
+    if (el) el.hidden = false;
+  }
+  function hideWorksetLoadError() {
+    const el = $('#workset-load-error');
+    if (el) el.hidden = true;
+  }
+  function showDeskLoadError() {
+    showTodoLoadError();
+  }
+  function hideDeskLoadError() {
+    hideTodoLoadError();
+  }
+  let noteComposing = false;
+  function noteFieldEditing() {
+    if (noteComposing) return true;
+    if (noteSaveActive || notePending !== null) return true;
+    const snap = noteKeeper.snapshot();
+    const ta = $('#notes');
+    if (ta && noteDraftIsDirty(ta.value, snap.acked, false)) return true;
+    const editor = $('#desk3d-note-editor');
+    if (editor && noteDraftIsDirty(editor.value, snap.acked, false)) return true;
+    return false;
+  }
+  if (typeof window !== 'undefined' && window.SopifyNoteSync && hasStorage && typeof window.__sopifyNoteCommit !== 'function') {
+    const pageQueue = window.SopifyNoteSync.createNoteCoordinator({
+      get: (defaults) => chrome.storage.local.get(defaults),
+      set: (partial) => chrome.storage.local.set(partial),
+    });
+    window.__sopifyNoteCommit = (req) => pageQueue.commit(req);
+  }
+  if (typeof window !== 'undefined' && window.SopifyCollection && hasStorage && typeof window.__sopifyCollectionCommit !== 'function') {
+    const pageCollections = window.SopifyCollection.createCollectionCoordinator({
+      get: (defaults) => chrome.storage.local.get(defaults),
+      set: (partial) => chrome.storage.local.set(partial),
+    });
+    window.__sopifyCollectionCommit = (req) => pageCollections.commit(req);
+  }
+  function requestCollectionCommit(req) {
+    const domain = req && req.domain;
+    if (!domainWriteAllowed(domainUnread, domain)) return Promise.resolve({ ok: false, blocked: true });
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      return new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage({ type: 'sopify-collection-commit', req: req }, (res) => {
+            const failed = chrome.runtime.lastError;
+            if (failed) {
+              resolve({ ok: false, error: true });
+              return;
+            }
+            resolve(res && typeof res === 'object' ? res : { ok: false, error: true });
+          });
+        } catch {
+          resolve({ ok: false, error: true });
+        }
+      });
+    }
+    if (typeof window !== 'undefined' && typeof window.__sopifyCollectionCommit === 'function') {
+      return window.__sopifyCollectionCommit(req);
+    }
+    return Promise.resolve({ ok: false, error: true });
+  }
+  function requestNoteCommit(req) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+      return new Promise((resolve) => {
+        try {
+          chrome.runtime.sendMessage({ type: 'sopify-note-commit', req: req }, (res) => {
+            const failed = chrome.runtime.lastError;
+            if (failed) {
+              resolve({ ok: false, error: true });
+              return;
+            }
+            resolve(res && typeof res === 'object' ? res : { ok: false, error: true });
+          });
+        } catch {
+          resolve({ ok: false, error: true });
+        }
+      });
+    }
+    if (typeof window !== 'undefined' && typeof window.__sopifyNoteCommit === 'function') {
+      return window.__sopifyNoteCommit(req);
+    }
+    return Promise.resolve({ ok: false, skipped: true });
+  }
+  const noteKeeper = (typeof window !== 'undefined' && window.SopifyNoteSync
+    ? window.SopifyNoteSync.createNoteKeeper({
+      pageId: 'nt-' + Math.random().toString(16).slice(2),
+      storage: hasStorage ? { get: (defaults) => chrome.storage.local.get(defaults) } : null,
+      coordinator: { commit: requestNoteCommit },
+      isEditing: noteFieldEditing,
+      onStatus(text) {
+        if (text === '便签在另一页更新了' || text === '另一页又有更新，请重新确认。') {
+          setNotesSavedStatus(text);
+          showConflictNotice(text);
+          return;
+        }
+        if (text === '') {
+          const cur = $('#notes-saved');
+          if (cur && (cur.textContent === '已存在本机' || cur.textContent === '便签在另一页更新了' || cur.textContent === '另一页又有更新，请重新确认。')) {
+            setNotesSavedStatus('');
+          }
+          const openBtn = $('#note-show-conflict');
+          if (openBtn) openBtn.hidden = true;
+          showNoteConflict(false);
+        }
+      },
+    })
+    : {
+      absorbBoot(data) {
+        return { action: 'apply', text: data && typeof data.notes === 'string' ? data.notes : '' };
+      },
+      remember() {},
+      hasConflict() { return false; },
+      peekForce() { return false; },
+      armForce() {},
+      acceptRemote() { return null; },
+      handleRemote() { return { action: 'sync' }; },
+      commit: async (_payload, saveFn) => {
+        const saved = await saveFn(_payload, null);
+        return saved && saved.ok ? { ok: true } : { ok: false, skipped: !!(saved && saved.skipped) };
+      },
+      snapshot() { return { text: '', rev: 0, stamp: '' }; },
+    });
+  function applyRemoteNote(outcome) {
+    if (!outcome) return;
+    if (outcome.action === 'apply') {
+      state.notes = outcome.text;
+      const ta = $('#notes');
+      if (ta) ta.value = state.notes;
+      const editor = $('#desk3d-note-editor');
+      if (editor) editor.value = state.notes;
+      renderNotes();
+      return;
+    }
+    if (outcome.action === 'conflict') {
+      const status = outcome.status || '便签在另一页更新了';
+      setNotesSavedStatus(status);
+      showConflictNotice(status);
     }
   }
   function pumpNoteSave() {
@@ -1394,9 +2135,35 @@
           notePending = null;
           state.notes = payload;
           try {
-            await saveDesk({ notes: state.notes });
+            const outcome = await noteKeeper.commit(payload, async (text, meta) => {
+              noteWriteMeta = meta;
+              state.notes = text;
+              try {
+                return await saveDesk({ notes: state.notes });
+              } finally {
+                noteWriteMeta = null;
+              }
+            });
             if (notePending !== null) continue;
-            setNotesSavedStatus('已存在本机');
+            const snap = noteKeeper.snapshot();
+            const markSaved = window.SopifyNoteSync
+              ? window.SopifyNoteSync.shouldMarkNoteSaved(outcome, snap)
+              : false;
+            if (markSaved) {
+              setNotesSavedStatus('已存在本机');
+              const openBtn = $('#note-show-conflict');
+              if (openBtn) openBtn.hidden = true;
+              showNoteConflict(false);
+            } else if ((outcome && outcome.conflict) || noteKeeper.hasConflict()) {
+              const status = (noteKeeper.snapshot().status) || '便签在另一页更新了';
+              setNotesSavedStatus(status);
+              showConflictNotice(status);
+            } else if (outcome && outcome.ok && snap.dirty) {
+              notePending = snap.text;
+              setNotesSavedStatus('保存中…');
+            } else {
+              setNotesSavedStatus('没存上');
+            }
           } catch {
             if (notePending !== null) continue;
             setNotesSavedStatus('没存上');
@@ -1409,6 +2176,17 @@
     })();
   }
   function queueNoteSave() {
+    noteKeeper.remember(state.notes);
+    if (!domainWriteAllowed(domainUnread, 'notes')) {
+      setNotesSavedStatus('暂未保存');
+      return;
+    }
+    if (noteKeeper.hasConflict() && !noteKeeper.peekForce()) {
+      const status = noteKeeper.snapshot().status || '便签在另一页更新了';
+      setNotesSavedStatus(status);
+      showConflictNotice(status);
+      return;
+    }
     notePending = state.notes;
     setNotesSavedStatus('保存中…');
     pumpNoteSave();
@@ -1462,6 +2240,11 @@
     $('#name').addEventListener('input', (e) => {
       state.name = e.target.value;
       tick();
+      if (!domainWriteAllowed(domainUnread, 'name')) {
+        showWriteError('name-save-error', '称呼暂时没能读取');
+        return;
+      }
+      hideWriteError('name-save-error');
       saveDesk({ name: state.name });
     });
 
@@ -1481,72 +2264,151 @@
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
     });
-    $('#site-form').addEventListener('submit', (e) => {
+    const siteIme = createImeGuard();
+    const siteForm = $('#site-form');
+    if (siteForm) {
+      siteForm.addEventListener('compositionstart', () => siteIme.onCompositionStart());
+      siteForm.addEventListener('compositionend', () => siteIme.onCompositionEnd());
+      siteForm.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && siteIme.blocks(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
+    let siteAddBusy = false;
+    $('#site-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = $('#site-name').value.trim();
+      if (siteAddBusy) return;
+      const nameInput = $('#site-name');
+      const urlInput = $('#site-url');
+      const name = nameInput.value.trim();
       let url;
-      try { url = normalizeSiteUrl($('#site-url').value); } catch {
+      try { url = normalizeSiteUrl(urlInput.value); } catch {
         showSiteUrlError('网址需要是 http(s)');
         return;
       }
       if (!name) return;
       clearSiteUrlError();
-      state.sites.push({ name, url });
-      $('#site-name').value = '';
-      $('#site-url').value = '';
+      siteAddBusy = true;
+      const planned = formOps().planSiteAdd(siteAddRecord, name, url, uid);
+      siteAddRecord = planned.record;
+      const next = state.sites.concat([{ name: planned.name, url: planned.url }]);
+      const saved = await commitDesk({ sites: next });
+      let currentUrl = '';
+      try { currentUrl = normalizeSiteUrl(urlInput.value); } catch { currentUrl = urlInput.value.trim(); }
+      const settled = formOps().settleSiteSubmit(siteAddRecord, nameInput.value.trim(), currentUrl, !!(saved && saved.ok === true));
+      siteAddRecord = settled.record;
+      siteAddBusy = false;
+      if (!saved || saved.ok !== true) {
+        showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没加上，再点一次加入'));
+        return;
+      }
+      hideWriteError('site-save-error');
+      hideWriteError('sites-save-error');
+      adoptCollection('sites', saved);
       renderSites();
+      if (!settled.clearInput) return;
+      nameInput.value = '';
+      urlInput.value = '';
       toggleSiteForm(false);
       $('#site-add-toggle').focus();
-      saveDesk({ sites: state.sites });
-      toast(`已加入 ${name}`);
+      toast(`已加入 ${planned.name}`);
     });
-    const onSiteRemoveClick = (e) => {
+    const onSiteRemoveClick = async (e) => {
       const b = e.target.closest('[data-remove-site]');
       if (!b) return;
       e.preventDefault();
       const i = Number(b.dataset.removeSite);
       if (!Number.isInteger(i) || i < 0 || i >= state.sites.length) return;
-      const [removed] = state.sites.splice(i, 1);
+      const target = state.sites[i];
+      const planned = formOps().planRemove(siteRemoveRecord, target.url, uid);
+      siteRemoveRecord = planned.record;
+      const next = state.sites.filter((site) => site.url !== planned.itemId);
+      const removed = state.sites.find((site) => site.url === planned.itemId) || target;
+      const saved = await commitDesk({ sites: next });
+      if (!saved || saved.ok !== true) {
+        showWriteError('sites-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
+        showWriteError('site-save-error', writeFailMessage(saved, '常用站暂时没能读取', '没去掉，再点一次'));
+        return;
+      }
+      siteRemoveRecord = null;
+      hideWriteError('sites-save-error');
+      hideWriteError('site-save-error');
+      adoptCollection('sites', saved);
       renderSites();
-      saveDesk({ sites: state.sites });
       if (removed) toast(`已移除 ${removed.name}`);
     };
     $('#sites').addEventListener('click', onSiteRemoveClick);
     const sitesAll = $('#sites-all');
     if (sitesAll) sitesAll.addEventListener('click', onSiteRemoveClick);
 
-    $('#todo-form').addEventListener('submit', (e) => {
+    const todoIme = createImeGuard();
+    const todoInput = $('#todo-input');
+    if (todoInput) {
+      todoInput.addEventListener('compositionstart', () => todoIme.onCompositionStart());
+      todoInput.addEventListener('compositionend', () => todoIme.onCompositionEnd());
+      todoInput.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === 'Process') && todoIme.blocks(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
+    let todoAddBusy = false;
+    $('#todo-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const text = $('#todo-input').value.trim();
+      if (todoAddBusy) return;
+      const input = $('#todo-input');
+      const text = input.value.trim();
       if (!text) return;
-      state.todos.push({ id: uid(), text, done: false });
-      $('#todo-input').value = '';
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      todoAddBusy = true;
+      const planned = formOps().planTodoAdd(todoAddRecord, text, uid);
+      todoAddRecord = planned.record;
+      const next = state.todos.concat([{ id: planned.itemId, text: planned.snapshot, done: false }]);
+      const saved = await replaceTodos(next, 'todo-save-error', '待办没存上，再按一次回车');
+      const settled = formOps().settleFormSubmit(todoAddRecord, input.value.trim(), saved === true);
+      todoAddRecord = settled.record;
+      todoAddBusy = false;
+      if (!saved) {
+        input.focus();
+        return;
+      }
+      if (!settled.clearInput) return;
+      input.value = '';
       const act = $('#resume-act');
       if (act) act.focus();
     });
-    $('#todos').addEventListener('change', (e) => {
+    $('#todos').addEventListener('change', async (e) => {
       const id = e.target.dataset.todoId;
       if (id == null) return;
       const item = state.todos.find((t) => t.id === id);
       if (!item) return;
-      item.done = e.target.checked;
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      const next = state.todos.map((t) => (
+        t.id === id ? { id: t.id, text: t.text, done: e.target.checked } : t
+      ));
+      await replaceTodos(next, 'todo-save-error', '没存上，再点一次');
     });
-    $('#todos').addEventListener('click', (e) => {
+    $('#todos').addEventListener('click', async (e) => {
       const b = e.target.closest('[data-del-todo]');
       if (!b) return;
-      state.todos = state.todos.filter((t) => t.id !== b.dataset.delTodo);
-      renderTodos();
-      saveDesk({ todos: state.todos });
+      const planned = formOps().planRemove(todoRemoveRecord, b.dataset.delTodo, uid);
+      todoRemoveRecord = planned.record;
+      const next = state.todos.filter((t) => t.id !== planned.itemId);
+      const saved = await replaceTodos(next, 'todo-save-error', '没删掉，再点一次');
+      if (!saved) return;
+      todoRemoveRecord = null;
       $('#todo-input').focus();
     });
-    $('#todo-clear').addEventListener('click', () => {
-      state.todos = state.todos.filter((t) => !t.done);
-      renderTodos();
-      saveDesk({ todos: state.todos });
+    $('#todo-clear').addEventListener('click', async () => {
+      const doneIds = state.todos.filter((t) => t.done).map((t) => t.id);
+      const planned = formOps().planClearDone(clearDoneRecord, doneIds, uid);
+      clearDoneRecord = planned.record;
+      const drop = new Set(planned.ids);
+      const next = state.todos.filter((t) => !drop.has(t.id));
+      const saved = await replaceTodos(next, 'todo-save-error', '没清掉，再点一次');
+      if (!saved) return;
+      clearDoneRecord = null;
       toast('已清除完成项');
     });
 
@@ -1558,6 +2420,78 @@
       renderResume();
       queueNoteSave();
     });
+    const notesField = $('#notes');
+    if (notesField) {
+      notesField.addEventListener('compositionstart', () => { noteComposing = true; });
+      notesField.addEventListener('compositionend', () => { noteComposing = false; });
+    }
+    document.addEventListener('compositionstart', (e) => {
+      const id = e.target && e.target.id;
+      if (id === 'notes' || id === 'desk3d-note-editor') noteComposing = true;
+    });
+    document.addEventListener('compositionend', (e) => {
+      const id = e.target && e.target.id;
+      if (id === 'notes' || id === 'desk3d-note-editor') noteComposing = false;
+    });
+    const showConflictBtn = $('#note-show-conflict');
+    if (showConflictBtn) {
+      showConflictBtn.addEventListener('click', () => { showNoteConflict(true); });
+    }
+    const dismissConflict = $('#note-dismiss-conflict');
+    if (dismissConflict) {
+      dismissConflict.addEventListener('click', () => {
+        showNoteConflict(false);
+        setNotesSavedStatus('暂未保存');
+      });
+    }
+    const useRemote = $('#note-use-remote');
+    if (useRemote) {
+      useRemote.addEventListener('click', () => {
+        const shown = noteKeeper.snapshot();
+        const expectedRev = shown.conflict ? shown.conflict.remoteRev : null;
+        const text = noteKeeper.acceptRemote(expectedRev);
+        if (typeof text !== 'string') {
+          showNoteConflict(true);
+          return;
+        }
+        state.notes = text;
+        const ta = $('#notes');
+        if (ta) ta.value = text;
+        const editor = $('#desk3d-note-editor');
+        if (editor && editor !== document.activeElement) editor.value = text;
+        renderNotes();
+        showNoteConflict(false);
+        setNotesSavedStatus('');
+      });
+    }
+    const keepLocal = $('#note-keep-local');
+    if (keepLocal) {
+      keepLocal.addEventListener('click', () => {
+        const ta = $('#notes');
+        if (ta) state.notes = ta.value;
+        noteKeeper.armForce();
+        noteKeeper.remember(state.notes);
+        queueNoteSave();
+      });
+    }
+    const localExpand = $('#note-local-expand');
+    if (localExpand) {
+      localExpand.addEventListener('click', () => {
+        noteConflictExpanded.local = !noteConflictExpanded.local;
+        showNoteConflict(true);
+      });
+    }
+    const remoteExpand = $('#note-remote-expand');
+    if (remoteExpand) {
+      remoteExpand.addEventListener('click', () => {
+        noteConflictExpanded.remote = !noteConflictExpanded.remote;
+        showNoteConflict(true);
+      });
+    }
+    const loadRetry = $('#todo-load-retry');
+    if (loadRetry) loadRetry.addEventListener('click', () => { retryDeskLoad(); });
+    const worksetLoadRetry = $('#workset-load-retry');
+    if (worksetLoadRetry) worksetLoadRetry.addEventListener('click', () => { retryDeskLoad(); });
 
     $('#resume-act').addEventListener('click', () => runResumeAction());
     const todosOpen = $('#todos-open');
@@ -1595,7 +2529,11 @@
       todosDialog.addEventListener('click', (e) => {
         if (e.target === todosDialog) todosDialog.close();
       });
+      const dialogIme = createImeGuard();
+      todosDialog.addEventListener('compositionstart', () => dialogIme.onCompositionStart());
+      todosDialog.addEventListener('compositionend', () => dialogIme.onCompositionEnd());
       todosDialog.addEventListener('keydown', (e) => {
+        if (dialogIme.blocks(e)) return;
         if (e.key !== 'Enter') return;
         const input = todosDialog.querySelector('#todo-input-dialog');
         if (!input || e.target !== input) return;
@@ -1620,6 +2558,8 @@
     });
     $('#workset-save').addEventListener('click', () => { saveThisWindow(); });
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
+    const retryUnopenedBtn = $('#workset-retry-unopened');
+    if (retryUnopenedBtn) retryUnopenedBtn.addEventListener('click', () => { retryUnopened(); });
     $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 
@@ -1653,18 +2593,39 @@
           state.hostUpstream = normalizeUpstream(changes.hostUpstream.newValue);
           renderUpstream();
         }
-        if ('worksets' in changes) {
-          state.worksets = normalizeWorksets(changes.worksets.newValue);
-          renderSavedWorksets();
-          notifyDesk3d();
+        if ('worksets' in changes || 'worksetsRev' in changes) {
+          const incomingRev = 'worksetsRev' in changes ? collectionRev(changes.worksetsRev.newValue) : null;
+          if (incomingRev != null && incomingRev < worksetsSeen) {
+            /* an older snapshot must not roll the desk backward */
+          } else {
+            if ('worksets' in changes) state.worksets = normalizeWorksets(changes.worksets.newValue);
+            if (incomingRev != null) worksetsSeen = incomingRev;
+            renderSavedWorksets();
+            notifyDesk3d();
+          }
         }
-        if (!DESK_KEYS.some((k) => k in changes)) return;
-        applyDesk({
-          sites: changes.sites ? changes.sites.newValue : state.sites,
-          todos: changes.todos ? changes.todos.newValue : state.todos,
-          notes: changes.notes ? changes.notes.newValue : state.notes,
-          name: changes.name ? changes.name.newValue : state.name,
-        });
+        const todoRev = 'todosRev' in changes ? collectionRev(changes.todosRev.newValue) : null;
+        const siteRev = 'sitesRev' in changes ? collectionRev(changes.sitesRev.newValue) : null;
+        const skipTodos = todoRev != null && todoRev < todosSeen;
+        const skipSites = siteRev != null && siteRev < sitesSeen;
+        if ('sites' in changes || 'todos' in changes || 'name' in changes || 'todosRev' in changes || 'sitesRev' in changes) {
+          applyDesk({
+            sites: skipSites ? state.sites : (changes.sites ? changes.sites.newValue : state.sites),
+            todos: skipTodos ? state.todos : (changes.todos ? changes.todos.newValue : state.todos),
+            notes: state.notes,
+            name: changes.name ? changes.name.newValue : state.name,
+            todosRev: skipTodos ? todosSeen : todoRev,
+            sitesRev: skipSites ? sitesSeen : siteRev,
+          }, { notes: false });
+        }
+        if ('notes' in changes || 'notesRev' in changes || 'notesStamp' in changes) {
+          const snap = noteKeeper.snapshot();
+          applyRemoteNote(noteKeeper.handleRemote({
+            notes: changes.notes ? changes.notes.newValue : snap.text,
+            notesRev: changes.notesRev ? changes.notesRev.newValue : snap.rev,
+            notesStamp: changes.notesStamp ? changes.notesStamp.newValue : snap.stamp,
+          }));
+        }
       });
     }
 
@@ -1714,12 +2675,87 @@
     });
   }
 
+  let loadGen = 0;
+  async function retryDeskLoad() {
+    const gen = ++loadGen;
+    deskLoadBroken = false;
+    let data;
+    try { data = await loadDesk(); } catch { data = { ok: false, loadError: true }; }
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (!data || data.ok === false || data.loadError) {
+      deskLoadBroken = true;
+      markDeskUnread();
+      showTodoLoadError();
+      renderResume();
+      return;
+    }
+    clearDeskUnread();
+    applyDesk(data);
+    hideTodoLoadError();
+    const loadedSets = await loadWorksets();
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (loadedSets == null) {
+      domainUnread.worksets = true;
+      deskLoadBroken = true;
+      showWorksetLoadError();
+      renderSavedWorksets();
+      return;
+    }
+    domainUnread.worksets = false;
+    state.worksets = loadedSets;
+    hideWorksetLoadError();
+    const cwd = await loadCwd();
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (cwd != null) state.cwd = cwd;
+    const upstream = await loadUpstream();
+    if (!shouldApplyLoad(gen, loadGen)) return;
+    if (upstream != null) state.hostUpstream = upstream;
+    hideDeskLoadError();
+    ['todo-save-error', 'todo-dialog-save-error', 'site-save-error', 'sites-save-error', 'workset-save-error', 'last-save-error', 'worksets-save-error', 'name-save-error'].forEach(hideWriteError);
+    const cwdEl = $('#cwd');
+    if (cwdEl && cwdEl !== document.activeElement) cwdEl.value = state.cwd;
+    renderWorkset();
+    renderSavedWorksets();
+    renderHost();
+    renderUpstream();
+    renderTheme();
+  }
+
   async function boot() {
-    applyDesk(await loadDesk());
-    state.worksets = await loadWorksets();
-    state.cwd = await loadCwd();
-    state.hostUpstream = await loadUpstream();
-    $('#cwd').value = state.cwd;
+    const gen = ++loadGen;
+    try {
+      const data = await loadDesk();
+      if (!shouldApplyLoad(gen, loadGen)) {
+        /* a newer retry owns the snapshot */
+      } else if (!data || data.ok === false || data.loadError) {
+        deskLoadBroken = true;
+        markDeskUnread();
+      } else {
+        clearDeskUnread();
+        applyDesk(data);
+      }
+      const loadedSets = await loadWorksets();
+      if (shouldApplyLoad(gen, loadGen)) {
+        if (loadedSets == null) {
+          domainUnread.worksets = true;
+          deskLoadBroken = true;
+        } else {
+          domainUnread.worksets = false;
+          state.worksets = loadedSets;
+        }
+      }
+      const cwd = await loadCwd();
+      if (shouldApplyLoad(gen, loadGen) && cwd != null) state.cwd = cwd;
+      const upstream = await loadUpstream();
+      if (shouldApplyLoad(gen, loadGen) && upstream != null) state.hostUpstream = upstream;
+    } catch {
+      if (shouldApplyLoad(gen, loadGen)) {
+        deskLoadBroken = true;
+        markDeskUnread();
+      }
+    }
+    const cwdEl = $('#cwd');
+    if (cwdEl) cwdEl.value = state.cwd;
     renderWorkset();
     renderSavedWorksets();
     renderResume();
@@ -1727,6 +2763,8 @@
     renderUpstream();
     renderTheme();
     bind();
+    if (domainUnread.todos) showTodoLoadError();
+    if (domainUnread.worksets) showWorksetLoadError();
     notifyDesk3d();
     tick();
     setInterval(tick, 1000);
@@ -1772,13 +2810,30 @@
     renderNotes();
     queueNoteSave();
   }
-  function commitTodoFromDialog(input) {
+  async function commitTodoFromDialog(input) {
     const text = input.value.trim();
-    if (!text) return;
-    state.todos.push({ id: uid(), text, done: false });
-    renderTodos();
-    saveDesk({ todos: state.todos });
+    if (!text || input.dataset.busy === '1') return;
+    input.dataset.busy = '1';
+    const planned = formOps().planTodoAdd(dialogTodoAdd, text, uid);
+    dialogTodoAdd = planned.record;
+    const next = state.todos.concat([{ id: planned.itemId, text: planned.snapshot, done: false }]);
+    const saved = await replaceTodos(next, 'todo-dialog-save-error', '待办没存上，再按一次回车');
+    const typed = input.value;
+    const settled = formOps().settleFormSubmit(dialogTodoAdd, typed.trim(), saved === true);
+    dialogTodoAdd = settled.record;
+    input.dataset.busy = '';
+    if (!saved) {
+      input.focus();
+      return;
+    }
     openTodosDialog();
+    if (!settled.clearInput) {
+      const again = $('#todo-input-dialog');
+      if (again) {
+        again.value = typed;
+        again.focus();
+      }
+    }
   }
 
   const desk3dHost = {

@@ -223,6 +223,7 @@ assert.ok(!/chrome\.storage/.test(ui));
 console.log('test-w13-firstscreen static: ok');
 
 const http = require('http');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const FOUR_LINE_TITLE = `${'把首屏长标题排满'.repeat(24)}第四行`;
@@ -304,7 +305,28 @@ function stubSource(seed) {
       },
       runtime: {
         onMessage: { addListener() {} },
-        sendMessage() {},
+        sendMessage(msg, cb) {
+          const done = (res) => { if (typeof cb === 'function') cb(res); };
+          if (msg && msg.type === 'sopify-collection-commit') {
+            const run = window.__sopifyCollectionCommit;
+            if (typeof run !== 'function') {
+              done({ ok: false, error: true });
+              return;
+            }
+            Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+            return;
+          }
+          if (!msg || msg.type !== 'sopify-note-commit') {
+            done({ ok: true });
+            return;
+          }
+          const run = window.__sopifyNoteCommit;
+          if (typeof run !== 'function') {
+            done({ ok: false, error: true });
+            return;
+          }
+          Promise.resolve(run(msg.req)).then(done, () => done({ ok: false, error: true }));
+        },
         getURL(p) { return String(p || ''); },
         lastError: null,
       },
@@ -322,11 +344,44 @@ function stubSource(seed) {
 }
 
 function chromeBin() {
-  const list = ['/usr/local/bin/google-chrome', '/usr/bin/google-chrome-stable', 'google-chrome'];
-  for (const bin of list) {
-    if (bin.includes('/') && fs.existsSync(bin)) return bin;
+  if (process.env.CHROME_BIN) {
+    if (fs.existsSync(process.env.CHROME_BIN)) return process.env.CHROME_BIN;
+    console.log(`SKIP browser: CHROME_BIN does not exist (${process.env.CHROME_BIN})`);
+    process.exit(2);
   }
-  return 'google-chrome';
+  const list = [
+    '/usr/local/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ];
+  for (const bin of list) {
+    if (fs.existsSync(bin)) return bin;
+  }
+  console.log('SKIP browser: no Chrome/Chromium binary found. Set CHROME_BIN.');
+  process.exit(2);
+}
+
+function writableDir(candidates) {
+  let last = null;
+  for (const dir of candidates) {
+    if (!dir) continue;
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const probe = path.join(dir, '.write-probe');
+      fs.writeFileSync(probe, 'ok');
+      fs.unlinkSync(probe);
+      return dir;
+    } catch (err) {
+      last = err;
+      console.log(`screenshot dir unavailable: ${dir} (${err && err.code ? err.code : err})`);
+    }
+  }
+  console.log(`screenshots skipped: ${last && last.message ? last.message : last}`);
+  return null;
 }
 
 function serve(root) {
@@ -435,13 +490,29 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitUntil(read, ok, timeout = 3000) {
+  const start = Date.now();
+  let last;
+  while (Date.now() - start < timeout) {
+    last = await read();
+    if (ok(last)) return last;
+    await sleep(16);
+  }
+  return last;
+}
+
 async function main() {
+  const chromePath = chromeBin();
+  if (typeof WebSocket !== 'function') {
+    console.error('FAIL browser: global WebSocket is missing. Browser checks need Node 22 or newer.');
+    process.exit(1);
+  }
   const server = await serve(EXT);
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
   const profile = fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-'));
   const cdpPort = 9477;
-  const chrome = spawn(chromeBin(), [
+  const chrome = spawn(chromePath, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -457,8 +528,12 @@ async function main() {
   let chromeLog = '';
   chrome.stdout.on('data', (d) => { chromeLog += d; });
   chrome.stderr.on('data', (d) => { chromeLog += d; });
-  const shotDir = '/opt/cursor/artifacts/firstscreen-reliability';
-  fs.mkdirSync(shotDir, { recursive: true });
+  const shotDir = writableDir([
+    process.env.SOPIFY_ARTIFACT_DIR
+      ? path.join(process.env.SOPIFY_ARTIFACT_DIR, 'firstscreen-reliability')
+      : '/opt/cursor/artifacts/firstscreen-reliability',
+    path.join(os.tmpdir(), 'sopify-firstscreen-reliability'),
+  ]);
   let cdp;
   try {
     const version = await waitJson(cdpPort);
@@ -566,14 +641,33 @@ async function main() {
       await cdp.send('Input.dispatchMouseEvent', {
         type: 'mouseWheel', x: 480, y: 140, deltaX: 0, deltaY: 360, button: 'none',
       });
-      await sleep(40);
-      return evalJson(`(document.scrollingElement || document.documentElement).scrollTop`);
+      let previous = null;
+      let stable = 0;
+      let top = 0;
+      const start = Date.now();
+      while (Date.now() - start < 1000) {
+        top = await evalJson(`(document.scrollingElement || document.documentElement).scrollTop`);
+        if (top === previous) {
+          stable += 1;
+          if (stable >= 2) return top;
+        } else {
+          stable = 0;
+        }
+        previous = top;
+        await sleep(16);
+      }
+      return top;
     }
 
     async function shoot(name) {
       await evalJson(`if (document.activeElement && document.activeElement.blur) document.activeElement.blur()`);
+      if (!shotDir) return;
       const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(shotDir, name), Buffer.from(shot.data, 'base64'));
+      try {
+        fs.writeFileSync(path.join(shotDir, name), Buffer.from(shot.data, 'base64'));
+      } catch (err) {
+        console.log(`screenshot skipped: ${name} (${err && err.code ? err.code : err})`);
+      }
     }
 
     const behavior = [];
@@ -682,13 +776,16 @@ async function main() {
       return true;
     })()`);
     assert.ok(note);
-    await sleep(400);
-    const saved = await evalJson(`({
-      status: document.getElementById('notes-saved').textContent,
-      notes: window.__sopifyStore.notes,
-      writes: window.__sopifyNoteWrites(),
-      desk: (document.getElementById('desk3d-note-status') || {}).textContent || '',
-    })`);
+    const saved = await waitUntil(
+      () => evalJson(`({
+        status: document.getElementById('notes-saved').textContent,
+        notes: window.__sopifyStore.notes,
+        writes: window.__sopifyNoteWrites(),
+        desk: (document.getElementById('desk3d-note-status') || {}).textContent || '',
+      })`),
+      (row) => row && row.writes === 2 && row.status === '已存在本机' && row.notes === '最新一笔',
+      4000,
+    );
     check('note status matches persisted text', saved.status === '已存在本机' && saved.notes === '最新一笔', JSON.stringify(saved));
     check('note writes coalesce to in-flight plus latest', saved.writes === 2, JSON.stringify(saved));
 
@@ -738,8 +835,11 @@ async function main() {
       dialog.close();
       return { open: dialog.open, has: document.getElementById('resume').dataset.has };
     })()`);
-    await sleep(40);
-    const closeActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    const closeActive = await waitUntil(
+      () => evalJson(`document.activeElement && document.activeElement.id`),
+      (id) => id === 'resume-act',
+      2000,
+    );
     check('todos dialog close focuses 完成', !closeFocus.open && closeActive === 'resume-act' && closeFocus.has === '1', JSON.stringify({ ...closeFocus, active: closeActive }));
     await evalJson(`document.getElementById('todos-open').click()`);
     await cdp.send('Input.dispatchKeyEvent', {
@@ -748,7 +848,11 @@ async function main() {
     await cdp.send('Input.dispatchKeyEvent', {
       type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
     });
-    await sleep(40);
+    await waitUntil(
+      () => evalJson(`document.getElementById('ops-todos-dialog').open`),
+      (open) => open === false,
+      2000,
+    );
     const escFocus = await evalJson(`(() => {
       const dialog = document.getElementById('ops-todos-dialog');
       return {
@@ -763,7 +867,11 @@ async function main() {
       if (!dialog.open) document.getElementById('todos-open').click();
       dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     })()`);
-    await sleep(40);
+    await waitUntil(
+      () => evalJson(`document.getElementById('ops-todos-dialog').open`),
+      (open) => open === false,
+      2000,
+    );
     const backdropFocus = await evalJson(`(() => {
       const dialog = document.getElementById('ops-todos-dialog');
       return {
@@ -819,11 +927,14 @@ async function main() {
       ta.value = '写不进去';
       ta.dispatchEvent(new Event('input', { bubbles: true }));
     })()`);
-    await sleep(50);
-    const failed = await evalJson(`({
-      status: document.getElementById('notes-saved').textContent,
-      notes: window.__sopifyStore.notes,
-    })`);
+    const failed = await waitUntil(
+      () => evalJson(`({
+        status: document.getElementById('notes-saved').textContent,
+        notes: window.__sopifyStore.notes,
+      })`),
+      (row) => row && row.status === '没存上',
+      3000,
+    );
     check('failed write says 没存上', failed.status === '没存上' && failed.notes === '', JSON.stringify(failed));
 
     await loadSeed(1440, 900, {
@@ -842,7 +953,7 @@ async function main() {
     });
     const mixedLabel = await evalJson(`document.getElementById('todos-open').textContent`);
     check('one open plus done says 已完成', mixedLabel === '全部待办 · 已完成 2 件', mixedLabel);
-    const lastClose = await evalJson(`(() => {
+    const lastClose = await evalJson(`(async () => {
       document.getElementById('todos-open').click();
       const box = document.querySelector('#todos-dialog-list input[type="checkbox"]:not(:checked)');
       const id = box.dataset.todoId;
@@ -851,6 +962,13 @@ async function main() {
       box.dispatchEvent(new Event('change', { bubbles: true }));
       const after = document.activeElement;
       const kept = !!(after && after.dataset && after.dataset.todoId === id);
+      const start = Date.now();
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === id);
+        const boxNow = document.querySelector('#todos-dialog-list input[data-todo-id="' + id + '"]');
+        if (row && row.done && boxNow && boxNow.checked) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
       document.querySelector('#ops-todos-dialog [data-dialog-close]').click();
       const dialog = document.getElementById('ops-todos-dialog');
       const filled = document.querySelector('.next-filled');
@@ -862,8 +980,11 @@ async function main() {
         label: document.getElementById('todos-open').textContent,
       };
     })()`);
-    await sleep(40);
-    const lastActive = await evalJson(`document.activeElement && document.activeElement.id`);
+    const lastActive = await waitUntil(
+      () => evalJson(`document.activeElement && document.activeElement.id`),
+      (id) => id === 'todo-input',
+      2000,
+    );
     check('close after the last open todo focuses the input', lastClose.kept && !lastClose.open && lastClose.has === '0' && lastActive === 'todo-input' && lastClose.openerHidden && lastClose.label === '全部待办 · 已完成 3 件', JSON.stringify({ ...lastClose, active: lastActive }));
     await loadSeed(1366, 650, { todos: todoItems('5'), sites: siteItems(6, false) });
     await shoot('short-1366x650.png');
@@ -922,12 +1043,20 @@ async function main() {
 
     console.log('size\ttodos\tsites\toverflow_px\twheel_scrollTop\tlines\tresult');
     for (const row of rows) {
-      const result = row.exception ? 'exception-recorded' : (row.pass ? 'pass' : 'FAIL');
+      const result = row.exception ? 'exception-case' : (row.pass ? 'pass' : 'FAIL');
       console.log(`${row.size}\t${row.todos}\t${row.sites}\t${row.overflow}\t${row.wheel}\t${row.lines}\t${result}`);
     }
-    const matrixPath = path.join(shotDir, 'matrix.json');
-    fs.writeFileSync(matrixPath, JSON.stringify({ behavior, rows, version: version.Browser || '' }, null, 2));
-    console.log(`matrix ${matrixPath}`);
+    if (shotDir) {
+      const matrixPath = path.join(shotDir, 'matrix.json');
+      try {
+        fs.writeFileSync(matrixPath, JSON.stringify({ behavior, rows, version: version.Browser || '' }, null, 2));
+        console.log(`matrix ${matrixPath}`);
+      } catch (err) {
+        console.log(`matrix skipped: ${err && err.code ? err.code : err}`);
+      }
+    } else {
+      console.log('matrix skipped: no writable artifact dir');
+    }
     const behaviorFails = [];
     for (const item of behavior) {
       if (!item.ok) behaviorFails.push(`behavior ${item.name}: ${item.detail}`);

@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="newtab.css">
   <link rel="stylesheet" href="desk-3d/desk-3d.css">
+  <script src="note-sync.js" defer></script>
+  <script src="collection-sync.js" defer></script>
+  <script src="form-ops.js" defer></script>
   <script src="newtab.js" defer></script>
 </head>
 <body>
@@ -135,6 +138,11 @@
                 <label class="sr-only" for="todo-input">写下下一件事</label>
                 <input class="next-input" id="todo-input" placeholder="今天先做什么？" maxlength="80">
                 <p class="hint" id="todo-hint">写一句，按 <kbd>回车</kbd>，它就是下一件事</p>
+                <p class="desk-load-error" id="todo-load-error" role="alert" hidden>
+                  待办暂时没能读取
+                  <button type="button" id="todo-load-retry">重试</button>
+                </p>
+                <p class="desk-write-error" id="todo-save-error" role="alert" hidden></p>
                 <button type="button" class="fs-btn text done-history" id="todos-done-history" hidden>查看已完成 0 件</button>
               </form>
             </div>
@@ -148,6 +156,7 @@
               <p class="col-sub" id="window-sub">还没有可以保存的网页</p>
               <div class="col-actions">
                 <button type="button" class="fs-btn secondary" id="workset-save" disabled>保存这个窗口</button>
+                <p class="desk-write-error" id="workset-save-error" role="alert" hidden></p>
               </div>
             </article>
             <article class="col" id="last-col" aria-labelledby="last-h">
@@ -162,6 +171,11 @@
               </button>
               <div class="favs" id="last-favs" hidden aria-hidden="true"></div>
               <p class="col-sub" id="last-meta" hidden></p>
+              <p class="desk-load-error" id="workset-load-error" role="alert" hidden>
+                存下的窗口暂时没能读取
+                <button type="button" id="workset-load-retry">重试</button>
+              </p>
+              <p class="desk-write-error" id="last-save-error" role="alert" hidden></p>
               <div class="col-actions" id="last-actions" hidden>
                 <button type="button" class="fs-btn secondary" id="workset-restore-recent">恢复这 0 个网页</button>
                 <button type="button" class="fs-btn text" id="last-all" hidden>全部 0 个</button>
@@ -171,6 +185,25 @@
               <h2 class="col-h" id="note-h"><label for="notes">随手记</label></h2>
               <textarea class="note" id="notes" rows="4" maxlength="2000" placeholder="记点什么，自动存在本机"></textarea>
               <p class="col-sub note-status" id="notes-saved" aria-live="polite"></p>
+              <button type="button" class="fs-btn text" id="note-show-conflict" hidden>查看更新</button>
+              <div class="note-conflict" id="note-conflict" hidden>
+                <div class="note-sides">
+                  <div class="note-side">
+                    <span class="note-side-k">我的输入</span>
+                    <span class="note-side-body" id="note-local-preview"></span>
+                    <button type="button" class="fs-btn text" id="note-local-expand" hidden>展开全文</button>
+                  </div>
+                  <div class="note-side">
+                    <span class="note-side-k">另一页内容</span>
+                    <span class="note-side-body" id="note-remote-preview"></span>
+                    <button type="button" class="fs-btn text" id="note-remote-expand" hidden>展开全文</button>
+                  </div>
+                </div>
+                <p class="desk-write-error" id="note-conflict-again" hidden>另一页又有更新，请重新确认。</p>
+                <button type="button" class="fs-btn text" id="note-use-remote">使用另一页内容</button>
+                <button type="button" class="fs-btn text" id="note-keep-local">保存我的内容</button>
+                <button type="button" class="fs-btn text" id="note-dismiss-conflict">先不选</button>
+              </div>
             </article>
           </section>
 
@@ -180,6 +213,7 @@
               <div class="tiles" id="sites"></div>
               <button type="button" class="fs-btn text" id="sites-more" hidden>全部 0 个</button>
               <button type="button" class="fs-btn text" id="site-add-toggle" aria-expanded="false" aria-haspopup="dialog" aria-controls="ops-sites-dialog">+ 添加</button>
+              <p class="desk-write-error" id="sites-save-error" role="alert" hidden></p>
             </div>
             <span class="sr-only count" id="c-sites">0</span>
           </section>
@@ -216,6 +250,7 @@
               <h2 id="ops-todos-dialog-title">全部待办</h2>
               <button type="button" class="desk3d-icon-close" data-dialog-close aria-label="关闭">×</button>
             </header>
+            <p class="desk-write-error" id="todo-dialog-save-error" role="alert" hidden></p>
             <div class="ops-dialog-body" id="ops-todos-dialog-body"></div>
           </div>
         </dialog>
@@ -237,6 +272,7 @@
                 </div>
                 <button type="submit" class="btn">加入</button>
                 <button type="button" class="btn ghost" id="site-cancel">取消</button>
+                <p class="desk-write-error" id="site-save-error" role="alert" hidden></p>
               </form>
               <div class="tiles" id="sites-all"></div>
             </div>
@@ -265,6 +301,7 @@
           <label for="name">称呼</label>
           <input class="field" id="name" type="text" placeholder="你的称呼" autocomplete="nickname" maxlength="24" aria-describedby="name-help">
           <p class="help" id="name-help">写在首屏问候里，存在本机。留空就只打招呼。</p>
+          <p class="desk-write-error" id="name-save-error" role="alert" hidden></p>
         </div>
         <div class="settings">
           <section class="card" aria-labelledby="s-theme">
@@ -307,6 +344,7 @@
             <div class="cardbody">
               <p class="help">只有点『保存这个窗口』才写入本机，最多 5 个，每个最多 50 个网页。关窗口不会自动存。</p>
               <div class="savedsets" id="saved-worksets"></div>
+              <p class="desk-write-error" id="worksets-save-error" role="alert" hidden></p>
             </div>
             <div class="cardfoot">
               <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部存下的窗口</button>
@@ -372,6 +410,7 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <button type="button" class="toast-retry" id="workset-retry-unopened" hidden>重试未打开</button>
 
   <script type="module" src="desk-3d/boot.js"></script>
 </body>

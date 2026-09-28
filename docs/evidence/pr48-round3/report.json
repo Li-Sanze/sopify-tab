@@ -1,0 +1,289 @@
+{
+  "kind": "stub-browser",
+  "browser": "Chrome/148.0.7778.96",
+  "os": "linux 6.12.94+",
+  "port": 43589,
+  "checks": [
+    {
+      "name": "day 1440 space view off",
+      "ok": true,
+      "detail": "true"
+    },
+    {
+      "name": "day 1440 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "one todo says 全部待办",
+      "ok": true,
+      "detail": "全部待办"
+    },
+    {
+      "name": "six sites and no 全部",
+      "ok": true,
+      "detail": "{\"overflowX\":-15,\"overflowY\":0,\"spaceHidden\":true,\"homeSites\":6,\"moreText\":\"全部 0 个\",\"moreHidden\":true,\"openText\":\"全部待办\",\"has\":\"1\",\"title\":\"回一封邮件\",\"loadError\":false,\"text\":\"SopifyTab\\n工作台\\n当前标签\\n设置\\n\\n早上好·9月28日 星期一·08:27\\n\\n下一件事\\n\\n回一封邮件\\n完成\\n全部待办\\n这个窗口\\n\\n1 个标签\\n\\nK\\n\\n\"}"
+    },
+    {
+      "name": "saved workset is on the desk",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "space off does not request Three",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Tab moves focus",
+      "ok": true,
+      "detail": "todos-open"
+    },
+    {
+      "name": "Escape closes todos",
+      "ok": true,
+      "detail": "{\"open\":false,\"active\":\"resume-act\"}"
+    },
+    {
+      "name": "IME Enter does not add a todo",
+      "ok": true,
+      "detail": "{\"prevented\":true,\"during\":0,\"hasDuring\":\"0\"}"
+    },
+    {
+      "name": "Enter after IME still submits",
+      "ok": true,
+      "detail": "写一条真的"
+    },
+    {
+      "name": "save status waits during the write",
+      "ok": true,
+      "detail": "保存中…"
+    },
+    {
+      "name": "saved UI matches storage",
+      "ok": true,
+      "detail": "{\"status\":\"已存在本机\",\"notes\":\"第一笔\"}"
+    },
+    {
+      "name": "failed write says 没存上 and keeps the draft",
+      "ok": true,
+      "detail": "{\"status\":\"没存上\",\"notes\":\"原样\",\"value\":\"写不进去\"}"
+    },
+    {
+      "name": "focused clean note applies the other page",
+      "ok": true,
+      "detail": "{\"value\":\"那边改的\",\"status\":\"\",\"hidden\":true}"
+    },
+    {
+      "name": "dirty note keeps the local draft",
+      "ok": true,
+      "detail": "{\"value\":\"这边草稿\",\"status\":\"便签在另一页更新了\",\"notice\":\"查看更新\",\"buttons\":true,\"local\":\"这边草稿\",\"remote\":\"那边改的\",\"useRemote\":\"使用另一页内容\",\"keepLocal\":\"保存我的内容\"}"
+    },
+    {
+      "name": "conflict shows both drafts before a choice",
+      "ok": true,
+      "detail": "{\"value\":\"这边草稿\",\"status\":\"便签在另一页更新了\",\"notice\":\"查看更新\",\"buttons\":true,\"local\":\"这边草稿\",\"remote\":\"那边改的\",\"useRemote\":\"使用另一页内容\",\"keepLocal\":\"保存我的内容\"}"
+    },
+    {
+      "name": "conflict expands the full remote text",
+      "ok": true,
+      "detail": "{\"hidden\":false,\"label\":\"收起\",\"beforeEnd\":\"…\",\"afterLen\":90,\"kept\":true}"
+    },
+    {
+      "name": "boot read failure stays usable",
+      "ok": true,
+      "detail": "{\"overflowX\":-15,\"overflowY\":0,\"spaceHidden\":true,\"homeSites\":0,\"moreText\":\"全部 0 个\",\"moreHidden\":true,\"openText\":\"全部待办\",\"has\":\"unread\",\"title\":\"\",\"loadError\":true,\"text\":\"SopifyTab\\n工作台\\n当前标签\\n设置\\n\\n早上好·9月28日 星期一·08:27\\n\\n下一件事\\n\\n完成\\n全部待办\\n写下下一件事\\n\\n待办暂时没能读取\\n重试\\n\\n这\"}"
+    },
+    {
+      "name": "read failure blocks the add and keeps the original todos",
+      "ok": true,
+      "detail": "{\"todoValue\":\"不该盖掉待办\",\"error\":\"待办暂时没能读取\",\"hidden\":false,\"todos\":[\"读回来了\"],\"notes\":\"原便签\",\"sites\":1,\"noteStatus\":\"暂未保存\",\"toastOn\":false,\"toast\":\"\"}"
+    },
+    {
+      "name": "dialog add during read failure does not write",
+      "ok": true,
+      "detail": "{\"list\":\"\\n        待办暂时没能读取\\n      \",\"value\":\"弹窗不该写入\",\"stored\":[{\"id\":\"later\",\"text\":\"读回来了\",\"done\":false}]}"
+    },
+    {
+      "name": "site add during read failure does not overwrite sites",
+      "ok": true,
+      "detail": "{\"error\":\"常用站暂时没能读取\",\"hidden\":false,\"stored\":[{\"name\":\"站1\",\"url\":\"https://example.com/1\"}],\"emptyCopy\":\"\"}"
+    },
+    {
+      "name": "other page can add while this page is unread",
+      "ok": true,
+      "detail": "[{\"id\":\"later\",\"text\":\"读回来了\",\"done\":false},{\"id\":\"other\",\"text\":\"另一页加上的\",\"done\":false}]"
+    },
+    {
+      "name": "retry loads the desk",
+      "ok": true,
+      "detail": "{\"overflowX\":-15,\"overflowY\":0,\"spaceHidden\":true,\"homeSites\":1,\"moreText\":\"全部 0 个\",\"moreHidden\":true,\"openText\":\"全部待办 · 还有 1 条\",\"has\":\"1\",\"title\":\"读回来了\",\"loadError\":false,\"text\":\"SopifyTab\\n工作台\\n当前标签\\n设置\\n\\n早上好·9月28日 星期一·08:27\\n\\n下一件事\\n\\n读回来了\\n完成\\n全部待办 · 还有 1 条\\n这个窗口\\n\\n0 \"}"
+    },
+    {
+      "name": "retry keeps the other page todo",
+      "ok": true,
+      "detail": "[{\"id\":\"later\",\"text\":\"读回来了\",\"done\":false},{\"id\":\"other\",\"text\":\"另一页加上的\",\"done\":false}]"
+    },
+    {
+      "name": "add after retry stores old plus new",
+      "ok": true,
+      "detail": "{\"value\":\"\",\"loadError\":false,\"empty\":false,\"stored\":[{\"id\":\"later\",\"text\":\"读回来了\",\"done\":false},{\"id\":\"other\",\"text\":\"另一页加上的\",\"done\":false},{\"id\":\"ca9e76cb-a162-49c4-a033-765bd0972664\",\"text\":\"重试后再加\",\"done\":false}],\"notes\":\"原便签\"}"
+    },
+    {
+      "name": "workset read failure does not overwrite with an empty list",
+      "ok": true,
+      "detail": "{\"title\":\"待办还在\",\"disabled\":false,\"loadHidden\":false,\"loadText\":\"\\n                存下的窗口暂时没能读取\\n                重试\\n              \",\"emptyHidden\":true,\"error\":\"存下的窗口暂时没能读取\",\"errorHidden\":false,\"toast\":\"\",\"toastOn\":false,\"stored\":[{\"id\":\"ws-keep\",\"name\":\"必须保留的窗口\",\"tabs\":1}],\"sites\":[\"原站\"]}"
+    },
+    {
+      "name": "late read failure does not wipe a newer retry",
+      "ok": true,
+      "detail": "{\"title\":\"慢读原待办\",\"has\":\"1\",\"loadError\":false,\"empty\":false,\"stored\":[{\"id\":\"slow\",\"text\":\"慢读原待办\",\"done\":false}]}"
+    },
+    {
+      "name": "upstream read failure does not save a default",
+      "ok": true,
+      "detail": "{\"title\":\"书桌还在\",\"has\":\"1\",\"loadError\":false,\"writes\":0,\"stored\":\"claude\"}"
+    },
+    {
+      "name": "composition on the space note blocks a remote overwrite",
+      "ok": true,
+      "detail": "{\"notes\":\"组词前\",\"editor\":\"组词前\",\"status\":\"便签在另一页更新了\",\"stored\":\"外部打断\"}"
+    },
+    {
+      "name": "night many todos",
+      "ok": true,
+      "detail": "全部待办 · 还有 4 条"
+    },
+    {
+      "name": "more than 8 sites",
+      "ok": true,
+      "detail": "{\"overflowX\":-15,\"overflowY\":0,\"spaceHidden\":true,\"homeSites\":8,\"moreText\":\"全部 9 个\",\"moreHidden\":false,\"openText\":\"全部待办 · 还有 4 条\",\"has\":\"1\",\"title\":\"待办1\",\"loadError\":false,\"text\":\"SopifyTab\\n工作台\\n当前标签\\n设置\\n\\n早上好·9月28日 星期一·08:27\\n\\n下一件事\\n\\n待办1\\n完成\\n全部待办 · 还有 4 条\\n这个窗口\\n\\n0 个\"}"
+    },
+    {
+      "name": "no saved workset copy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "night 1440 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "empty 1280 focuses the composer",
+      "ok": true,
+      "detail": "{\"overflowX\":-15,\"overflowY\":0,\"spaceHidden\":true,\"homeSites\":0,\"moreText\":\"全部 0 个\",\"moreHidden\":true,\"openText\":\"全部待办\",\"has\":\"0\",\"title\":\"\",\"loadError\":false,\"text\":\"SopifyTab\\n工作台\\n当前标签\\n设置\\n\\n早上好·9月28日 星期一·08:27\\n\\n下一件事\\n\\n写下下一件事\\n\\n写一句，按 回车，它就是下一件事\\n\\n这个窗口\"}"
+    },
+    {
+      "name": "1280 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "long title and 8 long sites",
+      "ok": true,
+      "detail": "{\"title\":\"把首屏长标题排满把首屏长标题排满把首屏长\",\"sites\":8}"
+    },
+    {
+      "name": "1366 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "done-only says 已完成",
+      "ok": true,
+      "detail": "全部待办 · 已完成 1 件"
+    },
+    {
+      "name": "600 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "390 no horizontal overflow",
+      "ok": true,
+      "detail": "-15"
+    },
+    {
+      "name": "filtered close removes only the visible host tabs",
+      "ok": true,
+      "detail": "{\"title\":\"只关闭筛选里显示的这组\",\"count\":\"1\",\"label\":\"关闭这 1 个标签\",\"removed\":[1]}"
+    },
+    {
+      "name": "partial close does not claim full success",
+      "ok": true,
+      "detail": "{\"toast\":\"关掉了 1 个 github.com，还有 1 个没关掉\",\"toastOn\":true,\"removed\":[1]}"
+    },
+    {
+      "name": "failed close does not toast success",
+      "ok": true,
+      "detail": "{\"toast\":\"没关掉 github.com\",\"toastOn\":true,\"removed\":[]}"
+    },
+    {
+      "name": "query failure aborts restore",
+      "ok": true,
+      "detail": "{\"toast\":\"没看清当前窗口，没有恢复「上午」\",\"created\":[],\"retryHidden\":true}"
+    },
+    {
+      "name": "partial restore does not claim full success",
+      "ok": true,
+      "detail": "{\"toast\":\"「上午」新开 1，已有 1，没打开 1\",\"created\":[\"https://ok.example/\"],\"retryHidden\":false,\"retryText\":\"重试未打开\"}"
+    },
+    {
+      "name": "partial restore opened the healthy url only",
+      "ok": true,
+      "detail": "[\"https://ok.example/\"]"
+    },
+    {
+      "name": "partial restore offers retry for what failed",
+      "ok": true,
+      "detail": "{\"toast\":\"「上午」新开 1，已有 1，没打开 1\",\"created\":[\"https://ok.example/\"],\"retryHidden\":false,\"retryText\":\"重试未打开\"}"
+    },
+    {
+      "name": "retry opens only the tab that failed",
+      "ok": true,
+      "detail": "{\"toast\":\"已恢复「上午」\",\"created\":[\"https://ok.example/\",\"https://fail.example/x\"],\"retryHidden\":true}"
+    },
+    {
+      "name": "todo save failure keeps the input",
+      "ok": true,
+      "detail": "{\"value\":\"新待办\",\"has\":\"0\",\"error\":\"待办没存上，再按一次回车\",\"hidden\":false,\"stored\":0}"
+    },
+    {
+      "name": "todo save success clears only after persist",
+      "ok": true,
+      "detail": "{\"value\":\"\",\"title\":\"存得下\",\"hidden\":true,\"stored\":[\"存得下\"]}"
+    },
+    {
+      "name": "site save failure keeps the form",
+      "ok": true,
+      "detail": "{\"name\":\"没加上的站\",\"url\":\"https://keep.example\",\"error\":\"没加上，再点一次加入\",\"hidden\":false,\"toast\":\"\",\"toastOn\":false,\"stored\":0,\"open\":true}"
+    },
+    {
+      "name": "site save success toasts only after persist",
+      "ok": true,
+      "detail": "{\"name\":\"\",\"toast\":\"已加入 加上了\",\"toastOn\":true,\"stored\":[\"加上了\"]}"
+    },
+    {
+      "name": "window save failure does not claim success",
+      "ok": true,
+      "detail": "{\"error\":\"窗口没存上，再点一次保存\",\"hidden\":false,\"toast\":\"\",\"toastOn\":false,\"stored\":0,\"empty\":true}"
+    },
+    {
+      "name": "window save success toasts only after persist",
+      "ok": true,
+      "detail": "{\"toast\":\"已存下这个窗口\",\"toastOn\":true,\"hidden\":true,\"stored\":1}"
+    },
+    {
+      "name": "reduced motion still completes the todo",
+      "ok": true,
+      "detail": "{\"done\":\"0\",\"title\":\"\"}"
+    }
+  ],
+  "realExtension": {
+    "ok": false,
+    "id": "cgkhllpelkjmfamddkjpnmchjikdcbgp",
+    "detail": "CLI load did not expose chrome-extension://cgkhllpelkjmfamddkjpnmchjikdcbgp/; branded Chrome ignores --load-extension",
+    "twoPage": false
+  }
+}
