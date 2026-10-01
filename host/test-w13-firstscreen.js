@@ -464,7 +464,20 @@ function connectCdp(wsUrl) {
         send(method, params) {
           const id = ++seq;
           return new Promise((res, rej) => {
-            pending.set(id, { resolve: res, reject: rej });
+            const timer = setTimeout(() => {
+              pending.delete(id);
+              rej(new Error(`CDP timeout ${method} after 10000ms`));
+            }, 10000);
+            pending.set(id, {
+              resolve: (value) => {
+                clearTimeout(timer);
+                res(value);
+              },
+              reject: (err) => {
+                clearTimeout(timer);
+                rej(err);
+              },
+            });
             ws.send(JSON.stringify({ id, method, params: params || {} }));
           });
         },
@@ -490,6 +503,50 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const chromeChildren = [];
+const profileDirs = [];
+
+function trackChrome(child) {
+  chromeChildren.push(child);
+  return child;
+}
+
+function trackProfile(dir) {
+  profileDirs.push(dir);
+  return dir;
+}
+
+function killChrome(child) {
+  if (!child || child.pid == null) return;
+  try { process.kill(-child.pid, 'SIGKILL'); } catch {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  }
+}
+
+function cleanupBrowser() {
+  for (const child of chromeChildren) killChrome(child);
+  for (const dir of profileDirs) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* already gone */ }
+  }
+}
+
+function armWatchdog() {
+  const timer = setTimeout(() => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  }, 240000);
+  const onSignal = () => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  };
+  process.once('SIGTERM', onSignal);
+  process.once('SIGINT', onSignal);
+  process.on('exit', cleanupBrowser);
+  return () => clearTimeout(timer);
+}
+
 async function waitUntil(read, ok, timeout = 3000) {
   const start = Date.now();
   let last;
@@ -503,6 +560,7 @@ async function waitUntil(read, ok, timeout = 3000) {
 
 async function main() {
   const chromePath = chromeBin();
+  const stopWatchdog = armWatchdog();
   if (typeof WebSocket !== 'function') {
     console.error('FAIL browser: global WebSocket is missing. Browser checks need Node 22 or newer.');
     process.exit(1);
@@ -510,9 +568,9 @@ async function main() {
   const server = await serve(EXT);
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
-  const profile = fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-'));
+  const profile = trackProfile(fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-')));
   const cdpPort = 9477;
-  const chrome = spawn(chromePath, [
+  const chrome = trackChrome(spawn(chromePath, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -524,7 +582,7 @@ async function main() {
     '--disable-sync',
     '--disable-extensions',
     'about:blank',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
   let chromeLog = '';
   chrome.stdout.on('data', (d) => { chromeLog += d; });
   chrome.stderr.on('data', (d) => { chromeLog += d; });
@@ -551,6 +609,7 @@ async function main() {
     cdp = await connectCdp(page.webSocketDebuggerUrl);
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     await cdp.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value: 'light' }],
     });
@@ -1068,13 +1127,15 @@ async function main() {
       throw new Error([...behaviorFails, ...matrixFails].join('\n'));
     }
     console.log('test-w13-firstscreen: ok');
+    stopWatchdog();
   } catch (err) {
     if (chromeLog) console.error(chromeLog.slice(-2000));
     throw err;
   } finally {
     if (cdp) cdp.close();
-    chrome.kill('SIGKILL');
+    killChrome(chrome);
     server.close();
+    cleanupBrowser();
   }
 }
 

@@ -47,11 +47,14 @@
 
 ## 开发者验证
 
-可选，一条命令：
+需要 **Node 22 或更新**。浏览器检查用 Node 自带的全局 `WebSocket`，并需要本机 Chrome 或 Chromium。脚本会查找常见安装路径；浏览器不在那些路径上时，把可执行文件设到 `CHROME_BIN`。
 
 ```bash
+# 例：export CHROME_BIN=/usr/bin/google-chrome
 bash scripts/test-reliability.sh
 ```
+
+找不到浏览器时，这条命令跳过浏览器段并退出 2，不算通过。要改成失败，设置 `SOPIFY_REQUIRE_BROWSER=1`（持续集成会设上），那时退出码是 1。
 
 替身和静态检查不等于真扩展通过。真扩展请用上面的「加载已解压」自己看一遍。真双页扩展、系统中文输入法、三维便签运行时、Host 全量，都不在这条命令的保证里。
 

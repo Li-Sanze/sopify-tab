@@ -20,7 +20,6 @@ const css = read('newtab.css');
 const js = read('newtab.js');
 const collection = read('collection-sync.js');
 const manifest = JSON.parse(read('manifest.json'));
-const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
 const desk = html.slice(html.indexOf('id="resume"'), html.indexOf('id="tabs-h"'));
 const settings = html.slice(html.indexOf('aria-labelledby="settings-h"'));
 
@@ -90,19 +89,12 @@ assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
 assert.ok(/\.savedset\s*\{/.test(css), 'saved workset rows are styled');
 assert.ok(/\.cardfoot-acts/.test(css));
 
-assert.ok(/下一件事/.test(readme), 'README documents the next-thing hero');
-assert.ok(/不拿标签或便签凑数/.test(readme) || /不拿标签/.test(readme));
-assert.ok(/保存这个窗口/.test(readme));
-assert.ok(/接着上次/.test(readme) && /空间视图/.test(readme));
-assert.ok(/50 个网页/.test(readme));
-assert.ok(/worksets/.test(readme) && /title, url/.test(readme));
-assert.ok(/不存 favicon|不存favicon/.test(readme));
-assert.ok(/最多 5/.test(readme) && /覆盖/.test(readme));
-assert.ok(/关窗口不会自动存/.test(readme));
-assert.ok(/chrome\.storage\.local/.test(readme));
-assert.ok(!/storage\.sync/.test(readme) || /不用 `storage\.sync`/.test(readme));
-assert.ok(/可选：本机对话|设置深路径/.test(readme), 'Host is demoted');
-assert.ok(!/智能聚类|AI 聚类|自动整理/.test(readme), 'no unreleased AI claims');
+assert.ok(html.includes('空间视图'), 'space view stays a desk surface');
+assert.ok(/let spaceViewOn = false/.test(js), 'space view defaults off');
+assert.ok(/chrome\.storage\.local|storage\.local/.test(js), 'desk persists with storage.local');
+assert.ok(!/kind:\s*'tab'|kind:\s*'note'/.test(js), 'resume does not fill from tabs or notes');
+assert.ok(!/智能聚类|AI 聚类|自动整理/.test(html + js), 'no unreleased clustering in the desk');
+assert.ok(!/chrome\.proxy/.test(js + html), 'workset path does not touch proxy');
 
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');

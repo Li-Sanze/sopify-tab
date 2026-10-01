@@ -1,0 +1,51 @@
+name: reliability
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  reliability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Install CJK fonts
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
+      - name: Setup Chrome for Testing
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+
+      - name: Reliability gate
+        env:
+          SOPIFY_REQUIRE_BROWSER: "1"
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          SOPIFY_ARTIFACT_DIR: ${{ github.workspace }}/reliability-artifacts
+        run: |
+          node -v
+          "$CHROME_BIN" --version
+          bash scripts/test-reliability.sh
+
+      - name: Upload reliability artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reliability
+          path: reliability-artifacts
+          if-no-files-found: warn

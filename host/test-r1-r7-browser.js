@@ -353,7 +353,20 @@ function connectCdp(wsUrl) {
         send(method, params) {
           const id = ++seq;
           return new Promise((res, rej) => {
-            pending.set(id, { resolve: res, reject: rej });
+            const timer = setTimeout(() => {
+              pending.delete(id);
+              rej(new Error(`CDP timeout ${method} after 10000ms`));
+            }, 10000);
+            pending.set(id, {
+              resolve: (value) => {
+                clearTimeout(timer);
+                res(value);
+              },
+              reject: (err) => {
+                clearTimeout(timer);
+                rej(err);
+              },
+            });
             ws.send(JSON.stringify({ id, method, params: params || {} }));
           });
         },
@@ -371,16 +384,59 @@ function rmDir(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* already gone */ }
 }
 
+const chromeChildren = [];
+const profileDirs = [];
+
+function trackChrome(child) {
+  chromeChildren.push(child);
+  return child;
+}
+
+function trackProfile(dir) {
+  profileDirs.push(dir);
+  return dir;
+}
+
+function killChrome(child) {
+  if (!child || child.pid == null) return;
+  try { process.kill(-child.pid, 'SIGKILL'); } catch {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  }
+}
+
+function cleanupBrowser() {
+  for (const child of chromeChildren) killChrome(child);
+  for (const dir of profileDirs) rmDir(dir);
+}
+
+function armWatchdog() {
+  const timer = setTimeout(() => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  }, 240000);
+  const onSignal = () => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  };
+  process.once('SIGTERM', onSignal);
+  process.once('SIGINT', onSignal);
+  process.on('exit', cleanupBrowser);
+  return () => clearTimeout(timer);
+}
+
 async function main() {
   assertExtensionIdentity();
   const bin = findChrome();
   requireWebSocket();
+  const stopWatchdog = armWatchdog();
   const liveHits = [];
   const live = await serve(EXT, liveHits);
   const origin = `http://127.0.0.1:${live.address().port}`;
   const cdpPort = process.env.SOPIFY_CDP_PORT ? Number(process.env.SOPIFY_CDP_PORT) : await freePort();
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-'));
-  const chrome = spawn(bin, [
+  const profile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-')));
+  const chrome = trackChrome(spawn(bin, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -392,7 +448,7 @@ async function main() {
     '--disable-sync',
     '--disable-extensions',
     'about:blank',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
   let chromeLog = '';
   chrome.stdout.on('data', (d) => { chromeLog += d; });
   chrome.stderr.on('data', (d) => { chromeLog += d; });
@@ -424,6 +480,7 @@ async function main() {
     cdp = await connectCdp(page.webSocketDebuggerUrl);
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     let scriptId = null;
     let caseNo = 0;
 
@@ -1160,15 +1217,15 @@ async function main() {
     throw err;
   } finally {
     if (cdp) cdp.close();
-    chrome.kill('SIGKILL');
+    killChrome(chrome);
     live.close();
     rmDir(profile);
   }
 
   let real = { ok: false, detail: 'not run' };
-  const realProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-'));
+  const realProfile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-')));
   const realPort = await freePort();
-  const realChrome = spawn(bin, [
+  const realChrome = trackChrome(spawn(bin, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -1182,7 +1239,7 @@ async function main() {
     '--no-default-browser-check',
     '--disable-sync',
     'about:blank',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
   try {
     await waitJson(realPort);
     const targets = await new Promise((resolve, reject) => {
@@ -1207,7 +1264,7 @@ async function main() {
   } catch (err) {
     real = { ok: false, detail: String(err && err.message ? err.message : err) };
   } finally {
-    realChrome.kill('SIGKILL');
+    killChrome(realChrome);
     rmDir(realProfile);
   }
   console.log(`real extension: ${real.ok ? 'loaded' : 'unverified'} ${real.detail}`);
@@ -1340,6 +1397,7 @@ async function main() {
     console.log(`test-r1-r7-browser: FAIL ${failures.length}`);
     throw new Error(failures.join('\n'));
   }
+  stopWatchdog();
   console.log('test-r1-r7-browser: ok (stub, not a loaded extension)');
 }
 

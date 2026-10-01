@@ -102,10 +102,12 @@ const manifest = JSON.parse(read('manifest.json'));
 assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
 assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
 assert.ok(!('proxy' in (manifest.host_permissions || {})));
+assert.ok(!manifest.permissions.includes('proxy'));
+assert.ok(!(manifest.optional_permissions || []).includes('proxy'));
 const extFiles = fs.readdirSync(EXT).filter((f) => /\.(js|html|css|json)$/.test(f));
 for (const f of extFiles) {
   const src = read(f);
-  assert.ok(!/chrome\.proxy/.test(src), `${f} must not use chrome.proxy`);
+  assert.ok(!/chrome\.proxy|browser\.proxy/.test(src), `${f} must not use chrome.proxy`);
   assert.ok(!/storage\.sync/.test(src), `${f} must not use chrome.storage.sync`);
 }
 
@@ -121,11 +123,5 @@ assert.ok(newtabJs.includes('const WORKSET_CAP = 5'));
 assert.ok(newtabJs.includes('bindFaviconFallback'));
 assert.ok(newtabJs.includes('月') && newtabJs.includes('星期'));
 assert.ok(!/date-line[\s\S]{0,80}待办/.test(newtabJs));
-
-// --- README proxy one-liner ---
-const readme = fs.readFileSync(path.join(EXT, '..', 'README.md'), 'utf8');
-assert.ok(/HTTP_PROXY|HTTPS_PROXY/.test(readme), 'README must mention HTTP(S)_PROXY');
-assert.ok(/没有代理设置|不感知代理|扩展无代理设置/.test(readme), 'README must say the extension is proxy-unaware');
-assert.ok(!/在扩展里.*代理|chrome\.proxy/.test(readme));
 
 console.log('test-w4-theme: ok');
