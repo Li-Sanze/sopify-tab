@@ -75,33 +75,6 @@
   </div>
 
   <div class="shell" id="shell">
-    <aside class="rail" aria-label="侧栏" hidden>
-      <div class="brand" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M3.5 12h12M11.5 8l4 4-4 4M20 6.5v11"/></svg>
-      </div>
-      <nav aria-label="主导览">
-        <button type="button" class="navbtn" data-view="desk" aria-current="page">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 10h17M9 10v9.5"/></svg>
-          <span>工作台</span>
-        </button>
-        <button type="button" class="navbtn" id="nav-tabs" data-view="tabs">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>
-          <span>当前标签</span>
-        </button>
-        <button type="button" class="navbtn" data-view="settings">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></svg>
-          <span>设置</span>
-        </button>
-      </nav>
-      <div class="spacer"></div>
-      <div class="railfoot">
-        <button type="button" class="chatbtn" id="open-chat" hidden>
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"/><path d="m8.5 9 2 1.75-2 1.75M13 12.5h3"/></svg>
-          <span>对话</span>
-        </button>
-      </div>
-    </aside>
-
     <main class="main" id="main" tabindex="-1">
       <header class="studio-topbar">
         <a class="studio-brand" href="#desk" id="studio-brand" aria-label="回到工作台">
@@ -295,7 +268,7 @@
       <section class="view" data-view="settings" hidden aria-labelledby="settings-h">
         <header class="viewhead">
           <h1 id="settings-h">设置</h1>
-          <p>外观随时可改，书桌不依赖 Host。</p>
+          <p>外观随时可改，只存在本机。</p>
         </header>
         <div class="settings-name">
           <label for="name">称呼</label>
@@ -324,7 +297,7 @@
                     <span>夜晚</span>
                   </label>
                 </div>
-                <p class="help">立刻生效，书桌和侧栏同一套；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
+                <p class="help">立刻生效；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
               </div>
               <div class="frow">
                 <label class="space-view-opt" for="space-view-toggle">
@@ -350,60 +323,6 @@
               <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部存下的窗口</button>
             </div>
           </section>
-
-          <details class="advanced" id="settings-advanced">
-            <summary>高级</summary>
-            <div class="advanced-body">
-          <section class="card" aria-labelledby="s-host">
-            <div class="cardhead">
-              <h2 id="s-host"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 1 0-5.5l2.5-2.5a4 4 0 0 1 5.5 5.5L16.5 13"/><path d="M14 10a4 4 0 0 1 0 5.5L11.5 18A4 4 0 0 1 6 12.5L7.5 11"/></svg>连接本机</h2>
-              <span class="count host-probe act" id="s-host-badge" hidden></span>
-            </div>
-            <div class="cardbody form">
-              <div class="status host-probe" id="host-status" hidden aria-live="polite"></div>
-              <ul class="checks host-probe" id="host-checks" hidden aria-label="连接结果"></ul>
-              <div class="frow">
-                <div class="inline">
-                  <button type="button" class="btn" id="host-toggle">检测 Host</button>
-                  <p class="help" id="host-help">需要时再连，没装也不影响书桌。</p>
-                </div>
-              </div>
-              <div class="frow">
-                <span id="s-upstream">上游</span>
-                <div class="themeseg" role="radiogroup" aria-labelledby="s-upstream">
-                  <label class="themeseg-opt">
-                    <input type="radio" name="hostUpstream" value="cursor" checked>
-                    <span>Cursor</span>
-                  </label>
-                  <label class="themeseg-opt">
-                    <input type="radio" name="hostUpstream" value="claude">
-                    <span>Claude</span>
-                  </label>
-                  <label class="themeseg-opt">
-                    <input type="radio" name="hostUpstream" value="codex">
-                    <span>Codex</span>
-                  </label>
-                </div>
-                <p class="help" id="upstream-help">默认 Cursor，只影响本机对话，不改书桌。</p>
-              </div>
-              <p class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.5"/></svg><span>只读对话须另装 Host（仓库跑 <code>./host/install-host.sh</code>），不是本地模型，不能写盘、执行或传 <code>--force</code>。</span></p>
-            </div>
-          </section>
-
-          <section class="card" aria-labelledby="s-cwd">
-            <div class="cardhead">
-              <h2 id="s-cwd"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/></svg>工作目录</h2>
-            </div>
-            <div class="cardbody form">
-              <div class="frow">
-                <label for="cwd">对话在这个目录里启动本机 CLI</label>
-                <input class="field" id="cwd" placeholder="留空，需要时再填" spellcheck="false" autocomplete="off">
-                <p class="help">默认空，不预填路径，只留在这一页。</p>
-              </div>
-            </div>
-          </section>
-            </div>
-          </details>
         </div>
       </section>
     </main>

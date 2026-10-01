@@ -31,7 +31,6 @@ async function main() {
 const artifactDir = process.env.SOPIFY_ARTIFACT_DIR || '/opt/cursor/artifacts/r1-r7';
 try { fs.rmSync(path.join(artifactDir, 'static-ok'), { force: true }); } catch { /* fresh run */ }
 const js = read('newtab.js');
-const side = read('sidepanel.js');
 const html = read('newtab.html');
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');
@@ -172,9 +171,11 @@ assert.strictEqual(failedRead.todos, undefined);
 assert.strictEqual(failedRead.notes, undefined);
 assert.ok(braceBlock(js, 'async function loadDesk(').includes('readDeskStorage'));
 assert.ok(braceBlock(js, 'async function loadWorksets(').includes('return null'));
-assert.ok(!braceBlock(js, 'async function loadCwd(').includes('deskLoadBroken'));
-assert.ok(!braceBlock(js, 'async function loadUpstream(').includes('deskLoadBroken'));
-assert.ok(!braceBlock(js, 'async function boot()').includes('saveUpstream'));
+assert.ok(!js.includes('async function loadCwd('), 'cwd loader is already offline');
+assert.ok(!js.includes('async function loadUpstream('), 'upstream loader is already offline');
+assert.ok(!/connectNative|sendNativeMessage|\bsidePanel\b|nativeMessaging/.test(js));
+assert.ok(!braceBlock(js, 'async function boot()').includes('hostUpstream'));
+assert.ok(!braceBlock(js, 'async function boot()').includes('saveCwd'));
 assert.ok(html.includes('id="todo-load-error"') && html.includes('待办暂时没能读取') && html.includes('>重试<'));
 assert.ok(html.includes('id="workset-load-error"') && html.includes('存下的窗口暂时没能读取'));
 assert.strictEqual(helpers.shouldApplyLoad(1, 2), false);
@@ -232,9 +233,6 @@ assert.strictEqual(noteSync.imeBlocksSubmit({ key: 'Enter', isComposing: true })
 assert.strictEqual(noteSync.imeBlocksSubmit({ key: 'Process' }), true);
 assert.strictEqual(noteSync.imeBlocksSubmit({ key: 'a', keyCode: 229 }), true);
 assert.strictEqual(guard.blocks({ key: 'a' }), false);
-assert.ok(side.includes("e.isComposing || e.key === 'Process' || composeIme.blocks(e)"));
-assert.ok(side.includes("addEventListener('compositionstart'"));
-assert.ok(side.includes('!e.shiftKey'));
 assert.ok(js.includes("e.isComposing || e.key === 'Process' || renameIme.blocks(e)"));
 assert.ok(js.includes('dialogIme.blocks(e)'));
 assert.ok(js.includes('todoIme.blocks(e)'));

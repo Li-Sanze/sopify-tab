@@ -102,7 +102,7 @@ const firstScreen = css.slice(css.indexOf('v3 first screen'));
 assert.ok(firstScreen.includes('18% 40%'));
 assert.ok(!firstScreen.includes('42% 42%'), 'first screen chips must not use 42% 42%');
 assert.ok(firstScreen.includes('max-width: calc(1040px + 64px)'));
-assert.ok(/body\.studio-home:not\(\.sidepanel\) \.main/.test(firstScreen));
+assert.ok(/body\.studio-home \.main/.test(firstScreen));
 
 const starsAt = css.indexOf('.stars-layer {');
 assert.ok(starsAt !== -1);

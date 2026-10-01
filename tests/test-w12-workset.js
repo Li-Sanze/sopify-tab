@@ -83,8 +83,11 @@ for (const chunk of setKeys) {
   }
 }
 
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!('side_panel' in manifest));
+assert.ok(!/connectNative|sendNativeMessage|\bsidePanel\b|nativeMessaging|id="open-chat"|class="rail"/.test(js + html),
+  'workset sources are already offline for Host and Side Panel');
 
 assert.ok(/\.savedset\s*\{/.test(css), 'saved workset rows are styled');
 assert.ok(/\.cardfoot-acts/.test(css));

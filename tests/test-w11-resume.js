@@ -35,8 +35,11 @@ assert.ok(!/CLI|--force|cursor-agent/.test(desk), 'desk must not mention CLI');
 assert.ok(!desk.includes('hostUpstream') && !desk.includes('上游'));
 assert.ok(!/天气|番茄|壁纸|小组件|widget wall|taxonomy/i.test(desk));
 
-assert.ok(settings.includes('name="hostUpstream"'), 'upstream selector stays in settings');
-assert.ok(html.includes('id="open-chat"') && html.includes('hidden'), 'chat stays rail-gated');
+assert.ok(!settings.includes('name="hostUpstream"'), 'upstream selector is already offline');
+assert.ok(!html.includes('id="open-chat"'), 'chat entry is already offline');
+assert.ok(!html.includes('class="rail"'), 'chat rail is already offline');
+assert.ok(!/connectNative|sendNativeMessage|\bsidePanel\b|nativeMessaging/.test(js + html),
+  'desk sources no longer reach Host or Side Panel');
 
 assert.ok(js.includes("const DESK_KEYS = ['sites', 'todos', 'notes', 'name']"));
 assert.ok(js.includes('const WORKSET_CAP = 5'));
@@ -48,8 +51,8 @@ assert.ok(js.includes("title: '还没有下一件事'"));
 assert.ok(js.includes("action: '写一条'"));
 assert.ok(js.includes("$('#todo-input')"), 'empty resume focuses the todo field');
 assert.ok(js.includes('chrome.tabs.update'));
-assert.ok(!/permissions\.request/.test(js) || /permissions\.request\(\s*\{\s*permissions:\s*\['nativeMessaging'\]\s*\}/.test(js),
-  'no new optional permissions on the desk path');
+assert.ok(!/permissions\.request/.test(js), 'desk does not request optional permissions');
+assert.ok(!/storage\.local\.set\(\s*\{[^}]*(cwd|hostUpstream)/.test(js), 'desk no longer writes Host keys');
 assert.ok(!/chrome\.storage\.sync/.test(js));
 assert.ok(!/worksetFilter/.test(js) || !/storage\.local\.set\(\s*\{[^}]*worksetFilter/.test(js),
   'workset filter must stay in memory');
@@ -66,8 +69,9 @@ assert.ok(!/storage\.local\.set\(\s*\{[^}]*(resume|anchor|nextAction)/.test(js),
   'no resume/anchor storage keys');
 assert.ok(!/storage\.sync/.test(js));
 
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!('side_panel' in manifest));
 
 assert.ok(/\.next-title[\s\S]*?-webkit-line-clamp:\s*2/.test(css), 'short titles clamp to 2 lines');
 assert.ok(/data-size="m"\][\s\S]*?-webkit-line-clamp:\s*3/.test(css), 'medium titles clamp to 3 lines');

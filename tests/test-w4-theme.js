@@ -63,17 +63,18 @@ assert.strictEqual(fake.dataset.sky, 'night');
 // --- shared table lives only in theme.css ---
 const themeCss = read('theme.css');
 const newtabCss = read('newtab.css');
-const panelCss = read('sidepanel.css');
 for (const name of SHARED_VARS) {
   assert.ok(themeCss.includes(`${name}:`), `theme.css must define ${name}`);
   assert.strictEqual(assignments(newtabCss, name).length, 0, `newtab.css must not assign ${name}`);
-  assert.strictEqual(assignments(panelCss, name).length, 0, `sidepanel.css must not assign ${name}`);
 }
-assert.ok(!/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)/.test(themeCss + newtabCss + panelCss),
+assert.ok(!/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)/.test(themeCss + newtabCss),
   'OS media query must not set skin tokens (manual day/night must not fight OS)');
+for (const gone of ['sidepanel.css', 'sidepanel.html', 'sidepanel.js']) {
+  assert.ok(!fs.existsSync(path.join(EXT, gone)), `${gone} is already offline`);
+}
 
 // --- head order + early sky.js ---
-for (const page of ['newtab.html', 'sidepanel.html']) {
+for (const page of ['newtab.html']) {
   const html = read(page);
   const skyAt = html.indexOf('src="sky.js"');
   const themeAt = html.indexOf('href="theme.css"');
@@ -97,25 +98,27 @@ assert.ok(!desk.includes('外观'), 'desk first screen must not have 外观');
 assert.ok(!newtabHtml.includes('soft'), 'soft preset is out of scope');
 assert.ok(!/thumbnail|preview-wall|theme-store|wallpaper/i.test(newtabHtml));
 
-// --- permissions unchanged; no proxy ---
+// --- desk-only permissions; no proxy; Host and Side Panel already offline ---
 const manifest = JSON.parse(read('manifest.json'));
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!('side_panel' in manifest));
+assert.strictEqual(manifest.action.default_title, 'Sopify Tab');
 assert.ok(!('proxy' in (manifest.host_permissions || {})));
 assert.ok(!manifest.permissions.includes('proxy'));
-assert.ok(!(manifest.optional_permissions || []).includes('proxy'));
 const extFiles = fs.readdirSync(EXT).filter((f) => /\.(js|html|css|json)$/.test(f));
+const offline = /connectNative|sendNativeMessage|\bsidePanel\b|side_panel|nativeMessaging|openSidePanel|openPanelOnActionClick|id="open-chat"|class="rail"/;
 for (const f of extFiles) {
   const src = read(f);
   assert.ok(!/chrome\.proxy|browser\.proxy/.test(src), `${f} must not use chrome.proxy`);
   assert.ok(!/storage\.sync/.test(src), `${f} must not use chrome.storage.sync`);
+  assert.ok(!offline.test(src), `${f} still has a Host or Side Panel surface`);
 }
 
-// --- W3 contracts untouched in this wave's theme files ---
-const panelJs = read('sidepanel.js');
-assert.ok(!/storage\.local\.set/.test(panelJs), 'sidepanel must not persist session to storage');
 const bg = read('background.js');
-assert.ok(bg.includes('openPanelOnActionClick'), 'toolbar Side Panel contract stays');
+assert.ok(bg.includes('chrome.action.onClicked'), 'toolbar opens the desk');
+assert.ok(bg.includes('tabs.create'));
+assert.ok(!offline.test(bg));
 
 // --- B leftovers still intact (not redesigned) ---
 const newtabJs = read('newtab.js');

@@ -25,21 +25,27 @@
 1. 打开 `chrome://extensions`，打开「开发者模式」。
 2. 点「加载已解压的扩展程序」，选择本仓库的 `extension/`（目录里有 `manifest.json`，不要选仓库根目录）。
 3. 确认卡片名称是「Sopify Tab」。
-4. 按 Ctrl/Cmd+T 打开新标签页，应先看到「下一件事」。
+4. 按 Ctrl/Cmd+T 打开新标签页，应先看到「下一件事」。点工具栏图标会再开一个新标签页。
 
 稳定扩展 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。
 
 ## 隐私与权限
 
-必选权限：`storage`、`tabs`、`sidePanel`。没有别的强制权限。`nativeMessaging` 只在你要连接可选的本机对话时才申请。
+必选权限：`storage`、`tabs`。没有别的权限。
 
 没有账号，没有云同步。数据留在本机浏览器里。当前窗口的网页只在打开时查看，不会自动存下来。
 
 存下的窗口只在你点「保存这个窗口」时写入，只留标题和网址。最多 5 个，每个最多 50 个网页。存满时会先问要不要覆盖。关窗口不会自动存。
 
-## 可选：本机对话
+## 卸下旧的本机 Host
 
-在「设置 → 高级 → 连接本机」。没装 Host，书桌照常使用。默认只读：不是本地模型，不能写盘、执行，也不能传 `--force`。对话内容不落盘。需要时再装 Host，见 [`host/install-host.sh`](host/install-host.sh)。
+这一版只有书桌，不再连接本机对话，也不再打开侧栏。以前跑过安装脚本的话，扩展更新后不再调用 Host，本机上的注册文件还在。删掉下面这些即可，别的 Native Messaging 清单不要动：
+
+- `~/.local/lib/sopify-tab/`（当时若设过 `SOPIFY_HOST_LIB`，删那个目录）
+- Linux：`~/.config/google-chrome/NativeMessagingHosts/com.sopify.tab.json`。目录存在时，同样删掉 `~/.config/google-chrome-*/NativeMessagingHosts/com.sopify.tab.json` 和 `~/.config/chromium/NativeMessagingHosts/com.sopify.tab.json`
+- macOS：`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sopify.tab.json`。目录存在时，同样删掉 Chrome Canary 和 Chromium 里的同名清单
+
+删完后重开 Chrome。浏览器里以前存过的 `cwd` 和 `hostUpstream` 会留着，书桌不再读取它们。
 
 ## 非目标
 
@@ -56,7 +62,7 @@ bash scripts/test-reliability.sh
 
 找不到浏览器时，这条命令跳过浏览器段并退出 2，不算通过。要改成失败，设置 `SOPIFY_REQUIRE_BROWSER=1`（持续集成会设上），那时退出码是 1。
 
-替身和静态检查不等于真扩展通过。真扩展请用上面的「加载已解压」自己看一遍。真双页扩展、系统中文输入法、三维便签运行时、Host 全量，都不在这条命令的保证里。
+替身和静态检查不等于真扩展通过。真扩展请用上面的「加载已解压」自己看一遍。真双页扩展、系统中文输入法、三维便签运行时，都不在这条命令的保证里。
 
 ## 许可
 

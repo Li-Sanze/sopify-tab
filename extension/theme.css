@@ -1,7 +1,7 @@
-/* Shared skin table for newtab AND Side Panel.
+/* Shared skin table for the new tab desk.
    Presets only change these variables plus root data-theme / data-sky /
    data-sky-motion / color-scheme.
-   Do not add a second day/night table in sidepanel.css. */
+   Do not add a second day/night table in newtab.css. */
 :root {
   --r-xl: 22px;
   --r-lg: 16px;
@@ -12,7 +12,6 @@
   --dur: 160ms;
   --dur-slow: 200ms;
   --out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --rail-w: 84px;
   --sky-calm: 240s;
 }
 

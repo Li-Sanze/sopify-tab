@@ -25,7 +25,7 @@ ran=()
 
 is_browser() {
   case "$1" in
-    host/test-w13-firstscreen.js|host/test-r1-r7-browser.js) return 0 ;;
+    tests/test-w13-firstscreen.js|tests/test-r1-r7-browser.js) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -63,7 +63,7 @@ write_summary() {
     printf '  %s\n' "${ran[@]}"
   fi
   echo "reliability summary: ${pass_n} pass, ${fail_n} fail, ${skip_n} skip, denominator ${total}"
-  echo "reliability denominator: static and stub segments in this script. Real extension, Host, OS IME, and 3D runtime are not included."
+  echo "reliability denominator: static and stub segments in this script. Real extension, OS IME, and 3D runtime are not included."
   local summary_dir="${SOPIFY_ARTIFACT_DIR:-/tmp/sopify-reliability}"
   mkdir -p "$summary_dir"
   local summary_file="$summary_dir/reliability-parts.json"
@@ -139,18 +139,18 @@ run() {
 
 trap reap_sopify_chrome EXIT
 
-run host/test-r1-r7.js
-run host/test-r3-collection.js
-run host/test-r3-form-retry.js
-run host/test-r2-note-ack.js
-run host/test-w11-resume.js
-run host/test-w12-workset.js
-run host/test-w4-theme.js
-run host/test-sky-layers.js
-run host/test-desk-companion.js
+run tests/test-r1-r7.js
+run tests/test-r3-collection.js
+run tests/test-r3-form-retry.js
+run tests/test-r2-note-ack.js
+run tests/test-w11-resume.js
+run tests/test-w12-workset.js
+run tests/test-w4-theme.js
+run tests/test-sky-layers.js
+run tests/test-desk-companion.js
 run extension/desk-3d/test-gates.js
-run host/test-w13-firstscreen.js
-run host/test-r1-r7-browser.js
+run tests/test-w13-firstscreen.js
+run tests/test-r1-r7-browser.js
 
 if [[ "$fail" -ne 0 ]]; then
   write_summary 1

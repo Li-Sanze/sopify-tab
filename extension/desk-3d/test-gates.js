@@ -189,12 +189,20 @@ assert.deepStrictEqual(
   'Three vendor lives only under extension/desk-3d'
 );
 
-const hostFiles = walk(HOST, []);
-for (const file of hostFiles) {
-  const rel = path.relative(REPO, file);
-  if (file.endsWith('three.module.js')) {
-    assert.fail(`host must not vendor Three: ${rel}`);
+if (fs.existsSync(HOST)) {
+  const hostFiles = walk(HOST, []);
+  for (const file of hostFiles) {
+    const rel = path.relative(REPO, file);
+    if (file.endsWith('three.module.js')) {
+      assert.fail(`host must not vendor Three: ${rel}`);
+    }
+    assert.ok(!/\/host\.js$|install-host\.sh$/.test(rel), `host runtime is already offline: ${rel}`);
   }
+}
+assert.ok(!fs.existsSync(path.join(HOST, 'host.js')), 'host runtime is already offline');
+assert.ok(!fs.existsSync(path.join(HOST, 'install-host.sh')), 'host installer is already offline');
+for (const name of ['js', 'html', 'css'].map((ext) => ['side', 'panel.'].join('') + ext)) {
+  assert.ok(!fs.existsSync(path.join(EXT, name)), `${name} is already offline`);
 }
 
 const topLevel = fs.readdirSync(EXT).filter((f) => /\.(js|css|html)$/.test(f));
@@ -224,7 +232,15 @@ assert.ok(boot.includes('window.SopifyDesk3d'));
 assert.ok(newtabJs.includes('restoreWorkset: function (id) { return restoreWorksetById(id); }'));
 
 const manifest = JSON.parse(read('extension/manifest.json'));
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!(['side', 'panel'].join('_') in manifest));
+const hostSurface = new RegExp(
+  ['connect', 'Native'].join('')
+  + '|send' + ['Native', 'Message'].join('')
+  + '|\\b' + ['side', 'Panel'].join('') + '\\b'
+  + '|' + ['native', 'Messaging'].join('')
+);
+assert.ok(!hostSurface.test(newtabJs + boot));
 
 console.log('test-desk-3d-gates: ok', { vendorBytes });

@@ -1296,7 +1296,7 @@ async function main() {
   }
   const acceptance = {
     columns: ['静态', '替身', '真扩展', 'IME', '未测'],
-    note: '替身是桩浏览器里的界面。真扩展、Host、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
+    note: '替身是桩浏览器里的界面。真扩展、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
     rows: [
       {
         item: 'A 读失败不当成空数据，禁止覆盖写',
@@ -1313,7 +1313,7 @@ async function main() {
         ]),
         真扩展: '未测',
         IME: '未测',
-        未测: '真扩展 / Host / 真中文 IME。A1–A6 只在替身里点过新增并核对存储',
+        未测: '真扩展 / 真中文 IME。A1–A6 只在替身里点过新增并核对存储',
       },
       {
         item: 'B 便签同一队列，先写的留下，后写的冲突并保留草稿',
@@ -1321,7 +1321,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '双页并发只在静态单测里走真实 note-sync。替身没有两页。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。真扩展 / Host / 真中文 IME',
+        未测: '双页并发只在静态单测里走真实 note-sync。替身没有两页。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。真扩展 / 真中文 IME',
       },
       {
         item: 'C 确认只覆盖刚看过的版本，冲突可展开全文',
@@ -1329,7 +1329,7 @@ async function main() {
         替身: col('conflict expands the full remote text'),
         真扩展: '未测',
         IME: '未测',
-        未测: '版本被改掉后再确认只在静态单测。真扩展 / Host / 真中文 IME',
+        未测: '版本被改掉后再确认只在静态单测。真扩展 / 真中文 IME',
       },
       {
         item: 'P1 待办／常用站／窗口按意图合并，双成功不丢新增',
@@ -1337,7 +1337,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '真双页扩展 / 真扩展 / Host / 真中文 IME。交叉新增只在静态协调器里断言存储',
+        未测: '真双页扩展 / 真扩展 / 真中文 IME。交叉新增只在静态协调器里断言存储',
       },
       {
         item: 'P2 旧便签回执不压掉较新冲突',
@@ -1345,7 +1345,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '真双页扩展 / 3D 便签 / 真扩展 / Host / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
+        未测: '真双页扩展 / 3D 便签 / 真扩展 / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
       },
       {
         item: '表单重试复用同一条编号，不按文字去重',
@@ -1353,7 +1353,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '重试编号在 node 里走 form-ops 和协调器。替身 / 真扩展 / Host / 真中文 IME / 3D',
+        未测: '重试编号在 node 里走 form-ops 和协调器。替身 / 真扩展 / 真中文 IME / 3D',
       },
       {
         item: '旧冲突回执不盖掉较新冲突，确认只用当前有效冲突',
@@ -1361,7 +1361,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '冲突门闸在 node 里走 note-sync。真双页 / 3D / 真扩展 / Host / 真中文 IME',
+        未测: '冲突门闸在 node 里走 note-sync。真双页 / 3D / 真扩展 / 真中文 IME',
       },
       {
         item: '扩展目标只认 cgkhllpelkjmfamddkjpnmchjikdcbgp',
@@ -1369,7 +1369,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '反例在 node 里拒绝其他 chrome-extension。真双页 onChanged / Host / 真中文 IME / 3D 运行时',
+        未测: '反例在 node 里拒绝其他 chrome-extension。真双页 onChanged / 真中文 IME / 3D 运行时',
       },
       {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',
@@ -1377,7 +1377,7 @@ async function main() {
         替身: failures.length ? 'fail' : 'pass',
         真扩展: '未测',
         IME: '未测',
-        未测: '真扩展 / Host / 真中文 IME。桩里的 Enter/229 只是合成事件',
+        未测: '真扩展 / 真中文 IME。桩里的 Enter/229 只是合成事件',
       },
     ],
     realExtension: real.twoPage === true
