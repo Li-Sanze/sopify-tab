@@ -1795,6 +1795,62 @@ async function main() {
     await loadSeed(1440, 900, {
       todos: [],
       sites: [],
+      tabs: [
+        { id: 71, title: 'page A', url: 'https://a.example/reopen' },
+        { id: 72, title: 'page B', url: 'https://b.example/reopen' },
+      ],
+    }, 'day');
+    const staleReopen = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-tab="71"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      window.__sopifyHoldCreates(1);
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 20));
+      document.querySelector('[data-close-tab="72"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const during = {
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        created: window.__sopifyCreated.map((t) => t.url),
+      };
+      window.__sopifyReleaseCreate();
+      await new Promise((r) => setTimeout(r, 50));
+      const afterAck = {
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        created: window.__sopifyCreated.map((t) => t.url),
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        during,
+        afterAck,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+      };
+    })()`);
+    check(
+      'a late reopen ack does not replace a newer close',
+      staleReopen.during.toast === '已关闭'
+        && staleReopen.during.label === '重新打开'
+        && staleReopen.during.created.length === 0
+        && staleReopen.afterAck.toast === '已关闭'
+        && staleReopen.afterAck.label === '重新打开'
+        && staleReopen.afterAck.hidden === false
+        && staleReopen.afterAck.created.length === 1
+        && staleReopen.afterAck.created[0] === 'https://a.example/reopen'
+        && staleReopen.created.filter((url) => url === 'https://a.example/reopen').length === 1
+        && staleReopen.created.filter((url) => url === 'https://b.example/reopen').length === 1
+        && staleReopen.toast === '已重新打开',
+      JSON.stringify(staleReopen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
       worksets: workset,
       failQuery: true,
     }, 'day');

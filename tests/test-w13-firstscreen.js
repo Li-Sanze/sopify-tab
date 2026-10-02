@@ -1580,6 +1580,72 @@ async function main() {
       JSON.stringify(editFail),
     );
 
+    await loadSeed(1440, 900, {
+      todos: [
+        { id: 't1', text: '待办1', done: false },
+        { id: 't2', text: '待办2', done: false },
+      ],
+      sites: [],
+      storageDelay: 250,
+    });
+    const delayedEdit = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      document.querySelector('#todos-dialog-list [data-todo-text="t1"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.value = '版本1';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      input.value = '版本2';
+      const midWait = Date.now();
+      let mid = null;
+      while (Date.now() - midWait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        const draft = document.querySelector('#todos-dialog-list .todo-edit');
+        mid = {
+          stored: row && row.text,
+          value: draft ? draft.value : '',
+          editing: !!draft,
+          count: window.__sopifyStore.todos.length,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+        };
+        if (mid.stored === '版本1') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      const draft = document.querySelector('#todos-dialog-list .todo-edit');
+      if (draft) {
+        draft.focus();
+        draft.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      }
+      const endWait = Date.now();
+      let saved = null;
+      while (Date.now() - endWait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        saved = {
+          stored: row && row.text,
+          editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+          count: window.__sopifyStore.todos.length,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+        };
+        if (saved.stored === '版本2' && !saved.editing) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return { mid, saved };
+    })()`);
+    check(
+      'a late save ack keeps the newer draft',
+      delayedEdit.mid
+        && delayedEdit.mid.stored === '版本1'
+        && delayedEdit.mid.value === '版本2'
+        && delayedEdit.mid.editing
+        && delayedEdit.mid.count === 2
+        && JSON.stringify(delayedEdit.mid.ids) === JSON.stringify(['t1', 't2'])
+        && delayedEdit.saved
+        && delayedEdit.saved.stored === '版本2'
+        && !delayedEdit.saved.editing
+        && delayedEdit.saved.count === 2
+        && JSON.stringify(delayedEdit.saved.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(delayedEdit),
+    );
+
     const longTodo = '一二三四五六七八九十一二三四五六七八九十多出来';
     const clipTodo = [...longTodo].slice(0, 20).join('');
     await loadSeed(1440, 900, {

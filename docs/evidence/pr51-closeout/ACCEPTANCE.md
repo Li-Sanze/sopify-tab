@@ -18,5 +18,8 @@ Columns: static, stub, real extension, Mac, system IME. `未测` means this run 
 | C test isolation | profiles under `SOPIFY_RUN_ROOT`; no global `sopify-*` kill | supervisor parallel test; browser profiles are per run | n/a | 未测 | 未测 |
 | Toast undo still separate from window retry | `#toast-action` and `#workset-retry-unopened` | w13 undo; browser partial restore still uses 重试未打开 | n/a | 未测 | 未测 |
 | Space view | default off in `extension/newtab.js` | not opened by the gate | 未测 | 未测 | 未测 |
+| Stale todo save keeps the newer draft | `beginTodoTextEdit` in `extension/newtab.js` | w13 `a late save ack keeps the newer draft` | n/a | 未测 | 未测 |
+| Stale reopen ack does not replace a newer close | `reopenClosed` compares `toastGen` | `tests/test-r1-r7-browser.js` `a late reopen ack does not replace a newer close` | n/a | 未测 | 未测 |
+| ERR_ACCESS_DENIED on Sanze's new tab | not introduced by the commits after `9e826fa`; manifest blob is identical | Chrome for Testing on this tip opens `chrome://newtab` as the extension page, kicker 下一件事, no access error | 未测 on the Mac path `/Users/weixin.li/code/github/sopify-tab/extension` (that checkout was `9e826fa`) | 未测 | 未测 |
 
 `.sopify/` was not edited. Those Wave / Host / sidebar notes stay historical.

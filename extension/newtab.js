@@ -2206,13 +2206,16 @@
         return;
       }
       saving = true;
+      const submitted = nextText;
       const next = state.todos.map((t) => (
-        t.id === id ? { id: t.id, text: nextText, done: t.done } : t
+        t.id === id ? { id: t.id, text: submitted, done: t.done } : t
       ));
       const saved = await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
       saving = false;
       if (settled) return;
       if (!saved) return;
+      const live = input.isConnected ? input.value.trim() : submitted;
+      if (live !== submitted) return;
       settled = true;
       if (dialog.open) openTodosDialog(reason === 'blur' ? { keepFocus: true } : undefined);
       if (reason !== 'blur') focusText();
@@ -2261,22 +2264,27 @@
   async function reopenClosed() {
     if (reopenBusy) return;
     const pending = lastClosedUrls.slice();
+    const epoch = toastGen;
     if (!pending.length || !hasTabs) return;
     reopenBusy = true;
     const opened = [];
     const failed = [];
     try {
       for (const url of pending) {
+        if (epoch !== toastGen) return;
         try {
           await chrome.tabs.create({ url });
+          if (epoch !== toastGen) return;
           opened.push(url);
         } catch {
+          if (epoch !== toastGen) return;
           failed.push(url);
         }
       }
     } finally {
       reopenBusy = false;
     }
+    if (epoch !== toastGen) return;
     lastClosedUrls = failed.slice();
     if (!failed.length) {
       toast(opened.length === 1 ? '已重新打开' : `已重新打开 ${opened.length} 个`);
