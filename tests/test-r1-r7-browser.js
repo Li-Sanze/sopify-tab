@@ -1740,16 +1740,28 @@ async function main() {
         hidden: document.getElementById('toast-action').hidden,
         retry: document.getElementById('workset-retry-unopened').hidden,
       };
+      document.querySelector('[data-view="desk"]').click();
       document.getElementById('resume-act').click();
-      await new Promise((r) => setTimeout(r, 40));
-      const replaced = {
-        label: document.getElementById('toast-action').textContent,
-        created: window.__sopifyCreated.map((t) => t.url),
-        done: (window.__sopifyStore.todos.find((item) => item.id === 't1') || {}).done,
-      };
+      const undoWait = Date.now();
+      let replaced = null;
+      while (Date.now() - undoWait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        replaced = {
+          label: document.getElementById('toast-action').textContent,
+          created: window.__sopifyCreated.map((t) => t.url),
+          done: !!(row && row.done),
+        };
+        if (replaced.done && replaced.label === '撤销') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
       document.getElementById('toast-action').click();
-      await new Promise((r) => setTimeout(r, 40));
-      const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+      const backWait = Date.now();
+      let row = null;
+      while (Date.now() - backWait < 3000) {
+        row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        if (row && row.done === false) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
       return {
         closed,
         mid,

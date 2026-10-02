@@ -187,7 +187,7 @@ assert.ok(moveBody.includes('requestCollectionCommit'));
 assert.ok(moveBody.includes("op: 'move'") && moveBody.includes("to: 'front'"));
 assert.ok(moveBody.includes('confirmDeskWrite') && moveBody.includes("adoptCollection('todos'"));
 assert.ok(moveBody.includes('这条已在另一页删掉了') && moveBody.includes('没存上，再点一次') && moveBody.includes("toast('已设为下一件')"));
-const todosDialogBody = fnBody(js, 'function openTodosDialog()');
+const todosDialogBody = fnBody(js, 'function openTodosDialog(');
 assert.ok(todosDialogBody.includes('设为下一件') && todosDialogBody.includes('data-todo-next'));
 const editBody = fnBody(js, 'function beginTodoTextEdit(id)');
 assert.ok(editBody.includes('createImeGuard()') && editBody.includes('replaceTodos('));
@@ -663,22 +663,59 @@ async function main() {
       req.on('timeout', () => { req.destroy(); resolve(false); });
     });
   }
+  function listenerPid(port) {
+    if (process.platform === 'linux') {
+      const hex = Number(port).toString(16).toUpperCase().padStart(4, '0');
+      const tcp = fs.readFileSync('/proc/net/tcp', 'utf8');
+      let inode = '';
+      for (const line of tcp.split('\n')) {
+        const parts = line.trim().split(/\s+/);
+        if (!parts[1] || !parts[1].toUpperCase().endsWith(':' + hex)) continue;
+        if (parts[3] !== '0A') continue;
+        inode = parts[9];
+        break;
+      }
+      if (!inode) return null;
+      const needle = `socket:[${inode}]`;
+      for (const pid of fs.readdirSync('/proc')) {
+        if (!/^\d+$/.test(pid)) continue;
+        let fds;
+        try { fds = fs.readdirSync(`/proc/${pid}/fd`); } catch { continue; }
+        for (const fd of fds) {
+          try {
+            if (fs.readlinkSync(`/proc/${pid}/fd/${fd}`) === needle) return Number(pid);
+          } catch { /* fd disappeared */ }
+        }
+      }
+      return null;
+    }
+    const out = spawnSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' });
+    const pid = Number(String(out.stdout || '').trim().split('\n')[0]);
+    return Number.isFinite(pid) && pid > 0 ? pid : null;
+  }
+  function processGroup(pid) {
+    if (process.platform === 'linux') {
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const rest = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+      return Number(rest[2]);
+    }
+    const out = spawnSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' });
+    const group = Number(String(out.stdout || '').trim());
+    return Number.isFinite(group) ? group : null;
+  }
   async function assertThisProcess(port, child, profile) {
     const portFile = path.join(profile, 'DevToolsActivePort');
-    const start = Date.now();
-    let listed = '';
-    while (Date.now() - start < 4000) {
-      if (fs.existsSync(portFile)) {
-        listed = String(fs.readFileSync(portFile, 'utf8').split('\n')[0] || '').trim();
-        if (listed) break;
-      }
-      await sleep(40);
+    if (fs.existsSync(portFile)) {
+      const listed = String(fs.readFileSync(portFile, 'utf8').split('\n')[0] || '').trim();
+      assert.strictEqual(listed, String(port), `DevToolsActivePort ${listed || '(empty)'} is not this launch`);
     }
-    assert.strictEqual(listed, String(port), `DevToolsActivePort ${listed || '(empty)'} is not this launch`);
     const args = commandLine(child.pid);
     assert.ok(args.includes(`--remote-debugging-port=${port}`), `cmdline missing this port: ${args.slice(0, 240)}`);
     assert.ok(args.includes(profile), 'cmdline missing this profile');
     assert.strictEqual(child.exitCode, null, 'chrome exited before the check');
+    const owner = listenerPid(port);
+    assert.ok(owner, `nothing is listening on ${port}`);
+    assert.strictEqual(processGroup(owner), processGroup(child.pid), `port ${port} is pid ${owner}, not this chrome ${child.pid}`);
   }
   async function openChrome(fixedPort) {
     const port = fixedPort || await freePort();
