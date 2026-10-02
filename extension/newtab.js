@@ -1903,7 +1903,7 @@
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
               <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
-              <span>${esc(t.text)}</span>
+              <button type="button" class="todo-text" data-todo-text="${esc(t.id)}">${esc(t.text)}</button>
             </label>
             ${promote}
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
@@ -1923,6 +1923,13 @@
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
     body.onclick = async (e) => {
+      const textBtn = e.target.closest('[data-todo-text]');
+      if (textBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        beginTodoTextEdit(textBtn.dataset.todoText);
+        return;
+      }
       const nextBtn = e.target.closest('[data-todo-next]');
       if (nextBtn) {
         const id = nextBtn.dataset.todoNext;
@@ -1976,6 +1983,68 @@
     const nextBox = body.querySelector('input[type="checkbox"][data-todo-id]');
     if (nextBox) nextBox.focus();
     else if (focusInput) focusInput.focus();
+  }
+
+  function beginTodoTextEdit(id) {
+    const dialog = $('#ops-todos-dialog');
+    const body = $('#ops-todos-dialog-body');
+    if (!dialog || !body || body.querySelector('.todo-edit')) return;
+    const item = state.todos.find((t) => t && t.id === id);
+    if (!item) return;
+    const textBtn = body.querySelector(`[data-todo-text="${cssEscape(id)}"]`);
+    if (!textBtn) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'field todo-edit';
+    input.value = item.text;
+    input.setAttribute('aria-label', '修改待办');
+    input.autocomplete = 'off';
+    textBtn.replaceWith(input);
+    let settled = false;
+    const focusText = () => {
+      const again = body.querySelector(`[data-todo-text="${cssEscape(id)}"]`);
+      if (again) again.focus();
+    };
+    const finish = async (commit) => {
+      if (settled) return;
+      settled = true;
+      const nextText = input.value.trim();
+      if (!commit || !nextText || nextText === String(item.text || '').trim()) {
+        if (dialog.open) openTodosDialog();
+        focusText();
+        return;
+      }
+      const next = state.todos.map((t) => (
+        t.id === id ? { id: t.id, text: nextText, done: t.done } : t
+      ));
+      const saved = await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
+      if (dialog.open) openTodosDialog();
+      focusText();
+      if (!saved) return;
+    };
+    const editIme = createImeGuard();
+    input.addEventListener('compositionstart', () => editIme.onCompositionStart());
+    input.addEventListener('compositionend', () => editIme.onCompositionEnd());
+    input.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.key === 'Process' || editIme.blocks(e)) {
+        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Process') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      finish(e.key === 'Enter');
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (input.isConnected && document.activeElement !== input) finish(true);
+      }, 0);
+    });
+    input.focus();
+    input.select();
   }
 
   async function closeTab(id) {

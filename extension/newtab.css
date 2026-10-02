@@ -979,6 +979,12 @@ dialog.ops-dialog::backdrop {
 .todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-ink); cursor: pointer; flex: none; }
 .todo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
 .todo.done span { color: var(--ink-3); text-decoration: line-through; }
+.todo .todo-text {
+  flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; line-height: 1.4;
+  text-align: left; color: inherit; cursor: text;
+}
+.todo.done .todo-text { color: var(--ink-3); text-decoration: line-through; }
+.todo .todo-edit { flex: 1; min-width: 0; width: auto; min-height: 32px; padding: 4px 8px; }
 .todo-next {
   flex: none;
   padding: 4px 8px;

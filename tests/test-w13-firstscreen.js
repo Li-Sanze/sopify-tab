@@ -189,6 +189,10 @@ assert.ok(moveBody.includes('confirmDeskWrite') && moveBody.includes("adoptColle
 assert.ok(moveBody.includes('这条已在另一页删掉了') && moveBody.includes('没存上，再点一次') && moveBody.includes("toast('已设为下一件')"));
 const todosDialogBody = fnBody(js, 'function openTodosDialog()');
 assert.ok(todosDialogBody.includes('设为下一件') && todosDialogBody.includes('data-todo-next'));
+const editBody = fnBody(js, 'function beginTodoTextEdit(id)');
+assert.ok(editBody.includes('createImeGuard()') && editBody.includes('replaceTodos('));
+assert.ok(editBody.includes("e.key === 'Enter'") && editBody.includes('editIme.blocks(e)'));
+assert.ok(todosDialogBody.includes('data-todo-text') && todosDialogBody.includes('beginTodoTextEdit'));
 assert.ok(!js.includes('draggable'), '3b.2 does not add drag sorting');
 assert.ok(css.includes('.todo:hover > .todo-next') && css.includes('.todo:focus-within > .todo-next'));
 assert.ok(/@media \(max-width: 600px\) \{[\s\S]*\.todo-next \{ opacity: 1; pointer-events: auto; \}/.test(css));
@@ -1198,6 +1202,155 @@ async function main() {
       'failed move says to click again',
       failedMove.text === '没存上，再点一次' && !failedMove.hidden && failedMove.still && JSON.stringify(failedMove.ids) === JSON.stringify(['t1', 't2', 'done', 't3']),
       JSON.stringify(failedMove),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [
+        { id: 't1', text: '待办1', done: false },
+        { id: 't2', text: '待办2', done: false },
+      ],
+      sites: [],
+    });
+    const editEnter = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      const box = document.querySelector('#todos-dialog-list [data-todo-id="t1"]');
+      const checked = box.checked;
+      document.querySelector('#todos-dialog-list [data-todo-text="t1"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      if (!input) return { missing: true, checked };
+      const stillChecked = box.checked;
+      input.value = '改过的第一件';
+      input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+      const composing = new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true, cancelable: true });
+      const prevented = !input.dispatchEvent(composing);
+      const during = {
+        text: (window.__sopifyStore.todos.find((item) => item.id === 't1') || {}).text,
+        editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+        count: window.__sopifyStore.todos.length,
+      };
+      input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 50));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        const shown = document.querySelector('#todos-dialog-list [data-todo-text="t1"]');
+        snap = {
+          title: document.getElementById('resume-title').textContent,
+          text: row && row.text,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          count: window.__sopifyStore.todos.length,
+          open: document.getElementById('ops-todos-dialog').open,
+          editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+          shown: shown ? shown.textContent : '',
+          checked: box.checked,
+        };
+        if (snap.text === '改过的第一件' && snap.title === '改过的第一件' && !snap.editing && snap.shown === '改过的第一件') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return { prevented, during, stillChecked, checked, snap };
+    })()`);
+    check(
+      'composition Enter does not rename a todo',
+      editEnter.prevented === true
+        && editEnter.during.text === '待办1'
+        && editEnter.during.editing
+        && editEnter.during.count === 2
+        && editEnter.checked === false
+        && editEnter.stillChecked === false,
+      JSON.stringify(editEnter),
+    );
+    check(
+      'Enter renames the first todo and the first screen',
+      editEnter.snap
+        && editEnter.snap.text === '改过的第一件'
+        && editEnter.snap.title === '改过的第一件'
+        && editEnter.snap.shown === '改过的第一件'
+        && editEnter.snap.count === 2
+        && editEnter.snap.open
+        && !editEnter.snap.editing
+        && JSON.stringify(editEnter.snap.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(editEnter),
+    );
+    await evalJson(`(() => {
+      document.querySelector('#todos-dialog-list [data-todo-text="t2"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.focus();
+      input.value = '不该留下';
+      return document.activeElement === input;
+    })()`);
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    const editEsc = await evalJson(`(() => {
+      const row = window.__sopifyStore.todos.find((item) => item.id === 't2');
+      return {
+        open: document.getElementById('ops-todos-dialog').open,
+        editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+        text: row && row.text,
+        title: document.getElementById('resume-title').textContent,
+        count: window.__sopifyStore.todos.length,
+        ids: window.__sopifyStore.todos.map((item) => item.id),
+      };
+    })()`);
+    check(
+      'Escape cancels a todo rename and leaves the dialog open',
+      editEsc.open && !editEsc.editing && editEsc.text === '待办2' && editEsc.title === '改过的第一件' && editEsc.count === 2 && JSON.stringify(editEsc.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(editEsc),
+    );
+    const editEmpty = await evalJson(`(async () => {
+      document.querySelector('#todos-dialog-list [data-todo-text="t2"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.value = '';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 40));
+      const row = window.__sopifyStore.todos.find((item) => item.id === 't2');
+      return {
+        text: row && row.text,
+        count: window.__sopifyStore.todos.length,
+        ids: window.__sopifyStore.todos.map((item) => item.id),
+        editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+        open: document.getElementById('ops-todos-dialog').open,
+      };
+    })()`);
+    check(
+      'empty rename cancels instead of deleting',
+      editEmpty.text === '待办2' && editEmpty.count === 2 && !editEmpty.editing && editEmpty.open && JSON.stringify(editEmpty.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(editEmpty),
+    );
+    const editBlur = await evalJson(`(async () => {
+      document.querySelector('#todos-dialog-list [data-todo-text="t2"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.value = '失焦也存';
+      document.getElementById('todo-input-dialog').focus();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't2');
+        snap = {
+          text: row && row.text,
+          title: document.getElementById('resume-title').textContent,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          count: window.__sopifyStore.todos.length,
+          editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+        };
+        if (snap.text === '失焦也存' && !snap.editing) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      'blur saves a later todo without changing the first screen',
+      editBlur.text === '失焦也存'
+        && editBlur.title === '改过的第一件'
+        && !editBlur.editing
+        && editBlur.count === 2
+        && JSON.stringify(editBlur.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(editBlur),
     );
 
     await loadSeed(1440, 900, { todos: [], sites: [] });
