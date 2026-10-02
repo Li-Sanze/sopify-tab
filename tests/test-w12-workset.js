@@ -69,12 +69,16 @@ assert.ok(/w\.id === id \? \{ id: w\.id, name: next, savedAt: w\.savedAt, tabs: 
 assert.ok(js.includes('function saveThisWindow') && js.includes('function confirmInPage'));
 assert.ok(!/window\.confirm\s*\(/.test(js) && !/window\.alert\s*\(/.test(js), 'confirms stay in the page');
 assert.ok(html.includes('id="ops-confirm-dialog"'));
-assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
-assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
+assert.ok(js.includes('存这一份会替换最早的') && js.includes("confirmLabel: '替换'"), 'full cap prompts replace, no silent drop');
+const fullConfirm = js.slice(js.indexOf("title: '已经存了 '"), js.indexOf("title: '清空全部存下的窗口？'"));
+assert.ok(fullConfirm.includes('danger: false') && !fullConfirm.includes('focusConfirm'), 'replace confirm is not danger and keeps cancel focused');
+assert.ok(js.includes('只能存前 ') && js.includes('存前 ') && js.includes('WORKSET_TAB_CAP') && js.includes('focusConfirm: true'), '>50 tabs prompts and focuses confirm');
+assert.ok(/\(spec\.focusConfirm === true \? ok : cancel\)\.focus\(\)/.test(js), 'default focus follows the scenario');
 const restoreFn = js.slice(js.indexOf('async function restoreWorksetById'), js.indexOf('async function deleteWorksetById'));
 assert.ok(restoreFn.includes('chrome.tabs.create') && restoreFn.includes('activateTab'));
 assert.ok(!/tabs\.remove/.test(restoreFn), 'restore must not close other tabs');
-assert.ok(js.includes('清空全部存下的窗口？') || js.includes('清空全部存下的窗口'));
+assert.ok(js.includes("title: '清空全部存下的窗口？'"));
+assert.ok(js.includes('只影响这台电脑，清空后找不回来。'));
 
 const setKeys = [...js.matchAll(/storage\.local\.set\(\s*\{([^}]+)\}/g)].map((m) => m[1]);
 for (const chunk of setKeys) {

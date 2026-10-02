@@ -171,7 +171,8 @@ assert.ok(css.includes('.studio-desk .shelf textarea.note:focus-visible'));
 assert.ok(theme.includes('--studio-danger:'));
 assert.ok(!/window\.confirm\s*\(|window\.alert\s*\(/.test(js));
 assert.ok(html.includes('id="ops-confirm-dialog"') && js.includes('function confirmInPage'));
-assert.ok(html.includes('只有这一页') && html.includes('都存在这台电脑上。'));
+assert.ok(html.includes('只有这一页') && html.includes('打开几个网页后，可以在这里存下来') && html.includes('都存在这台电脑上。'));
+assert.ok(js.includes('打开几个网页后，可以在这里存下来') && !js.includes('新标签页本身不会写进存下的窗口。'));
 assert.ok(html.includes('跟随系统时，随电脑的白天和夜晚切换。'));
 assert.ok(html.includes('>实验</h2>') && html.includes('在常用站下面放一张 3D 书桌。默认关闭。'));
 assert.ok(!html.includes('localhost 端口只是标签'));
@@ -1162,9 +1163,18 @@ async function main() {
       const btn = document.getElementById('worksets-clear');
       btn.click();
       const d = document.getElementById('ops-confirm-dialog');
-      return { open: d.open, err: d.dataset.confirmError || '', title: document.getElementById('ops-confirm-title').textContent };
+      const focus = document.activeElement;
+      return {
+        open: d.open,
+        err: d.dataset.confirmError || '',
+        title: document.getElementById('ops-confirm-title').textContent,
+        body: document.getElementById('ops-confirm-body').textContent,
+        ok: document.getElementById('ops-confirm-ok').textContent,
+        danger: document.getElementById('ops-confirm-ok').classList.contains('danger'),
+        focus: focus ? focus.id : '',
+      };
     })()`);
-    check('clear opens the in-page confirm', confirmOpened && confirmOpened.open === true && confirmOpened.title === '清空全部存下的窗口', JSON.stringify(confirmOpened));
+    check('clear opens the in-page confirm', confirmOpened && confirmOpened.open === true && confirmOpened.title === '清空全部存下的窗口？' && confirmOpened.body === '只影响这台电脑，清空后找不回来。' && confirmOpened.ok === '清空' && confirmOpened.danger === true && confirmOpened.focus === 'ops-confirm-cancel', JSON.stringify(confirmOpened));
     await cdp.send('Input.dispatchKeyEvent', {
       type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
     });

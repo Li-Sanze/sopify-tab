@@ -1381,7 +1381,7 @@
     const saveBtn = $('#workset-save');
     if (savable === 0) {
       if (lead) lead.textContent = '只有这一页';
-      if (sub) sub.textContent = '新标签页本身不会写进存下的窗口。';
+      if (sub) sub.textContent = '打开几个网页后，可以在这里存下来';
       if (saveBtn) {
         saveBtn.hidden = true;
         saveBtn.disabled = false;
@@ -1604,7 +1604,7 @@
         return;
       }
       delete dialog.dataset.confirmError;
-      cancel.focus();
+      (spec.focusConfirm === true ? ok : cancel).focus();
     });
   }
 
@@ -1623,10 +1623,11 @@
     if (proposal.overflow) {
       const n = proposal.totalTabs;
       const okTabs = await confirmInPage({
-        title: '超过 50 页',
-        body: '这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？',
-        confirmLabel: '只保存前 ' + WORKSET_TAB_CAP + ' 个',
+        title: '这个窗口有 ' + n + ' 个网页',
+        body: '只能存前 ' + WORKSET_TAB_CAP + ' 个。',
+        confirmLabel: '存前 ' + WORKSET_TAB_CAP + ' 个',
         danger: false,
+        focusConfirm: true,
       });
       if (!okTabs) {
         toast('未保存');
@@ -1637,10 +1638,10 @@
       const oldest = proposal.oldest;
       const label = oldest && oldest.name ? oldest.name : '最早的一条';
       const ok = await confirmInPage({
-        title: '已存满 5 个窗口',
-        body: `已存了 ${WORKSET_STORE_CAP} 个窗口，覆盖最早的『${label}』？`,
-        confirmLabel: '覆盖最早的',
-        danger: true,
+        title: '已经存了 ' + WORKSET_STORE_CAP + ' 个窗口',
+        body: '存这一份会替换最早的『' + label + '』。',
+        confirmLabel: '替换',
+        danger: false,
       });
       if (!ok) {
         toast('未保存');
@@ -1754,8 +1755,8 @@
   async function clearAllWorksets() {
     if (!(state.worksets || []).length) return;
     const ok = await confirmInPage({
-      title: '清空全部存下的窗口',
-      body: '清空全部存下的窗口？只影响本机，不可撤销。',
+      title: '清空全部存下的窗口？',
+      body: '只影响这台电脑，清空后找不回来。',
       confirmLabel: '清空',
       danger: true,
     });
