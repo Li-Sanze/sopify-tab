@@ -66,7 +66,9 @@ assert.strictEqual(persistCalls.length, 6, 'define + save + overwrite + delete +
 assert.ok(js.includes('function startRename'), 'inline rename');
 assert.ok(/w\.id === id \? \{ id: w\.id, name: next, savedAt: w\.savedAt, tabs: w\.tabs \}/.test(js),
   'rename writes only the name field');
-assert.ok(js.includes('function saveThisWindow') && js.includes("window.confirm"));
+assert.ok(js.includes('function saveThisWindow') && js.includes('function confirmInPage'));
+assert.ok(!/window\.confirm\s*\(/.test(js) && !/window\.alert\s*\(/.test(js), 'confirms stay in the page');
+assert.ok(html.includes('id="ops-confirm-dialog"'));
 assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
 assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
 const restoreFn = js.slice(js.indexOf('async function restoreWorksetById'), js.indexOf('async function deleteWorksetById'));

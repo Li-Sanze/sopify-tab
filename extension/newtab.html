@@ -98,7 +98,7 @@
             <div class="next" id="resume" data-has="pending">
               <p class="kicker" id="resume-kicker"><i class="dot" aria-hidden="true"></i>下一件事</p>
               <div class="next-filled">
-                <h1 class="next-title" id="resume-title" aria-live="polite"></h1>
+                <h1 class="next-title" id="resume-title" tabindex="-1" aria-live="polite"></h1>
                 <div class="next-actions">
                   <button type="button" class="fs-btn primary" id="resume-act">
                     <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
@@ -124,11 +124,11 @@
           <section class="shelf" aria-label="这个窗口、接着上次、随手记">
             <article class="col" aria-labelledby="window-h">
               <h2 class="col-h" id="window-h">这个窗口</h2>
-              <p class="col-lead" id="window-lead"><b>0</b> 个标签</p>
+              <p class="col-lead" id="window-lead">只有这一页</p>
               <div class="favs" id="window-favs" aria-hidden="true"></div>
-              <p class="col-sub" id="window-sub">还没有可以保存的网页</p>
+              <p class="col-sub" id="window-sub">新标签页本身不会写进存下的窗口。</p>
               <div class="col-actions">
-                <button type="button" class="fs-btn secondary" id="workset-save" disabled>保存这个窗口</button>
+                <button type="button" class="fs-btn secondary" id="workset-save" hidden>保存这个窗口</button>
                 <p class="desk-write-error" id="workset-save-error" role="alert" hidden></p>
               </div>
             </article>
@@ -255,8 +255,8 @@
 
       <section class="view" data-view="tabs" hidden aria-labelledby="tabs-h">
         <header class="viewhead">
-          <h1 id="tabs-h">当前标签</h1>
-          <p id="tabs-sub">当前标签与可保存网页分开计。按域名折叠，localhost 端口只是标签。</p>
+          <h1 id="tabs-h" tabindex="-1">当前标签</h1>
+          <p id="tabs-sub">0 个标签，来自 0 个网站</p>
         </header>
         <div class="tabtools">
           <label class="sr-only" for="tab-filter">筛选标签</label>
@@ -267,8 +267,8 @@
 
       <section class="view" data-view="settings" hidden aria-labelledby="settings-h">
         <header class="viewhead">
-          <h1 id="settings-h">设置</h1>
-          <p>外观随时可改，只存在本机。</p>
+          <h1 id="settings-h" tabindex="-1">设置</h1>
+          <p>都存在这台电脑上。</p>
         </header>
         <div class="settings-name">
           <label for="name">称呼</label>
@@ -297,14 +297,22 @@
                     <span>夜晚</span>
                   </label>
                 </div>
-                <p class="help">立刻生效；跟随系统随日夜，白天 / 夜晚不跟系统抢。</p>
+                <p class="help">跟随系统时，随电脑的白天和夜晚切换。</p>
               </div>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="s-experiment">
+            <div class="cardhead">
+              <h2 id="s-experiment">实验</h2>
+            </div>
+            <div class="cardbody form">
               <div class="frow">
                 <label class="space-view-opt" for="space-view-toggle">
                   <input type="checkbox" id="space-view-toggle">
-                  <span>空间视图（实验）</span>
+                  <span>空间视图</span>
                 </label>
-                <p class="help">在首屏下方显示 3D 书桌，默认关闭。</p>
+                <p class="help">在常用站下面放一张 3D 书桌。默认关闭。</p>
               </div>
             </div>
           </section>
@@ -325,6 +333,22 @@
           </section>
         </div>
       </section>
+
+      <dialog id="ops-confirm-dialog" class="ops-dialog" aria-labelledby="ops-confirm-title">
+        <div class="ops-dialog-inner">
+          <header class="ops-dialog-head">
+            <h2 id="ops-confirm-title"></h2>
+            <button type="button" class="desk3d-icon-close" id="ops-confirm-x" aria-label="关闭">×</button>
+          </header>
+          <div class="ops-dialog-body">
+            <p id="ops-confirm-body"></p>
+            <div class="ops-confirm-actions">
+              <button type="button" class="btn ghost" id="ops-confirm-cancel">取消</button>
+              <button type="button" class="btn" id="ops-confirm-ok">确认</button>
+            </div>
+          </div>
+        </div>
+      </dialog>
     </main>
   </div>
 

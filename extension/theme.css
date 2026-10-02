@@ -42,10 +42,6 @@ html[data-sky="day"] {
   --sky-ink-2: rgba(18, 32, 58, 0.8);
   --sky-ink-3: rgba(18, 32, 58, 0.58);
   --sky-text-shadow: none;
-  --accent: #235f7d;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(35, 95, 125, 0.12);
-  --link: #235f7d;
   --ok: #2c7a4e;
   --warn: #9a6b12;
   --danger: #b23b3b;
@@ -56,7 +52,6 @@ html[data-sky="day"] {
   --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.36) 0%, transparent 42%);
   --glass-primary: rgba(255, 254, 252, 0.92);
   --glass-secondary: rgba(253, 252, 249, 0.7);
-  --resume-edge: rgba(35, 95, 125, 0.12);
   --resume-glow: 0 10px 32px -18px rgba(18, 40, 64, 0.22);
   --struct: rgba(255, 255, 255, 0.5);
   --struct-edge: rgba(22, 34, 52, 0.08);
@@ -118,10 +113,6 @@ html[data-sky="night"] {
   --sky-ink-2: rgba(243, 246, 251, 0.78);
   --sky-ink-3: rgba(243, 246, 251, 0.6);
   --sky-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --accent: #3b8ac0;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(96, 170, 220, 0.18);
-  --link: #8cc6ea;
   --ok: #5fcf95;
   --warn: #e2b458;
   --danger: #ef7d7d;
@@ -132,7 +123,6 @@ html[data-sky="night"] {
   --glass-sheen: linear-gradient(165deg, rgba(255, 255, 255, 0.08) 0%, transparent 40%);
   --glass-primary: rgba(28, 38, 58, 0.74);
   --glass-secondary: rgba(22, 31, 48, 0.5);
-  --resume-edge: rgba(140, 198, 234, 0.14);
   --resume-glow: 0 14px 40px -18px rgba(0, 0, 0, 0.5);
   --struct: rgba(8, 14, 26, 0.56);
   --struct-edge: rgba(255, 255, 255, 0.08);
@@ -164,6 +154,49 @@ html[data-sky="night"] {
       rgba(214, 224, 242, 0.08) 68%,
       rgba(168, 184, 216, 0.04) 71%,
       transparent 76%);
+}
+
+/* Studio desk colors. data-theme="system" leaves data-sky as day or night,
+   so the resolved sky selects the same table. */
+html[data-theme="day"],
+html[data-sky="day"] {
+  --studio-paper: #f6f4ef;
+  --studio-ink: #262a33;
+  --studio-ink-2: #464b56;
+  --studio-muted: #5f6470;
+  --studio-faint: #80848d;
+  --studio-line: rgba(38, 42, 51, 0.1);
+  --studio-line-2: rgba(38, 42, 51, 0.2);
+  --studio-hover: rgba(38, 42, 51, 0.05);
+  --studio-accent: #b55c40;
+  --studio-accent-bg: #f5e2d8;
+  --studio-flash: rgba(181, 92, 64, 0.12);
+  --studio-solid: #fffefa;
+  --studio-wash-a: rgba(230, 217, 200, 0.5);
+  --studio-wash-b: rgba(227, 217, 235, 0.32);
+  --studio-field: rgba(38, 42, 51, 0.04);
+  --studio-field-hi: rgba(38, 42, 51, 0.07);
+  --studio-danger: #9d342c;
+}
+html[data-theme="night"],
+html[data-sky="night"] {
+  --studio-paper: #171b27;
+  --studio-ink: #eef0f4;
+  --studio-ink-2: #c9cdd6;
+  --studio-muted: #9ca1ae;
+  --studio-faint: #7c8190;
+  --studio-line: rgba(255, 255, 255, 0.08);
+  --studio-line-2: rgba(255, 255, 255, 0.18);
+  --studio-hover: rgba(255, 255, 255, 0.06);
+  --studio-accent: #e4ac86;
+  --studio-accent-bg: #4b3933;
+  --studio-flash: rgba(228, 172, 134, 0.14);
+  --studio-solid: #1f2432;
+  --studio-wash-a: rgba(91, 80, 115, 0.18);
+  --studio-wash-b: rgba(48, 80, 120, 0.14);
+  --studio-field: rgba(255, 255, 255, 0.04);
+  --studio-field-hi: rgba(255, 255, 255, 0.07);
+  --studio-danger: #f3b0a8;
 }
 
 /* Anti-flash on body, not html: a root fill would cover .sky (z-index: -1). */

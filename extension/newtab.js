@@ -1378,13 +1378,22 @@
       bindFaviconFallback(favs);
     }
     const sub = $('#window-sub');
-    if (sub) {
-      sub.textContent = savable
-        ? `${savable} 个网页可以存下，回头一键恢复`
-        : '还没有可以保存的网页';
-    }
     const saveBtn = $('#workset-save');
-    if (saveBtn) saveBtn.disabled = savable === 0;
+    if (savable === 0) {
+      if (lead) lead.textContent = '只有这一页';
+      if (sub) sub.textContent = '新标签页本身不会写进存下的窗口。';
+      if (saveBtn) {
+        saveBtn.hidden = true;
+        saveBtn.disabled = false;
+      }
+    } else {
+      if (lead) lead.innerHTML = `<b>${allCount}</b> 个标签`;
+      if (sub) sub.textContent = `${savable} 个网页可以存下，回头一键恢复`;
+      if (saveBtn) {
+        saveBtn.hidden = false;
+        saveBtn.disabled = false;
+      }
+    }
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
       : (filtered.length ? `${filtered.length} 个网页` : '');
@@ -1397,14 +1406,16 @@
     const groups = groupTabs(list);
     const allGroups = groupTabs(state.tabs);
     const savable = worksetTabs(state.tabs).length;
-    $('#tabs-sub').textContent = `当前标签 ${state.tabs.length} / 可保存网页 ${savable} · ${allGroups.length} 个域名，localhost 端口只是标签。`;
+    let tabsLine = `${state.tabs.length} 个标签，来自 ${allGroups.length} 个网站`;
+    if (savable !== state.tabs.length) tabsLine += `，其中 ${savable} 个可以存下`;
+    $('#tabs-sub').textContent = tabsLine;
     const filterOn = String(q || '').trim().length > 0;
     const closeTitle = filterOn ? '只关闭筛选里显示的这组' : '关闭这个域名下的标签';
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
           <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
-          <b>${esc(host)}</b><span class="count">${tabs.length}</span>
+          <b>${esc(host)}</b><span class="count" aria-label="${tabs.length} 个">${tabs.length}</span>
           <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">${esc(closeHostButtonLabel(tabsToCloseForHost(state.tabs, q, host).length))}</button>
         </div>
         ${tabs.map((t) => {
@@ -1538,6 +1549,65 @@
     col.classList.add('flash');
   }
 
+  function confirmInPage(opts) {
+    const dialog = $('#ops-confirm-dialog');
+    const title = $('#ops-confirm-title');
+    const body = $('#ops-confirm-body');
+    const ok = $('#ops-confirm-ok');
+    const cancel = $('#ops-confirm-cancel');
+    const closeX = $('#ops-confirm-x');
+    if (!dialog || !title || !body || !ok || !cancel) return Promise.resolve(false);
+    const spec = opts || {};
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    title.textContent = spec.title || '';
+    body.textContent = spec.body || '';
+    ok.textContent = spec.confirmLabel || '确认';
+    ok.classList.toggle('danger', spec.danger === true);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        dialog.removeEventListener('close', onClose);
+        dialog.removeEventListener('cancel', onCancel);
+        dialog.removeEventListener('click', onBackdrop);
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onNo);
+        if (closeX) closeX.removeEventListener('click', onNo);
+        if (dialog.open) dialog.close();
+        resolve(!!value);
+        const viewTitle = document.querySelector('.view.active h1') || $('#resume-kicker') || $('#main');
+        const back = trigger && trigger.isConnected && !dialog.contains(trigger) ? trigger : viewTitle;
+        if (back && typeof back.focus === 'function') back.focus();
+      };
+      const onOk = () => finish(true);
+      const onNo = () => finish(false);
+      const onClose = () => finish(false);
+      const onCancel = (event) => {
+        event.preventDefault();
+        finish(false);
+      };
+      const onBackdrop = (event) => {
+        if (event.target === dialog) finish(false);
+      };
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onNo);
+      if (closeX) closeX.addEventListener('click', onNo);
+      dialog.addEventListener('close', onClose);
+      dialog.addEventListener('cancel', onCancel);
+      dialog.addEventListener('click', onBackdrop);
+      try {
+        if (!dialog.open) dialog.showModal();
+      } catch (err) {
+        dialog.dataset.confirmError = err && err.message ? err.message : String(err);
+        finish(false);
+        return;
+      }
+      delete dialog.dataset.confirmError;
+      cancel.focus();
+    });
+  }
+
   async function saveThisWindow() {
     const planned = formOps().planWorksetSave(worksetSaveRecord, uid, Date.now());
     worksetSaveRecord = planned.record;
@@ -1552,7 +1622,12 @@
     }
     if (proposal.overflow) {
       const n = proposal.totalTabs;
-      const okTabs = window.confirm('这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？');
+      const okTabs = await confirmInPage({
+        title: '超过 50 页',
+        body: '这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？',
+        confirmLabel: '只保存前 ' + WORKSET_TAB_CAP + ' 个',
+        danger: false,
+      });
       if (!okTabs) {
         toast('未保存');
         return;
@@ -1561,7 +1636,12 @@
     if (proposal.reason === 'full') {
       const oldest = proposal.oldest;
       const label = oldest && oldest.name ? oldest.name : '最早的一条';
-      const ok = window.confirm(`已存了 ${WORKSET_STORE_CAP} 个窗口，覆盖最早的『${label}』？`);
+      const ok = await confirmInPage({
+        title: '已存满 5 个窗口',
+        body: `已存了 ${WORKSET_STORE_CAP} 个窗口，覆盖最早的『${label}』？`,
+        confirmLabel: '覆盖最早的',
+        danger: true,
+      });
       if (!ok) {
         toast('未保存');
         return;
@@ -1673,7 +1753,12 @@
 
   async function clearAllWorksets() {
     if (!(state.worksets || []).length) return;
-    const ok = window.confirm('清空全部存下的窗口？只影响本机，不可撤销。');
+    const ok = await confirmInPage({
+      title: '清空全部存下的窗口',
+      body: '清空全部存下的窗口？只影响本机，不可撤销。',
+      confirmLabel: '清空',
+      danger: true,
+    });
     if (!ok) return;
     const saved = await persistWorksets([]);
     if (!saved || saved.ok !== true) {

@@ -13,7 +13,7 @@ body {
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; }
 a { color: inherit; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+:focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 2px; border-radius: var(--r-sm); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 svg.i.sm { width: 14px; height: 14px; }
@@ -24,8 +24,18 @@ svg.i.sm { width: 14px; height: 14px; }
   min-height: 100dvh;
 }
 
-.main { padding: 38px 48px 72px; min-width: 0; container: desk / inline-size; }
-.view { display: none; max-width: 1240px; margin-inline: auto; }
+.main {
+  padding: 0 32px 32px;
+  max-width: calc(1040px + 64px);
+  margin-inline: auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  container: desk / inline-size;
+}
+.view { display: none; width: 100%; max-width: none; margin-inline: 0; min-width: 0; }
 .view.active { display: block; animation: rise var(--dur-slow) var(--out); }
 /* Inactive views must not keep a box. display:flex on .studio-desk used to beat .view { display:none }. */
 .view:not(.active) {
@@ -86,13 +96,13 @@ svg.i.sm { width: 14px; height: 14px; }
 .cardfoot .muted, .cardfoot .saved { font-size: 12.5px; color: var(--ink-3); }
 .linkbtn {
   display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border-radius: var(--r-sm);
-  color: var(--link); font-size: 13px; font-weight: 600; white-space: nowrap;
+  color: var(--studio-accent); font-size: 13px; font-weight: 600; white-space: nowrap;
   transition: background var(--dur) var(--out);
 }
-.linkbtn:hover { background: var(--accent-soft); }
+.linkbtn:hover { background: var(--studio-hover); }
 .linkbtn[disabled] { color: var(--ink-3); cursor: not-allowed; opacity: 0.6; }
 .linkbtn[hidden] { display: none; }
-.linkbtn.danger { color: var(--danger); }
+.linkbtn.danger { color: var(--studio-danger); }
 .cardbody { flex: 1; min-height: 0; }
 .empty {
   color: var(--ink-2);
@@ -106,12 +116,12 @@ svg.i.sm { width: 14px; height: 14px; }
   position: relative; z-index: 12;
   display: flex; flex-direction: column; gap: 10px;
   margin: 0; padding: 16px 18px 18px;
-  background: var(--glass-sheen), var(--glass-primary); border: 1px solid var(--resume-edge); border-radius: var(--r-xl);
+  background: var(--glass-sheen), var(--glass-primary); border: 1px solid var(--studio-line); border-radius: var(--r-xl);
   box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow-1);
   backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
 }
 .resume-kicker {
-  margin: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em;
+  margin: 0; font-size: 12.5px; font-weight: 700; color: var(--studio-accent); letter-spacing: 0.04em;
 }
 .resume-title {
   margin: 0; font-size: clamp(18px, 2.2cqi, 24px); font-weight: 600; letter-spacing: -0.02em;
@@ -130,45 +140,7 @@ svg.i.sm { width: 14px; height: 14px; }
   margin: clamp(40px, 7vh, 72px) 0 0;
 }
 
-/* —— Studio 03 whole-page frame (Sanze handoff) —— */
-html[data-sky="day"] {
-  --studio-paper: #f6f4ef;
-  --studio-ink: #262a33;
-  --studio-ink-2: #464b56;
-  --studio-muted: #5f6470;
-  --studio-faint: #80848d;
-  --studio-line: rgba(38, 42, 51, 0.1);
-  --studio-line-2: rgba(38, 42, 51, 0.2);
-  --studio-hover: rgba(38, 42, 51, 0.05);
-  --studio-accent: #b55c40;
-  --studio-accent-bg: #f5e2d8;
-  --studio-flash: rgba(181, 92, 64, 0.12);
-  --studio-solid: #fffefa;
-  --studio-wash-a: rgba(230, 217, 200, 0.5);
-  --studio-wash-b: rgba(227, 217, 235, 0.32);
-  --studio-field: rgba(38, 42, 51, 0.04);
-  --studio-field-hi: rgba(38, 42, 51, 0.07);
-  --studio-danger: #9d342c;
-}
-html[data-sky="night"] {
-  --studio-paper: #171b27;
-  --studio-ink: #eef0f4;
-  --studio-ink-2: #c9cdd6;
-  --studio-muted: #9ca1ae;
-  --studio-faint: #7c8190;
-  --studio-line: rgba(255, 255, 255, 0.08);
-  --studio-line-2: rgba(255, 255, 255, 0.18);
-  --studio-hover: rgba(255, 255, 255, 0.06);
-  --studio-accent: #e4ac86;
-  --studio-accent-bg: #4b3933;
-  --studio-flash: rgba(228, 172, 134, 0.14);
-  --studio-solid: #1f2432;
-  --studio-wash-a: rgba(91, 80, 115, 0.18);
-  --studio-wash-b: rgba(48, 80, 120, 0.14);
-  --studio-field: rgba(255, 255, 255, 0.04);
-  --studio-field-hi: rgba(255, 255, 255, 0.07);
-  --studio-danger: #f3b0a8;
-}
+/* Studio colors live in theme.css (data-theme / data-sky). */
 
 body:has(.studio-desk.active) {
   background: var(--studio-paper);
@@ -195,8 +167,8 @@ body:has(.studio-desk.active) .shell {
   grid-template-columns: minmax(0, 1fr);
 }
 body:has(.studio-desk.active) .main {
-  padding: 0 clamp(14px, 4.4vw, 64px) 0;
-  max-width: 1456px;
+  padding: 0 32px 32px;
+  max-width: calc(1040px + 64px);
   margin-inline: auto;
   width: 100%;
   min-height: 100dvh;
@@ -583,7 +555,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
   min-height: 40px;
 }
 .ops-subtle:hover { color: var(--studio-ink); }
-/* Global :focus-visible uses the old teal --accent. This control stays on the studio stroke. */
+/* Keyboard focus on 完成 stays a studio stroke. */
 #resume-act:focus-visible {
   outline: 2px solid var(--studio-accent);
   outline-offset: 2px;
@@ -644,7 +616,7 @@ body:has(.studio-desk.active) .view.studio-desk.active {
 .studio-saved .savedsets { margin-top: 0; }
 .studio-saved:focus { outline: none; }
 .studio-saved:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--studio-accent);
   outline-offset: 4px;
 }
 .studio-sites-label {
@@ -877,6 +849,9 @@ dialog.ops-dialog::backdrop {
   flex: 1 1 auto;
   overscroll-behavior: contain;
 }
+#ops-confirm-dialog { width: min(440px, calc(100vw - 32px)); }
+#ops-confirm-body { margin: 0; font-size: 15px; line-height: 1.55; color: var(--studio-ink); }
+.ops-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
 @container desk (max-width: 1100px) {
   .studio-body {
@@ -995,7 +970,7 @@ dialog.ops-dialog::backdrop {
 .todo { display: flex; align-items: center; gap: 10px; min-height: 42px; border-bottom: 1px solid var(--line); }
 .todo:last-child { border-bottom: 0; }
 .todo label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; padding: 6px 0; }
-.todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; flex: none; }
+.todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-ink); cursor: pointer; flex: none; }
 .todo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
 .todo.done span { color: var(--ink-3); text-decoration: line-through; }
 .iconbtn {
@@ -1010,7 +985,7 @@ dialog.ops-dialog::backdrop {
   transition: border-color var(--dur) var(--out), background var(--dur) var(--out), box-shadow var(--dur) var(--out);
 }
 .field:hover { background: var(--field-bg-hi); }
-.field:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.field:focus, .field:focus-visible { background: var(--field-bg-hi); border-color: var(--studio-accent); outline: none; box-shadow: 0 0 0 3px var(--studio-flash); }
 .field::placeholder { color: var(--ink-3); }
 .todoadd { margin-top: 10px; }
 #todo-add-dialog { display: flex; gap: 8px; align-items: center; }
@@ -1024,7 +999,7 @@ dialog.ops-dialog::backdrop {
   transition: background var(--dur) var(--out), border-color var(--dur) var(--out), box-shadow var(--dur) var(--out);
 }
 .notes:hover { background: var(--field-bg); }
-.notes:focus { background: var(--field-bg-hi); border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.notes:focus, .notes:focus-visible { background: var(--field-bg-hi); border-color: var(--studio-accent); outline: none; box-shadow: 0 0 0 3px var(--studio-flash); }
 .notes[hidden] { display: none; }
 .notes-preview {
   display: block; width: 100%; min-height: 42px; padding: 10px 12px;
@@ -1095,14 +1070,15 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 40px; padding: 0 16px; border-radius: var(--r-md);
-  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 14px; white-space: nowrap;
+  min-height: 40px; padding: 0 16px; border-radius: 999px;
+  background: var(--studio-ink); color: var(--studio-paper); font-weight: 600; font-size: 14px; white-space: nowrap;
   transition: opacity var(--dur) var(--out), transform var(--dur) var(--out), background var(--dur) var(--out);
 }
-.btn:hover { opacity: 0.92; }
+.btn:hover { background: color-mix(in srgb, var(--studio-ink) 86%, var(--studio-paper)); opacity: 1; }
 .btn:active { transform: translateY(1px); }
-.btn.ghost { background: var(--well); color: var(--ink); }
-.btn.ghost:hover { background: var(--well-2); opacity: 1; }
+.btn.ghost { background: transparent; color: var(--studio-ink); border: 1px solid var(--studio-line-2); }
+.btn.ghost:hover { background: var(--studio-hover); opacity: 1; }
+.btn.danger { background: var(--studio-danger); color: var(--studio-paper); }
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .themeseg {
@@ -1120,10 +1096,10 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 }
 .themeseg-opt:hover span { background: var(--field-bg-hi); }
 .themeseg-opt input:checked + span {
-  background: var(--accent-soft); border-color: var(--accent); color: var(--ink);
+  background: var(--studio-accent-bg); border-color: var(--studio-accent); color: var(--studio-ink);
 }
 .themeseg-opt input:focus-visible + span {
-  outline: 2px solid var(--accent); outline-offset: 2px;
+  outline: 2px solid var(--studio-accent); outline-offset: 2px;
 }
 
 .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: start; }
@@ -1150,11 +1126,17 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 
 .tabtools { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .tabtools .field { max-width: 420px; }
-.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+.groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .group { padding: 8px 16px 12px; }
 .grouphead { display: flex; align-items: center; gap: 10px; min-height: 52px; }
 .grouphead b { font-size: 15px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.grouphead .act { margin-left: auto; }
+.grouphead .count {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--studio-muted);
+}
+.grouphead .act { margin-left: auto; flex: none; }
 .tabrow {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
   min-height: 48px; padding: 8px 6px 8px 38px; border-radius: var(--r-md);
@@ -1185,7 +1167,7 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
-  .main { padding: 18px 14px 40px; }
+  .main { padding: 0 20px 32px; }
   .viewhead h1 { font-size: 22px; }
   .tabtools .field { max-width: none; }
   .groups, .settings { grid-template-columns: 1fr; }
@@ -1196,10 +1178,10 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 body .sky .air {
   inset: -10%;
 }
-body .shell { grid-template-columns: minmax(0, 1fr) !important; }
+body .shell { grid-template-columns: minmax(0, 1fr); }
 body .main {
-  padding: 0 clamp(14px, 4.4vw, 64px) 12px;
-  max-width: 1456px;
+  padding: 0 32px 32px;
+  max-width: calc(1040px + 64px);
   margin-inline: auto;
   width: 100%;
   min-height: 100dvh;
@@ -1212,12 +1194,12 @@ body .main {
 }
 .view[data-view="tabs"],
 .view[data-view="settings"] { padding-top: 8px; }
-/* Same column-flex trap as the desk. A definite width keeps the 1240px cap
-   (and centering via margin-inline: auto) without shrink-wrapping below the
-   top bar when the bar itself is narrower than 1240px. */
 body .view[data-view="tabs"].active,
 body .view[data-view="settings"].active {
-  width: min(1240px, 100%);
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  align-self: stretch;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1232,13 +1214,13 @@ body .view[data-view="settings"].active {
   }
 }
 
-/* —— v3 first screen. Tokens stay on --studio-* so theme.css shared vars are untouched. —— */
+/* —— v3 first screen. Studio colors are the theme.css data-theme table. —— */
 body.studio-home .main {
   padding: 0 32px 32px;
   max-width: calc(1040px + 64px);
 }
 .studio-desk [hidden] { display: none !important; }
-.studio-screen { width: 100%; max-width: 1040px; margin: 0 auto; }
+.studio-screen { width: 100%; max-width: none; margin: 0; }
 .hero { padding-top: clamp(20px, 4vh, 48px); }
 .eyebrow { margin: 0; font-size: 14px; color: var(--studio-muted); font-variant-numeric: tabular-nums; }
 .eyebrow #greet-word { color: var(--studio-ink-2); font-weight: 500; }
@@ -1624,6 +1606,12 @@ body .studio-topbar :focus-visible,
 }
 .view[data-view="settings"] .cardhead h2,
 .view[data-view="tabs"] .grouphead b,
+.view[data-view="tabs"] .grouphead .count {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--studio-muted);
+}
 .view[data-view="tabs"] .count,
 .view[data-view="settings"] .count,
 .view[data-view="settings"] .frow label,
@@ -1695,7 +1683,7 @@ html[data-sky="night"] .view[data-view="tabs"] .favicon:has(img.fav.ok) {
   color: var(--studio-faint);
 }
 .view[data-view="settings"] .linkbtn.danger {
-  color: var(--danger);
+  color: var(--studio-danger);
 }
 .view[data-view="settings"] .linkbtn.danger:hover {
   background: var(--studio-hover);
@@ -1771,7 +1759,7 @@ html[data-sky="night"] .view[data-view="tabs"] .favicon:has(img.fav.ok) {
   color: var(--studio-ink);
 }
 .view[data-view="settings"] input[type="checkbox"] {
-  accent-color: var(--studio-accent);
+  accent-color: var(--studio-ink);
 }
 .view[data-view="settings"] .space-view-opt {
   color: var(--studio-ink);

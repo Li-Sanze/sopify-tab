@@ -46,6 +46,7 @@ function hexToken(block, name) {
 
 const html = read('newtab.html');
 const css = read('newtab.css');
+const theme = read('theme.css');
 const js = read('newtab.js');
 const boot = read('desk-3d/boot.js');
 const desk = html.slice(html.indexOf('data-view="desk"'), html.indexOf('data-view="tabs"'));
@@ -71,8 +72,8 @@ assert.ok(js.includes('data.spaceView === true'));
 assert.ok(!/localStorage/.test(js));
 assert.ok(!/DESK_KEYS = \[[^\]]*spaceView/.test(js));
 
-const day = ruleBlock(css, 'html[data-sky="day"]');
-const night = ruleBlock(css, 'html[data-sky="night"]');
+const day = ruleBlock(theme, 'html[data-theme="day"]');
+const night = ruleBlock(theme, 'html[data-theme="night"]');
 const dayPaper = hexToken(day, '--studio-paper');
 const dayMuted = hexToken(day, '--studio-muted');
 const dayFaint = hexToken(day, '--studio-faint');
@@ -167,7 +168,15 @@ const nextInputFocusVis = css.indexOf('html[data-boot-focus] .next-input:focus-v
 assert.ok(studioFocusVis !== -1 && permanentInputFocus > studioFocusVis, 'permanent input rule follows the studio ring');
 assert.ok(nextInputFocusVis > studioFocusVis, 'boot input rule follows the studio ring');
 assert.ok(css.includes('.studio-desk .shelf textarea.note:focus-visible'));
-assert.ok(css.includes('--studio-danger:'));
+assert.ok(theme.includes('--studio-danger:'));
+assert.ok(!/window\.confirm\s*\(|window\.alert\s*\(/.test(js));
+assert.ok(html.includes('id="ops-confirm-dialog"') && js.includes('function confirmInPage'));
+assert.ok(html.includes('只有这一页') && html.includes('都存在这台电脑上。'));
+assert.ok(html.includes('跟随系统时，随电脑的白天和夜晚切换。'));
+assert.ok(html.includes('>实验</h2>') && html.includes('在常用站下面放一张 3D 书桌。默认关闭。'));
+assert.ok(!html.includes('localhost 端口只是标签'));
+assert.ok(/\.groups\s*\{[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css));
+assert.ok(!/body \.shell\s*\{[^}]*!important/.test(css));
 assert.ok(/z-index:\s*70/.test(braceBlock(css, '.toast')), 'toast z-index stays 70');
 
 assert.ok(html.includes('id="todos-open">全部待办'));
@@ -264,7 +273,7 @@ function stubSource(seed) {
       todos: seed.todos || [],
       notes: typeof seed.notes === 'string' ? seed.notes : '',
       name: seed.name || '',
-      worksets: [],
+      worksets: seed.worksets || [],
       spaceView: false,
       cwd: '',
       hostUpstream: 'cursor',
@@ -331,7 +340,7 @@ function stubSource(seed) {
         lastError: null,
       },
       tabs: {
-        query() { return Promise.resolve([]); },
+        query() { return Promise.resolve(seed.tabs || []); },
         onCreated: { addListener() {} },
         onRemoved: { addListener() {} },
         onUpdated: { addListener() {} },
@@ -1099,6 +1108,99 @@ async function main() {
     if (!exception.lblMax) failures.push('exception label max-width is not 6em');
     if (exception.lblTitle !== `${LONG_SITE}1`) failures.push(`exception label title=${exception.lblTitle}`);
     if (exception.homeSites !== 8 || !exception.moreHidden) failures.push('exception should render all 8 sites without 全部');
+
+    for (const [w, h] of [[1440, 900], [1280, 720], [900, 1000]]) {
+      await loadSeed(w, h, { todos: todoItems('1'), sites: siteItems(2, false) });
+      const edges = await evalJson(`(async () => {
+        const leftOf = (sel) => {
+          const el = document.querySelector(sel);
+          return el ? Math.round(el.getBoundingClientRect().left * 10) / 10 : null;
+        };
+        const views = [
+          ['desk', '.view.active h1', '.view.active .hero'],
+          ['tabs', '#tabs-h', '.view.active .viewhead'],
+          ['settings', '#settings-h', '.view.active .settings-name'],
+        ];
+        const rows = [];
+        for (const [view, titleSel, firstSel] of views) {
+          document.querySelector('.studio-navbtn[data-view="' + view + '"]').click();
+          await new Promise((r) => setTimeout(r, 40));
+          rows.push({
+            view,
+            brand: leftOf('.studio-brand'),
+            title: leftOf(titleSel),
+            first: leftOf(firstSel),
+          });
+        }
+        document.querySelector('.studio-navbtn[data-view="desk"]').click();
+        return rows;
+      })()`);
+      const brands = (edges || []).map((row) => row.brand);
+      const sameBrand = brands.length === 3 && brands.every((n) => Math.abs(n - brands[0]) <= 1);
+      const aligned = (edges || []).every((row) => Math.abs(row.brand - row.title) <= 1 && Math.abs(row.brand - row.first) <= 1);
+      check(`brand left matches across views at ${w}x${h}`, sameBrand && aligned, JSON.stringify(edges));
+    }
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      worksets: [{
+        id: 'keep',
+        name: '留下的窗口',
+        savedAt: 1,
+        tabs: [{ title: 'a', url: 'https://a.example/' }],
+      }],
+    });
+    await evalJson(`document.querySelector('.studio-navbtn[data-view="settings"]').click()`);
+    const listed = await waitUntil(
+      () => evalJson(`document.querySelectorAll('#saved-worksets .savedset').length`),
+      (n) => n === 1,
+      3000,
+    );
+    check('clear fixture lists the saved window', listed === 1, String(listed));
+    const confirmOpened = await evalJson(`(() => {
+      const btn = document.getElementById('worksets-clear');
+      btn.click();
+      const d = document.getElementById('ops-confirm-dialog');
+      return { open: d.open, err: d.dataset.confirmError || '', title: document.getElementById('ops-confirm-title').textContent };
+    })()`);
+    check('clear opens the in-page confirm', confirmOpened && confirmOpened.open === true && confirmOpened.title === '清空全部存下的窗口', JSON.stringify(confirmOpened));
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    const afterEsc = await waitUntil(
+      () => evalJson(`({
+        open: document.getElementById('ops-confirm-dialog').open,
+        stored: window.__sopifyStore.worksets.length,
+        rows: document.querySelectorAll('#saved-worksets .savedset').length,
+      })`),
+      (row) => row && row.open === false,
+      2000,
+    );
+    check('clear Esc does not delete', confirmOpened && confirmOpened.open === true && afterEsc && afterEsc.open === false && afterEsc.stored === 1 && afterEsc.rows === 1, JSON.stringify(afterEsc));
+    await sleep(50);
+    const cleared = await evalJson(`(async () => {
+      const btn = document.getElementById('worksets-clear');
+      btn.click();
+      const d = document.getElementById('ops-confirm-dialog');
+      const syncOpen = d.open;
+      const err = d.dataset.confirmError || '';
+      if (syncOpen) document.getElementById('ops-confirm-ok').click();
+      await new Promise((r) => setTimeout(r, 80));
+      return {
+        syncOpen,
+        err,
+        stillOpen: d.open,
+        stored: window.__sopifyStore.worksets.length,
+        text: document.getElementById('saved-worksets').textContent,
+      };
+    })()`);
+    check('clear confirm empties the list', cleared.syncOpen === true && cleared.stillOpen === false && cleared.stored === 0 && cleared.text.includes('还没有存下的窗口'), JSON.stringify(cleared));
+    const desk3dNet = await evalJson(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /embed\\.js|scene\\.js|three\\.module/.test(n))`);
+    check('space view off skips desk-3d payload', Array.isArray(desk3dNet) && desk3dNet.length === 0, JSON.stringify(desk3dNet));
 
     console.log('size\ttodos\tsites\toverflow_px\twheel_scrollTop\tlines\tresult');
     for (const row of rows) {
