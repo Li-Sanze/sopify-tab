@@ -71,7 +71,7 @@ write_summary() {
     printf '  %s\n' "${ran[@]}"
   fi
   echo "reliability summary: ${pass_n} pass, ${fail_n} fail, ${skip_n} skip, denominator ${total}"
-  echo "reliability denominator: static and stub segments in this script. Real extension, OS IME, and 3D runtime are not included."
+  echo "reliability denominator: static and stub segments in this script. Real-extension checks are inside tests/test-r1-r7-browser.js. OS IME and the 3D runtime are not included."
   local summary_dir="${SOPIFY_ARTIFACT_DIR:-/tmp/sopify-reliability}"
   mkdir -p "$summary_dir"
   local summary_file="$summary_dir/reliability-parts.json"

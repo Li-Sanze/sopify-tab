@@ -5,7 +5,7 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const net = require('net');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
@@ -43,24 +43,50 @@ function isThisExtensionTarget(target, extensionId) {
   return url === prefix || url.startsWith(prefix + '/');
 }
 
+function targetBlob(target) {
+  return [target && target.url, target && target.title].filter(Boolean).join(' ');
+}
+
+function mentionsExtension(target, extensionId) {
+  const id = String(extensionId || '');
+  if (!id) return false;
+  const blob = targetBlob(target);
+  return blob.includes('chrome-extension://' + id + '/') || blob === 'chrome-extension://' + id;
+}
+
+function isExtensionWorker(target) {
+  const type = String(target && target.type || '');
+  return type === 'service_worker' || type === 'background_page';
+}
+
 function classifyExtensionTargets(targets, extensionId) {
   const list = Array.isArray(targets) ? targets : [];
-  const ours = list.filter((target) => isThisExtensionTarget(target, extensionId));
-  const foreign = list.filter((target) => /^chrome-extension:/.test(String(target && target.url || '')) && !isThisExtensionTarget(target, extensionId));
+  const id = String(extensionId || '');
+  const ours = list.filter((target) => isExtensionWorker(target) && mentionsExtension(target, id));
   if (ours.length) {
-    return { ok: true, id: extensionId, detail: ours[0].url || '', foreign: foreign.length };
+    const sample = ours[0];
+    return {
+      ok: true,
+      id,
+      kind: 'service_worker',
+      detail: String(sample.url || sample.title || ''),
+    };
   }
+  const foreign = list.filter((target) => /chrome-extension:\/\//.test(targetBlob(target)) && !mentionsExtension(target, id));
   if (foreign.length) {
+    const sample = foreign[0];
     return {
       ok: false,
-      id: extensionId,
-      detail: 'foreign extension target is not ' + extensionId + ': ' + (foreign[0].url || ''),
+      id,
+      kind: 'foreign',
+      detail: 'foreign extension target is not ' + id + ': ' + String(sample.url || sample.title || ''),
     };
   }
   return {
     ok: false,
-    id: extensionId,
-    detail: 'CLI load did not expose chrome-extension://' + extensionId + '/; branded Chrome ignores --load-extension',
+    id,
+    kind: 'absent',
+    detail: 'service worker for chrome-extension://' + id + '/ was not in the target list',
   };
 }
 
@@ -81,6 +107,30 @@ function assertExtensionIdentity() {
   if (!/foreign extension/.test(onlyForeign.detail)) throw new Error('foreign-only check did not fail');
   const titled = classifyExtensionTargets([{ url: 'about:blank', title: 'Sopify Tab' }], id);
   if (titled.ok) throw new Error('a Sopify title counted as this extension');
+  const absent = classifyExtensionTargets([], id);
+  if (absent.ok) throw new Error('empty targets counted as this extension');
+  if (/ignores --load-extension/.test(absent.detail)) throw new Error('missing worker blamed branded Chrome');
+  const worker = classifyExtensionTargets([
+    {
+      type: 'service_worker',
+      url: 'chrome-extension://' + id + '/background.js',
+      title: 'Service Worker chrome-extension://' + id + '/background.js',
+    },
+    foreign,
+  ], id);
+  if (!worker.ok) throw new Error('own service worker was rejected: ' + worker.detail);
+  const titledWorker = classifyExtensionTargets([{
+    type: 'service_worker',
+    url: '',
+    title: 'Service Worker chrome-extension://' + id + '/background.js',
+  }], id);
+  if (!titledWorker.ok) throw new Error('service worker title was rejected');
+  const pageOnly = classifyExtensionTargets([{
+    type: 'page',
+    url: 'chrome-extension://' + id + '/newtab.html',
+    title: 'chrome-extension://' + id + '/newtab.html',
+  }], id);
+  if (pageOnly.ok) throw new Error('a page url without a service worker counted as loaded');
   console.log('extension id check: foreign target fails, id ' + id);
 }
 
@@ -311,6 +361,287 @@ function serve(root, hits) {
     });
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
+}
+
+function getJson(port, pathname) {
+  return new Promise((resolve, reject) => {
+    const req = http.get({ host: '127.0.0.1', port, path: pathname }, (res) => {
+      let buf = '';
+      res.on('data', (d) => { buf += d; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
+      });
+    });
+    req.on('error', reject);
+  });
+}
+
+function chromeProductLine(bin) {
+  try {
+    const out = spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    const line = String((out && out.stdout) || '').trim() || String((out && out.stderr) || '').trim();
+    return line || 'unknown browser';
+  } catch (err) {
+    return 'unknown browser';
+  }
+}
+
+function realLoadIsRequired(productLine) {
+  const line = String(productLine || '');
+  if (/for Testing/i.test(line)) return true;
+  if (/(^|\s)Chromium\b/i.test(line)) return true;
+  return false;
+}
+
+async function evalOn(cdp, expression) {
+  const out = await cdp.send('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (out.exceptionDetails) {
+    const described = out.exceptionDetails.exception && out.exceptionDetails.exception.description;
+    throw new Error(described || out.exceptionDetails.text || JSON.stringify(out.exceptionDetails));
+  }
+  return out.result ? out.result.value : undefined;
+}
+
+async function waitPage(port, targetId) {
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    const list = await getJson(port, '/json/list');
+    const hit = list.find((target) => target.id === targetId && target.webSocketDebuggerUrl);
+    if (hit) return hit;
+    await sleep(40);
+  }
+  throw new Error('extension page target missing ' + targetId);
+}
+
+async function waitDesk(cdp) {
+  const deadline = Date.now() + 8000;
+  const id = JSON.stringify(SOPIFY_EXTENSION_ID);
+  while (Date.now() < deadline) {
+    const ready = await evalOn(cdp, `!!(document.getElementById('todo-input') && document.getElementById('notes') && document.getElementById('resume') && document.getElementById('resume').dataset.has !== 'pending' && chrome.runtime && chrome.runtime.id === ${id})`);
+    if (ready) return true;
+    await sleep(40);
+  }
+  return false;
+}
+
+async function raceTodos(cdpA, cdpB) {
+  const fire = (text) => `(() => { const input = document.getElementById('todo-input'); input.value = ${JSON.stringify(text)}; document.getElementById('todo-form').requestSubmit(); return true; })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: fire('甲待办'), returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: fire('乙待办'), returnByValue: true }),
+  ]);
+  let stored = [];
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ todos: [] }); return (data.todos || []).map((t) => t && t.text); })()`);
+    if (stored.includes('甲待办') && stored.includes('乙待办')) break;
+    await sleep(50);
+  }
+  const domA = await evalOn(cdpA, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const domB = await evalOn(cdpB, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const ok = stored.includes('甲待办') && stored.includes('乙待办')
+    && domA.includes('甲待办') && domA.includes('乙待办')
+    && domB.includes('甲待办') && domB.includes('乙待办');
+  return { ok, detail: JSON.stringify({ stored, domA, domB }) };
+}
+
+async function raceNotes(cdpA, cdpB) {
+  const fire = (text) => `(() => { const ta = document.getElementById('notes'); ta.focus(); ta.value = ${JSON.stringify(text)}; ta.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: fire('甲便签正文'), returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: fire('乙便签正文'), returnByValue: true }),
+  ]);
+  const read = `(() => {
+    const saved = document.getElementById('notes-saved');
+    const open = document.getElementById('note-show-conflict');
+    return {
+      value: document.getElementById('notes').value,
+      status: saved ? saved.textContent : '',
+      conflictOpen: !!(open && open.hidden === false),
+    };
+  })()`;
+  let snapA;
+  let snapB;
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    snapA = await evalOn(cdpA, read);
+    snapB = await evalOn(cdpB, read);
+    const pending = [snapA, snapB].some((snap) => snap.status === '保存中…' || snap.status === '');
+    const sawConflict = [snapA, snapB].some((snap) => snap.conflictOpen);
+    if (sawConflict && !pending) break;
+    await sleep(50);
+  }
+  const stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ notes: '', notesRev: 0 }); return { notes: data.notes, rev: data.notesRev }; })()`);
+  const draftsOk = snapA.value === '甲便签正文' && snapB.value === '乙便签正文';
+  const storedOk = stored.notes === '甲便签正文' || stored.notes === '乙便签正文';
+  const loserIsA = snapA.value !== stored.notes;
+  const loser = loserIsA ? snapA : snapB;
+  const loserCdp = loserIsA ? cdpA : cdpB;
+  const loserShows = loser.conflictOpen === true && loser.status === '便签在另一页更新了';
+  let panel = null;
+  if (loserShows) {
+    panel = await evalOn(loserCdp, `(() => {
+      document.getElementById('note-show-conflict').click();
+      const box = document.getElementById('note-conflict');
+      return {
+        hidden: box ? box.hidden : true,
+        local: document.getElementById('note-local-preview').textContent,
+        remote: document.getElementById('note-remote-preview').textContent,
+      };
+    })()`);
+  }
+  const panelOk = !!(panel && panel.hidden === false && panel.local === loser.value && panel.remote === stored.notes && panel.local !== panel.remote);
+  const ok = draftsOk && storedOk && loserShows && panelOk;
+  return { ok, detail: JSON.stringify({ snapA, snapB, stored, panel }) };
+}
+
+async function runTwoPages(port, opened) {
+  const ver = await getJson(port, '/json/version');
+  const browser = await connectCdp(ver.webSocketDebuggerUrl);
+  opened.push(browser);
+  const pageUrl = 'chrome-extension://' + SOPIFY_EXTENSION_ID + '/newtab.html';
+  const createdA = await browser.send('Target.createTarget', { url: pageUrl });
+  const createdB = await browser.send('Target.createTarget', { url: pageUrl });
+  const pageA = await waitPage(port, createdA.targetId);
+  const pageB = await waitPage(port, createdB.targetId);
+  const cdpA = await connectCdp(pageA.webSocketDebuggerUrl);
+  const cdpB = await connectCdp(pageB.webSocketDebuggerUrl);
+  opened.push(cdpA, cdpB);
+  await cdpA.send('Runtime.enable');
+  await cdpB.send('Runtime.enable');
+  await cdpA.send('Page.enable');
+  await cdpB.send('Page.enable');
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return {
+      detail: 'newtab did not boot',
+      todo: { ok: false, detail: 'boot' },
+      note: { ok: false, detail: 'boot' },
+    };
+  }
+  await evalOn(cdpA, `chrome.storage.local.set({ todos: [], todosRev: 0, notes: '', notesRev: 0, notesStamp: 'seed', sites: [], name: '' })`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return {
+      detail: 'newtab did not reboot',
+      todo: { ok: false, detail: 'reboot' },
+      note: { ok: false, detail: 'reboot' },
+    };
+  }
+  const todo = await raceTodos(cdpA, cdpB);
+  await evalOn(cdpA, `chrome.storage.local.set({ notes: '', notesRev: 0, notesStamp: 'seed' })`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return { detail: 'note reboot failed', todo, note: { ok: false, detail: 'reboot' } };
+  }
+  const note = await raceNotes(cdpA, cdpB);
+  return { detail: 'two pages shared storage.local', todo, note };
+}
+
+async function exerciseRealExtension(bin) {
+  const product = chromeProductLine(bin);
+  const required = realLoadIsRequired(product);
+  const realProfile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-')));
+  const realPort = await freePort();
+  const realChrome = trackChrome(spawn(bin, [
+    '--headless=new',
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-features=DisableLoadExtensionCommandLineSwitch',
+    `--load-extension=${EXT}`,
+    `--disable-extensions-except=${EXT}`,
+    `--remote-debugging-port=${realPort}`,
+    `--user-data-dir=${realProfile}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-sync',
+    'about:blank',
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
+  const opened = [];
+  let confirmed = false;
+  const finish = (result) => {
+    for (const cdp of opened) {
+      try { cdp.close(); } catch { /* already closed */ }
+    }
+    killChrome(realChrome);
+    rmDir(realProfile);
+    return result;
+  };
+  try {
+    await waitJson(realPort);
+    let targets = [];
+    let classified = classifyExtensionTargets([], SOPIFY_EXTENSION_ID);
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      targets = await getJson(realPort, '/json/list');
+      classified = classifyExtensionTargets(targets, SOPIFY_EXTENSION_ID);
+      if (classified.ok) break;
+      await sleep(100);
+    }
+    if (!classified.ok) {
+      return finish({
+        ok: false,
+        skipped: !required,
+        product,
+        detail: classified.detail + '. ' + product + ' did not show this extension service worker on this launch',
+        twoPage: false,
+      });
+    }
+    const worker = targets.find((target) => isExtensionWorker(target) && mentionsExtension(target, SOPIFY_EXTENSION_ID) && target.webSocketDebuggerUrl);
+    if (!worker) {
+      return finish({
+        ok: false,
+        skipped: !required,
+        product,
+        detail: 'service worker for ' + SOPIFY_EXTENSION_ID + ' had no debugger url. ' + product,
+        twoPage: false,
+      });
+    }
+    const sw = await connectCdp(worker.webSocketDebuggerUrl);
+    opened.push(sw);
+    await sw.send('Runtime.enable');
+    const probe = await evalOn(sw, `({ id: chrome.runtime && chrome.runtime.id, listeners: !!(chrome.action && chrome.action.onClicked && chrome.action.onClicked.hasListeners && chrome.action.onClicked.hasListeners()) })`);
+    if (!probe || probe.id !== SOPIFY_EXTENSION_ID || probe.listeners !== true) {
+      return finish({
+        ok: false,
+        skipped: false,
+        product,
+        detail: 'service worker ' + (worker.url || '') + ' did not report id ' + SOPIFY_EXTENSION_ID + ' with chrome.action.onClicked.hasListeners(); got ' + JSON.stringify(probe),
+        twoPage: false,
+      });
+    }
+    confirmed = true;
+    const loaded = (worker.url || classified.detail) + '; chrome.runtime.id matched; chrome.action.onClicked.hasListeners() is true';
+    const pages = await runTwoPages(realPort, opened);
+    const twoPage = !!(pages.todo && pages.todo.ok && pages.note && pages.note.ok);
+    return finish({
+      ok: true,
+      skipped: false,
+      product,
+      detail: loaded + '; ' + pages.detail,
+      twoPage,
+      todo: pages.todo,
+      note: pages.note,
+    });
+  } catch (err) {
+    return finish({
+      ok: false,
+      skipped: !confirmed && !required,
+      product,
+      detail: String(err && err.message ? err.message : err),
+      twoPage: false,
+    });
+  }
 }
 
 function waitJson(port) {
@@ -1222,52 +1553,25 @@ async function main() {
     rmDir(profile);
   }
 
-  let real = { ok: false, detail: 'not run' };
-  const realProfile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-')));
-  const realPort = await freePort();
-  const realChrome = trackChrome(spawn(bin, [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-features=DisableLoadExtensionCommandLineSwitch',
-    `--load-extension=${EXT}`,
-    `--disable-extensions-except=${EXT}`,
-    `--remote-debugging-port=${realPort}`,
-    `--user-data-dir=${realProfile}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-sync',
-    'about:blank',
-  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
-  try {
-    await waitJson(realPort);
-    const targets = await new Promise((resolve, reject) => {
-      http.get({ host: '127.0.0.1', port: realPort, path: '/json/list' }, (res) => {
-        let buf = '';
-        res.on('data', (d) => { buf += d; });
-        res.on('end', () => {
-          try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
-        });
-      }).on('error', reject);
-    });
-    const classified = classifyExtensionTargets(targets, SOPIFY_EXTENSION_ID);
-    real = {
-      ok: classified.ok === true,
-      id: SOPIFY_EXTENSION_ID,
-      detail: classified.detail,
-      twoPage: false,
-    };
-    if (classified.ok) {
-      real.detail = classified.detail + '; id matched, two-page storage.onChanged was not exercised';
-    }
-  } catch (err) {
-    real = { ok: false, detail: String(err && err.message ? err.message : err) };
-  } finally {
-    killChrome(realChrome);
-    rmDir(realProfile);
+  const realRun = await exerciseRealExtension(bin);
+  const real = {
+    ok: realRun.ok === true,
+    skipped: realRun.skipped === true,
+    id: SOPIFY_EXTENSION_ID,
+    detail: realRun.detail,
+    twoPage: realRun.twoPage === true,
+  };
+  if (real.skipped) {
+    console.log(`real extension: skip ${realRun.product}: ${real.detail}`);
+  } else if (!real.ok) {
+    console.log(`real extension: fail ${real.detail}`);
+    check('real extension loaded', false, real.detail);
+  } else {
+    console.log(`real extension: loaded ${real.detail}`);
+    check('real extension loaded', true, real.detail);
+    check('real extension keeps both concurrent todos', realRun.todo && realRun.todo.ok, realRun.todo && realRun.todo.detail);
+    check('real extension note race shows both drafts', realRun.note && realRun.note.ok, realRun.note && realRun.note.detail);
   }
-  console.log(`real extension: ${real.ok ? 'loaded' : 'unverified'} ${real.detail}`);
 
   const report = {
     kind: 'stub-browser',
@@ -1288,6 +1592,12 @@ async function main() {
     if (!row) return '未测';
     return row.ok ? 'pass' : 'fail';
   }
+  function realCol(name) {
+    const row = checks.find((c) => c.name === name);
+    if (row) return row.ok ? 'pass' : 'fail';
+    if (real.skipped) return 'skip';
+    return '未测';
+  }
   function cols(names) {
     const rows = names.map(col);
     if (rows.some((v) => v === 'fail')) return 'fail';
@@ -1296,7 +1606,7 @@ async function main() {
   }
   const acceptance = {
     columns: ['静态', '替身', '真扩展', 'IME', '未测'],
-    note: '替身是桩浏览器里的界面。真扩展、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
+    note: '替身是桩浏览器里的界面。系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
     rows: [
       {
         item: 'A 读失败不当成空数据，禁止覆盖写',
@@ -1319,9 +1629,9 @@ async function main() {
         item: 'B 便签同一队列，先写的留下，后写的冲突并保留草稿',
         静态: staticCol,
         替身: '未测',
-        真扩展: '未测',
+        真扩展: realCol('real extension note race shows both drafts'),
         IME: '未测',
-        未测: '双页并发只在静态单测里走真实 note-sync。替身没有两页。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。真扩展 / 真中文 IME',
+        未测: '系统中文输入法没有跑。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。',
       },
       {
         item: 'C 确认只覆盖刚看过的版本，冲突可展开全文',
@@ -1335,9 +1645,9 @@ async function main() {
         item: 'P1 待办／常用站／窗口按意图合并，双成功不丢新增',
         静态: staticCol,
         替身: '未测',
-        真扩展: '未测',
+        真扩展: realCol('real extension keeps both concurrent todos'),
         IME: '未测',
-        未测: '真双页扩展 / 真扩展 / 真中文 IME。交叉新增只在静态协调器里断言存储',
+        未测: '真中文输入法没有跑。交叉新增的存储断言在静态协调器里。',
       },
       {
         item: 'P2 旧便签回执不压掉较新冲突',
@@ -1367,9 +1677,9 @@ async function main() {
         item: '扩展目标只认 cgkhllpelkjmfamddkjpnmchjikdcbgp',
         静态: 'pass',
         替身: '未测',
-        真扩展: '未测',
+        真扩展: real.ok ? 'pass' : (real.skipped ? 'skip' : '未测'),
         IME: '未测',
-        未测: '反例在 node 里拒绝其他 chrome-extension。真双页 onChanged / 真中文 IME / 3D 运行时',
+        未测: '反例在 node 里拒绝其他 chrome-extension。真中文 IME / 3D 运行时',
       },
       {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',
@@ -1398,7 +1708,7 @@ async function main() {
     throw new Error(failures.join('\n'));
   }
   stopWatchdog();
-  console.log('test-r1-r7-browser: ok (stub, not a loaded extension)');
+  console.log('test-r1-r7-browser: ok');
 }
 
 main().catch((err) => {
