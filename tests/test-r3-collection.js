@@ -291,8 +291,8 @@ async function main() {
   assert.strictEqual(workMove.ok, false);
   assert.strictEqual(workMove.error, true);
 
-  async function overlap(firstOps, secondOps) {
-    const store = memory({ todos: queue.map((item) => ({ ...item })) });
+  async function overlap(firstOps, secondOps, initial) {
+    const store = memory({ todos: (initial || queue).map((item) => ({ ...item })) });
     const overlapCoord = collection.createCollectionCoordinator(store);
     const entered = deferred();
     const release = deferred();
@@ -340,6 +340,51 @@ async function main() {
   assert.strictEqual(movedAgain.idempotent, true);
   assert.strictEqual(moveStore.sets, setsAfterMove, 'retrying the same move does not write');
   assert.deepStrictEqual(ids(moveStore.store.todos), ['t3', 't1', 't2', 't4']);
+
+  const baseTodo = { id: 'old', text: 'old', done: false };
+  const doneOps = collection.diffTodos([baseTodo], [{ id: 'old', text: 'old', done: true }]);
+  const textOps = collection.diffTodos([baseTodo], [{ id: 'old', text: 'new', done: false }]);
+  assert.deepStrictEqual(doneOps, [{ op: 'update', id: 'old', fields: { done: true } }], 'done patch does not send text');
+  assert.deepStrictEqual(textOps, [{ op: 'update', id: 'old', fields: { text: 'new' } }], 'text patch does not send done');
+  const doneThenText = await overlap(doneOps, textOps, [baseTodo]);
+  assert.strictEqual(doneThenText.firstSaved.ok, true);
+  assert.strictEqual(doneThenText.secondSaved.ok, true);
+  assert.deepStrictEqual(doneThenText.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: true,
+  }, 'done then text keeps both fields');
+  const textThenDone = await overlap(textOps, doneOps, [baseTodo]);
+  assert.strictEqual(textThenDone.firstSaved.ok, true);
+  assert.strictEqual(textThenDone.secondSaved.ok, true);
+  assert.deepStrictEqual(textThenDone.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: true,
+  }, 'text then done keeps both fields');
+
+  const completed = { id: 'old', text: 'old', done: true };
+  const remoteText = collection.diffTodos([completed], [{ id: 'old', text: 'new', done: true }]);
+  const staleUndo = collection.diffTodos([completed], [{ id: 'old', text: 'old', done: false }]);
+  const textThenUndo = await overlap(remoteText, staleUndo, [completed]);
+  assert.strictEqual(textThenUndo.firstSaved.ok, true);
+  assert.strictEqual(textThenUndo.secondSaved.ok, true);
+  assert.deepStrictEqual(textThenUndo.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: false,
+  }, 'undo after a remote rename keeps the new text');
+
+  const staleEdit = collection.diffTodos([baseTodo], [{ id: 'old', text: 'edited', done: false }]);
+  const removedEdit = await overlap([{ op: 'remove', id: 'old' }], staleEdit, [baseTodo]);
+  assert.strictEqual(removedEdit.firstSaved.ok, true);
+  assert.strictEqual(removedEdit.secondSaved.ok, false);
+  assert.strictEqual(removedEdit.secondSaved.missing, true, 'stale edit after delete is missing');
+  assert.deepStrictEqual(removedEdit.store.store.todos, [], 'stale edit does not recreate');
+  const removedUndo = await overlap([{ op: 'remove', id: 'old' }], staleUndo, [completed]);
+  assert.strictEqual(removedUndo.secondSaved.missing, true, 'stale undo after delete is missing');
+  assert.deepStrictEqual(removedUndo.store.store.todos, [], 'stale undo does not recreate');
+
+  const sameField = await overlap(
+    collection.diffTodos([baseTodo], [{ id: 'old', text: 'first', done: false }]),
+    collection.diffTodos([baseTodo], [{ id: 'old', text: 'second', done: false }]),
+    [baseTodo],
+  );
+  assert.strictEqual(sameField.store.store.todos.find((item) => item.id === 'old').text, 'second', 'same-field writes stay serial');
 
   const js = fs.readFileSync(path.join(__dirname, '../extension/newtab.js'), 'utf8');
   const form = js.slice(js.indexOf("$('#todo-form').addEventListener('submit'"), js.indexOf("$('#todos').addEventListener('change'"));

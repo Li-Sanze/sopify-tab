@@ -1,8 +1,10 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const assert = require('assert');
+const { spawn } = require('child_process');
 
 const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
@@ -741,6 +743,69 @@ failedKeeper.remember('别直接写');
 const failedSend = await failedKeeper.commit('别直接写', async () => { fallbackSaves += 1; return { ok: true }; });
 assert.strictEqual(failedSend.ok, false);
 assert.strictEqual(fallbackSaves, 0);
+
+function runSupervisor(timeoutMs, source, marker) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [
+      path.join(REPO, 'scripts', 'supervise-browser.js'),
+      String(timeoutMs),
+      process.execPath,
+      '-e',
+      source,
+    ], { env: Object.assign({}, process.env, { SOPIFY_MARKER: marker }) });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { out += d; });
+    child.on('exit', (code) => resolve({ code, out }));
+  });
+}
+function waitMarker(file) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      if (fs.existsSync(file)) {
+        resolve(fs.readFileSync(file, 'utf8').trim());
+        return;
+      }
+      if (Date.now() - start > 3000) {
+        reject(new Error(`marker missing ${file}`));
+        return;
+      }
+      setTimeout(tick, 20);
+    };
+    tick();
+  });
+}
+const hangSource = `require('fs').writeFileSync(process.env.SOPIFY_MARKER, process.env.SOPIFY_RUN_ROOT); setInterval(() => {}, 1000);`;
+const okSource = `const fs = require('fs'); const path = require('path'); fs.writeFileSync(process.env.SOPIFY_MARKER, process.env.SOPIFY_RUN_ROOT); fs.writeFileSync(path.join(process.env.SOPIFY_RUN_ROOT, 'alive'), '1'); setTimeout(() => process.exit(0), 1200);`;
+const hangMarker = path.join(os.tmpdir(), `sopify-marker-hang-${process.pid}`);
+const okMarker = path.join(os.tmpdir(), `sopify-marker-ok-${process.pid}`);
+const hangStarted = Date.now();
+const hangPromise = runSupervisor(800, hangSource, hangMarker);
+const hangRoot = await waitMarker(hangMarker);
+const hang = await hangPromise;
+const hangElapsed = Date.now() - hangStarted;
+assert.strictEqual(hang.code, 124, hang.out);
+assert.ok(hangElapsed >= 700 && hangElapsed < 5000, `timeout elapsed ${hangElapsed}`);
+assert.match(hang.out, /body \d+ms cleanup \d+ms timeout yes/);
+assert.ok(!fs.existsSync(hangRoot), 'timed-out run root was removed');
+const parallelHangMarker = path.join(os.tmpdir(), `sopify-marker-phang-${process.pid}`);
+const parallelOkMarker = path.join(os.tmpdir(), `sopify-marker-pok-${process.pid}`);
+const parallelHang = runSupervisor(700, hangSource, parallelHangMarker);
+const parallelOk = runSupervisor(5000, okSource, parallelOkMarker);
+const parallelHangResult = await parallelHang;
+const okRoot = await waitMarker(parallelOkMarker);
+assert.ok(fs.existsSync(path.join(okRoot, 'alive')), 'a sibling run survived the other timeout');
+assert.notStrictEqual(okRoot, hangRoot);
+const parallelOkResult = await parallelOk;
+assert.strictEqual(parallelHangResult.code, 124, parallelHangResult.out);
+assert.strictEqual(parallelOkResult.code, 0, parallelOkResult.out);
+assert.match(parallelOkResult.out, /body \d+ms cleanup \d+ms timeout no/);
+assert.ok(!fs.existsSync(okRoot), 'finished run root was removed');
+fs.rmSync(hangMarker, { force: true });
+fs.rmSync(okMarker, { force: true });
+fs.rmSync(parallelHangMarker, { force: true });
+fs.rmSync(parallelOkMarker, { force: true });
 
 try {
   fs.mkdirSync(artifactDir, { recursive: true });

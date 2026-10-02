@@ -22,6 +22,8 @@ echo "reliability: node $(node -v)"
 
 fail=0
 ran=()
+real_ext_status="absent"
+real_ext_reason="no real-extension line"
 
 is_browser() {
   case "$1" in
@@ -30,29 +32,25 @@ is_browser() {
   esac
 }
 
-reap_sopify_chrome() {
-  local pids dir tmp root
-  tmp="$(node -p 'require("os").tmpdir()')"
-  # Match Chrome's own --user-data-dir path. Keep the needles out of one
-  # process's argv so the scan cannot select itself.
-  # Linux profiles live under /tmp. macOS os.tmpdir() is usually /var/folders/.../T.
-  pids="$(ps -eo pid=,args= | grep -F -- '--user-data-dir=' | grep -F -e '/tmp/sopify-' -e "${tmp}/sopify-" | grep -v grep | awk '{ print $1 }')"
-  if [[ -n "$pids" ]]; then
-    echo "reliability: cleaning leftover chrome: ${pids//$'\n'/ }"
-    # shellcheck disable=SC2086
-    kill -KILL $pids 2>/dev/null || true
+note_real_extension() {
+  local log="$1" line
+  line="$(grep '^real extension: loaded ' "$log" | head -1 || true)"
+  if [[ -n "$line" ]]; then
+    real_ext_status="ran"
+    real_ext_reason="${line#real extension: loaded }"
+    return
   fi
-  shopt -s nullglob
-  local roots=("/tmp")
-  if [[ -n "$tmp" && "$tmp" != "/tmp" ]]; then
-    roots+=("$tmp")
+  line="$(grep '^real extension: skip ' "$log" | head -1 || true)"
+  if [[ -n "$line" ]]; then
+    real_ext_status="skipped"
+    real_ext_reason="${line#real extension: skip }"
+    return
   fi
-  for root in "${roots[@]}"; do
-    for dir in "$root"/sopify-r17-* "$root"/sopify-firstscreen-*; do
-      rm -rf "$dir" 2>/dev/null || true
-    done
-  done
-  shopt -u nullglob
+  line="$(grep '^real extension: fail ' "$log" | head -1 || true)"
+  if [[ -n "$line" ]]; then
+    real_ext_status="failed"
+    real_ext_reason="${line#real extension: fail }"
+  fi
 }
 
 write_summary() {
@@ -71,7 +69,8 @@ write_summary() {
     printf '  %s\n' "${ran[@]}"
   fi
   echo "reliability summary: ${pass_n} pass, ${fail_n} fail, ${skip_n} skip, denominator ${total}"
-  echo "reliability denominator: static and stub segments in this script. Real-extension checks are inside tests/test-r1-r7-browser.js. OS IME and the 3D runtime are not included."
+  echo "reliability real-extension: ${real_ext_status} ${real_ext_reason}"
+  echo "reliability denominator: static and stub segments in this script. The real-extension column is separate and is not folded into the segment count. OS IME and the 3D runtime are not included."
   local summary_dir="${SOPIFY_ARTIFACT_DIR:-/tmp/sopify-reliability}"
   mkdir -p "$summary_dir"
   local summary_file="$summary_dir/reliability-parts.json"
@@ -88,6 +87,7 @@ write_summary() {
     printf '  "exitCode": %s,\n' "$exit_code"
     printf '  "node": "%s",\n' "$(node -v)"
     printf '  "requireBrowser": %s,\n' "$require_browser"
+    printf '  "realExtension": {"status": "%s", "reason": %s},\n' "$real_ext_status" "$(node -e 'process.stdout.write(JSON.stringify(process.argv[1] || ""))' "$real_ext_reason")"
     printf '  "parts": [\n'
     local i=0
     for row in "${ran[@]}"; do
@@ -107,11 +107,13 @@ run() {
   start=$(date +%s%N)
   echo "reliability: run ${name}"
   if is_browser "$name"; then
-    # Each browser file arms its own 240s watchdog. No GNU timeout wrapper:
-    # macOS does not ship coreutils, and the gate must not require it.
-    node "$name"
+    local log
+    log="$(mktemp)"
+    node "$ROOT/scripts/supervise-browser.js" 240000 node "$name" >"$log" 2>&1
     status=$?
-    reap_sopify_chrome
+    cat "$log"
+    note_real_extension "$log"
+    rm -f "$log"
   else
     node "$name"
     status=$?
@@ -146,8 +148,6 @@ run() {
   fail=1
   return 0
 }
-
-trap reap_sopify_chrome EXIT
 
 run tests/test-r1-r7.js
 run tests/test-r3-collection.js

@@ -7,6 +7,15 @@ const path = require('path');
 const net = require('net');
 const { spawn, spawnSync } = require('child_process');
 
+function runTemp() {
+  const root = process.env.SOPIFY_RUN_ROOT;
+  if (root) {
+    fs.mkdirSync(root, { recursive: true });
+    return root;
+  }
+  return os.tmpdir();
+}
+
 const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
 function writableDir(candidates) {
@@ -193,6 +202,9 @@ function stubSource(seed) {
     let noteWrites = 0;
     let readsLeft = seed.failReads || 0;
     let failCreate = seed.failCreate || '';
+    let holdCreates = 0;
+    window.__sopifyHoldCreates = (n) => { holdCreates = Number(n) || 0; };
+    window.__sopifyReleaseCreate = () => {};
     window.__sopifySetFailCreate = (value) => { failCreate = value || ''; };
     const removed = [];
     const created = [];
@@ -311,9 +323,18 @@ function stubSource(seed) {
         create(opts) {
           const url = opts && opts.url ? String(opts.url) : '';
           if (failCreate && url.includes(failCreate)) return Promise.reject(new Error('blocked'));
-          const tab = { id: 500 + created.length, url: url, title: url };
-          created.push(tab);
-          return Promise.resolve(tab);
+          const make = () => {
+            const tab = { id: 500 + created.length, url: url, title: url };
+            created.push(tab);
+            return tab;
+          };
+          if (holdCreates > 0) {
+            holdCreates -= 1;
+            return new Promise((resolve) => {
+              window.__sopifyReleaseCreate = () => resolve(make());
+            });
+          }
+          return Promise.resolve(make());
         },
         update() { return Promise.resolve(); },
         remove(ids) {
@@ -588,13 +609,64 @@ async function runTwoPages(port, opened) {
   }
   const note = await raceNotes(cdpA, cdpB);
   const move = await raceMoveAndAdd(cdpA, cdpB);
-  return { detail: 'two pages shared storage.local', todo, note, move };
+  const reopen = await realCloseReopen(cdpA);
+  return { detail: 'two pages shared storage.local', todo, note, move, reopen };
+}
+
+async function realCloseReopen(cdp) {
+  try {
+    const created = await evalOn(cdp, `(async () => {
+      const tab = await chrome.tabs.create({ url: 'https://example.com/sopify-reopen', active: false });
+      return { id: tab.id, url: tab.pendingUrl || tab.url || '' };
+    })()`);
+    if (!created || !created.id) return { ok: false, detail: 'tabs.create did not return an id' };
+    const closed = await evalOn(cdp, `(async () => {
+      const id = ${JSON.stringify(created.id)};
+      const start = Date.now();
+      let btn = null;
+      while (Date.now() - start < 4000) {
+        const nav = document.querySelector('[data-view="tabs"]');
+        if (nav) nav.click();
+        btn = document.querySelector('[data-close-tab="' + id + '"]');
+        if (btn) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      if (!btn) return { ok: false, detail: 'close button missing for ' + id };
+      btn.click();
+      const wait = Date.now();
+      let action = null;
+      while (Date.now() - wait < 4000) {
+        action = document.getElementById('toast-action');
+        if (action && !action.hidden && action.textContent === '重新打开') break;
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      if (!action || action.hidden || action.textContent !== '重新打开') {
+        return { ok: false, detail: 'reopen action missing' };
+      }
+      action.click();
+      const again = Date.now();
+      let found = [];
+      while (Date.now() - again < 4000) {
+        const tabs = await chrome.tabs.query({});
+        const gone = !tabs.some((t) => t.id === id);
+        found = tabs.filter((t) => String(t.url || t.pendingUrl || '').includes('sopify-reopen'));
+        if (gone && found.length === 1 && found[0].id !== id) {
+          return { ok: true, detail: 'closed ' + id + ' reopened ' + found[0].id, count: found.length };
+        }
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      return { ok: false, detail: 'reopen count ' + found.length, count: found.length };
+    })()`);
+    return closed && closed.ok ? closed : { ok: false, detail: closed && closed.detail ? closed.detail : 'reopen failed' };
+  } catch (err) {
+    return { ok: false, detail: String(err && err.message ? err.message : err) };
+  }
 }
 
 async function exerciseRealExtension(bin) {
   const product = chromeProductLine(bin);
   const required = realLoadIsRequired(product);
-  const realProfile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-')));
+  const realProfile = trackProfile(fs.mkdtempSync(path.join(runTemp(), 'sopify-r17-ext-')));
   const realPort = await freePort();
   const realChrome = trackChrome(spawn(bin, [
     '--headless=new',
@@ -677,6 +749,7 @@ async function exerciseRealExtension(bin) {
       todo: pages.todo,
       note: pages.note,
       move: pages.move,
+      reopen: pages.reopen,
     });
   } catch (err) {
     return finish({
@@ -811,7 +884,7 @@ async function main() {
   const live = await serve(EXT, liveHits);
   const origin = `http://127.0.0.1:${live.address().port}`;
   const cdpPort = process.env.SOPIFY_CDP_PORT ? Number(process.env.SOPIFY_CDP_PORT) : await freePort();
-  const profile = trackProfile(fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-')));
+  const profile = trackProfile(fs.mkdtempSync(path.join(runTemp(), 'sopify-r17-')));
   const chrome = trackChrome(spawn(bin, [
     '--headless=new',
     '--no-sandbox',
@@ -1367,6 +1440,43 @@ async function main() {
       return { title, count, label: btn ? btn.textContent.trim() : '', removed: window.__sopifyRemoved.slice() };
     })()`);
     check('filtered close removes only the visible host tabs', JSON.stringify(closed.removed) === '[1]' && closed.count === '1' && closed.title.includes('筛选') && closed.label === '关闭这 1 个标签', JSON.stringify(closed));
+    const filteredReopen = await evalJson(`(async () => {
+      const action = document.getElementById('toast-action');
+      const before = { hidden: action.hidden, label: action.textContent, separate: action.id !== 'workset-retry-unopened' };
+      const delays = [];
+      const orig = window.setTimeout;
+      window.setTimeout = function (fn, ms) { delays.push(ms); return orig(fn, ms); };
+      action.focus();
+      action.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      const paused = delays.length;
+      action.blur();
+      action.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      window.setTimeout = orig;
+      action.click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        before,
+        paused,
+        resumed: delays.slice(paused),
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        actionHidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check(
+      'filtered reopen opens only the closed url',
+      filteredReopen.before.hidden === false
+        && filteredReopen.before.label === '重新打开'
+        && filteredReopen.before.separate
+        && filteredReopen.paused === 0
+        && filteredReopen.resumed.length === 1
+        && filteredReopen.resumed[0] <= 6000
+        && filteredReopen.created.length === 1
+        && filteredReopen.created[0] === 'https://github.com/a'
+        && filteredReopen.toast === '已重新打开'
+        && filteredReopen.actionHidden,
+      JSON.stringify(filteredReopen),
+    );
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -1383,13 +1493,22 @@ async function main() {
       btn.click();
       await new Promise((r) => setTimeout(r, 40));
       const toast = document.getElementById('toast');
+      const action = document.getElementById('toast-action');
       return {
         toast: toast.textContent,
         toastOn: toast.classList.contains('show'),
         removed: window.__sopifyRemoved.slice(),
+        label: action.textContent,
+        hidden: action.hidden,
       };
     })()`);
-    check('partial close does not claim full success', partialClose.toastOn && partialClose.toast.includes('还有 1 个没关掉') && !partialClose.toast.includes('已关闭') && JSON.stringify(partialClose.removed) === '[1]', JSON.stringify(partialClose));
+    check('partial close does not claim full success', partialClose.toastOn && partialClose.toast.includes('还有 1 个没关掉') && !partialClose.toast.includes('已关闭') && JSON.stringify(partialClose.removed) === '[1]' && partialClose.label === '重新打开' && partialClose.hidden === false, JSON.stringify(partialClose));
+    const partialReopenOnly = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return window.__sopifyCreated.map((t) => t.url);
+    })()`);
+    check('partial close reopens only the tab that closed', partialReopenOnly.length === 1 && partialReopenOnly[0] === 'https://github.com/a', JSON.stringify(partialReopenOnly));
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -1409,6 +1528,257 @@ async function main() {
       };
     })()`);
     check('failed close does not toast success', failedClose.toastOn && failedClose.toast.includes('没关掉') && !failedClose.toast.includes('已关闭') && failedClose.removed.length === 0, JSON.stringify(failedClose));
+    const failedAction = await evalJson(`(() => {
+      const action = document.getElementById('toast-action');
+      return { hidden: action.hidden, label: action.textContent, created: window.__sopifyCreated.length };
+    })()`);
+    check('failed close has no reopen action', failedAction.hidden === true && failedAction.label === '' && failedAction.created === 0, JSON.stringify(failedAction));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [{ id: 11, title: 'solo', url: 'https://solo.example/a' }],
+    }, 'day');
+    const single = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      const beforeFocus = document.activeElement && document.activeElement.id;
+      document.querySelector('[data-close-tab="11"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        removed: window.__sopifyRemoved.slice(),
+        toast: document.getElementById('toast').textContent,
+        label: action.textContent,
+        hidden: action.hidden,
+        focus: document.activeElement && document.activeElement.id,
+        tabbable: action.tabIndex >= 0 && !action.disabled,
+        beforeFocus,
+      };
+    })()`);
+    check(
+      'single close records that tab and does not steal focus',
+      JSON.stringify(single.removed) === '[11]'
+        && single.toast === '已关闭'
+        && single.label === '重新打开'
+        && single.hidden === false
+        && single.focus !== 'toast-action'
+        && single.tabbable,
+      JSON.stringify(single),
+    );
+    const singleOpen = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check('single reopen loads that url once', singleOpen.created.length === 1 && singleOpen.created[0] === 'https://solo.example/a' && singleOpen.toast === '已重新打开' && singleOpen.hidden, JSON.stringify(singleOpen));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 21, title: 'dup a', url: 'https://dup.example/x' },
+        { id: 22, title: 'dup b', url: 'https://dup.example/x' },
+        { id: 23, title: 'other', url: 'https://other.example/y' },
+      ],
+    }, 'day');
+    const dup = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="dup.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        removed: window.__sopifyRemoved.slice(),
+        label: action.textContent,
+        hidden: action.hidden,
+        toast: document.getElementById('toast').textContent,
+      };
+    })()`);
+    check(
+      'domain close keeps duplicate urls and skips other hosts',
+      JSON.stringify(dup.removed) === '[21,22]' && dup.label === '重新打开' && !dup.hidden && dup.toast === '已关闭 dup.example',
+      JSON.stringify(dup),
+    );
+    const dupOpen = await evalJson(`(async () => {
+      window.__sopifyHoldCreates(1);
+      document.getElementById('toast-action').click();
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 30));
+      const during = window.__sopifyCreated.map((t) => t.url);
+      window.__sopifyReleaseCreate();
+      await new Promise((r) => setTimeout(r, 40));
+      return { during, created: window.__sopifyCreated.map((t) => t.url), toast: document.getElementById('toast').textContent };
+    })()`);
+    check(
+      'reopen keeps both copies and ignores a second click',
+      dupOpen.during.length === 0
+        && dupOpen.created.length === 2
+        && dupOpen.created.every((url) => url === 'https://dup.example/x')
+        && dupOpen.toast === '已重新打开 2 个',
+      JSON.stringify(dupOpen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 31, title: 'ok', url: 'https://ok.example/page' },
+        { id: 32, title: 'bad', url: 'https://blocked.example/page' },
+      ],
+      failCreate: 'blocked.example',
+    }, 'day');
+    const partialReopen = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="ok.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      document.querySelector('[data-close-host="blocked.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const afterSecond = {
+        label: document.getElementById('toast-action').textContent,
+        removed: window.__sopifyRemoved.slice(),
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        afterSecond,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: action.textContent,
+        hidden: action.hidden,
+      };
+    })()`);
+    check(
+      'a later close replaces the earlier reopen list',
+      JSON.stringify(partialReopen.afterSecond.removed) === '[31,32]'
+        && partialReopen.afterSecond.label === '重新打开'
+        && partialReopen.created.length === 0
+        && partialReopen.toast.includes('没打开')
+        && !partialReopen.toast.includes('已重新打开')
+        && partialReopen.label === '重新打开'
+        && partialReopen.hidden === false,
+      JSON.stringify(partialReopen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 41, title: 'ok', url: 'https://keep.example/ok' },
+        { id: 42, title: 'bad', url: 'https://blocked.example/no' },
+      ],
+      failCreate: 'blocked.example',
+    }, 'day');
+    const mixed = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="keep.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      document.querySelector('[data-close-host="blocked.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return document.getElementById('toast-action').textContent;
+    })()`);
+    check('second close drops the first reopen target', mixed === '重新打开', mixed);
+    const mixedOpen = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const mid = {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+      window.__sopifySetFailCreate('');
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        mid,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check(
+      'partial reopen reports the real count and retries only the miss',
+      mixedOpen.mid.created.length === 0
+        && mixedOpen.mid.toast.includes('还有 1 个')
+        && !mixedOpen.mid.toast.includes('已重新打开')
+        && mixedOpen.mid.label === '重新打开'
+        && mixedOpen.created.length === 1
+        && mixedOpen.created[0] === 'https://blocked.example/no'
+        && mixedOpen.toast === '已重新打开'
+        && mixedOpen.hidden,
+      JSON.stringify(mixedOpen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [{ id: 't1', text: '待办1', done: false }],
+      sites: [],
+      tabs: [
+        { id: 51, title: 'ok', url: 'https://pair.example/ok' },
+        { id: 52, title: 'bad', url: 'https://pair.example/blocked' },
+      ],
+      failCreate: 'blocked',
+    }, 'day');
+    const pair = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="pair.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const closed = {
+        removed: window.__sopifyRemoved.slice(),
+        label: document.getElementById('toast-action').textContent,
+        toast: document.getElementById('toast').textContent,
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const mid = {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        retry: document.getElementById('workset-retry-unopened').hidden,
+      };
+      document.getElementById('resume-act').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const replaced = {
+        label: document.getElementById('toast-action').textContent,
+        created: window.__sopifyCreated.map((t) => t.url),
+        done: (window.__sopifyStore.todos.find((item) => item.id === 't1') || {}).done,
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+      return {
+        closed,
+        mid,
+        replaced,
+        created: window.__sopifyCreated.map((t) => t.url),
+        text: row && row.text,
+        done: row && row.done,
+      };
+    })()`);
+    check(
+      'one close reopens only successes and a later undo replaces that action',
+      JSON.stringify(pair.closed.removed) === '[51,52]'
+        && pair.closed.label === '重新打开'
+        && pair.closed.toast === '已关闭 pair.example'
+        && pair.mid.created.length === 1
+        && pair.mid.created[0] === 'https://pair.example/ok'
+        && pair.mid.toast === '打开了 1 个，还有 1 个没打开'
+        && pair.mid.label === '重新打开'
+        && pair.mid.hidden === false
+        && pair.mid.retry === true
+        && pair.replaced.created.length === 1
+        && pair.replaced.label === '撤销'
+        && pair.replaced.done === true
+        && pair.created.length === 1
+        && pair.created[0] === 'https://pair.example/ok'
+        && pair.done === false
+        && pair.text === '待办1',
+      JSON.stringify(pair),
+    );
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -1617,6 +1987,7 @@ async function main() {
     check('real extension keeps both concurrent todos', realRun.todo && realRun.todo.ok, realRun.todo && realRun.todo.detail);
     check('real extension note race shows both drafts', realRun.note && realRun.note.ok, realRun.note && realRun.note.detail);
     check('real extension keeps a moved todo and a concurrent add', realRun.move && realRun.move.ok, realRun.move && realRun.move.detail);
+    check('real extension reopened a closed tab', realRun.reopen && realRun.reopen.ok, realRun.reopen && realRun.reopen.detail);
   }
 
   const report = {
@@ -1742,6 +2113,14 @@ async function main() {
         真扩展: '未测',
         IME: '未测',
         未测: '真扩展 / 真中文 IME。桩里的 Enter/229 只是合成事件',
+      },
+      {
+        item: '3b.5 关掉之后重新打开，只含真正关掉的网址',
+        静态: staticCol,
+        替身: col('single reopen loads that url once'),
+        真扩展: realCol('real extension reopened a closed tab'),
+        IME: '未测',
+        未测: 'Mac 未测。系统中文输入法未测。不恢复滚动或表单',
       },
     ],
     realExtension: real.twoPage === true

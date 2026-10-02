@@ -208,7 +208,6 @@ assert.ok(!js.includes('draggable'), '3b.2 does not add drag sorting');
 assert.ok(css.includes('.todo:hover > .todo-next') && css.includes('.todo:focus-within > .todo-next'));
 assert.ok(/@media \(max-width: 600px\) \{[\s\S]*\.todo-next \{ opacity: 1; pointer-events: auto; \}/.test(css));
 assert.ok(js.includes('查看已完成 ${done} 件'));
-assert.ok(fs.readFileSync(__filename, 'utf8').includes('9478'), '3a cases open a second Chrome process');
 assert.ok(!html.includes('localhost 端口只是标签'));
 assert.ok(/\.groups\s*\{[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css));
 assert.ok(/@media \(max-width: 1000px\) \{\s*\.groups \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/.test(css));
@@ -277,7 +276,8 @@ console.log('test-w13-firstscreen static: ok');
 
 const http = require('http');
 const os = require('os');
-const { spawn } = require('child_process');
+const net = require('net');
+const { spawn, spawnSync } = require('child_process');
 
 const FOUR_LINE_TITLE = `${'把首屏长标题排满'.repeat(24)}第四行`;
 const LONG_SITE = '超级长的常用站名称用来考验省略号不会把第一屏撑高';
@@ -324,7 +324,9 @@ function stubSource(seed) {
       themePreset: 'day',
     };
     let noteWrites = 0;
+    let failTodos = !!seed.failTodos;
     const delay = seed.storageDelay || 0;
+    window.__sopifySetFailTodos = (on) => { failTodos = !!on; };
     window.__sopifyStore = store;
     window.__sopifyNoteWrites = () => noteWrites;
     window.chrome = {
@@ -345,7 +347,7 @@ function stubSource(seed) {
                   reject(new Error('storage failed'));
                   return;
                 }
-                if (seed.failTodos && partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) {
+                if (failTodos && partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) {
                   reject(new Error('storage failed'));
                   return;
                 }
@@ -626,8 +628,62 @@ async function main() {
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
   let chromeLog = '';
-  async function openChrome(port) {
-    const profile = trackProfile(fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-')));
+  function runTemp() {
+    const root = process.env.SOPIFY_RUN_ROOT;
+    if (root) {
+      fs.mkdirSync(root, { recursive: true });
+      return root;
+    }
+    return os.tmpdir();
+  }
+  function freePort() {
+    return new Promise((resolve, reject) => {
+      const server = net.createServer();
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        const { port } = server.address();
+        server.close(() => resolve(port));
+      });
+    });
+  }
+  function commandLine(pid) {
+    if (process.platform === 'linux') {
+      try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').join(' '); } catch { return ''; }
+    }
+    const out = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' });
+    return out.stdout || '';
+  }
+  function portAnswers(port) {
+    return new Promise((resolve) => {
+      const req = http.get({ host: '127.0.0.1', port, path: '/json/version', timeout: 400 }, (res) => {
+        res.resume();
+        resolve(true);
+      });
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+    });
+  }
+  async function assertThisProcess(port, child, profile) {
+    const portFile = path.join(profile, 'DevToolsActivePort');
+    const start = Date.now();
+    let listed = '';
+    while (Date.now() - start < 4000) {
+      if (fs.existsSync(portFile)) {
+        listed = String(fs.readFileSync(portFile, 'utf8').split('\n')[0] || '').trim();
+        if (listed) break;
+      }
+      await sleep(40);
+    }
+    assert.strictEqual(listed, String(port), `DevToolsActivePort ${listed || '(empty)'} is not this launch`);
+    const args = commandLine(child.pid);
+    assert.ok(args.includes(`--remote-debugging-port=${port}`), `cmdline missing this port: ${args.slice(0, 240)}`);
+    assert.ok(args.includes(profile), 'cmdline missing this profile');
+    assert.strictEqual(child.exitCode, null, 'chrome exited before the check');
+  }
+  async function openChrome(fixedPort) {
+    const port = fixedPort || await freePort();
+    if (await portAnswers(port)) throw new Error(`occupied debug port ${port}`);
+    const profile = trackProfile(fs.mkdtempSync(path.join(runTemp(), 'sopify-firstscreen-')));
     const child = trackChrome(spawn(chromePath, [
       '--headless=new',
       '--no-sandbox',
@@ -662,7 +718,8 @@ async function main() {
     await conn.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value: 'light' }],
     });
-    return { child, conn, versionInfo };
+    await assertThisProcess(port, child, profile);
+    return { child, conn, versionInfo, port, profile };
   }
   const shotDir = writableDir([
     process.env.SOPIFY_ARTIFACT_DIR
@@ -674,7 +731,22 @@ async function main() {
   let cdp;
   let version;
   try {
-    const first = await openChrome(9477);
+    const decoy = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ Browser: 'decoy' }));
+    });
+    await new Promise((resolve) => decoy.listen(0, '127.0.0.1', resolve));
+    let occupied = '';
+    try {
+      await openChrome(decoy.address().port);
+      occupied = 'attached';
+    } catch (err) {
+      occupied = String(err && err.message ? err.message : err);
+    }
+    decoy.close();
+    assert.ok(occupied.includes('occupied'), occupied);
+    const first = await openChrome();
+    console.log(`w13 chrome pid ${first.child.pid} port ${first.port}`);
     chrome = first.child;
     cdp = first.conn;
     version = first.versionInfo;
@@ -1226,9 +1298,16 @@ async function main() {
       document.getElementById('todos-open').click();
       const box = document.querySelector('#todos-dialog-list [data-todo-id="t1"]');
       const checked = box.checked;
-      document.querySelector('#todos-dialog-list [data-todo-text="t1"]').click();
+      const text = document.querySelector('#todos-dialog-list [data-todo-text="t1"]');
+      const label = box.closest('label');
+      const split = {
+        aria: box.getAttribute('aria-label'),
+        textOutside: !label.contains(text),
+        onlyCheckbox: label.querySelectorAll('input,button,.todo-text,.todo-edit').length === 1,
+      };
+      text.click();
       const input = document.querySelector('#todos-dialog-list .todo-edit');
-      if (!input) return { missing: true, checked };
+      if (!input) return { missing: true, checked, split };
       const stillChecked = box.checked;
       input.value = '改过的第一件';
       input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
@@ -1260,8 +1339,17 @@ async function main() {
         if (snap.text === '改过的第一件' && snap.title === '改过的第一件' && !snap.editing && snap.shown === '改过的第一件') break;
         await new Promise((r) => setTimeout(r, 16));
       }
-      return { prevented, during, stillChecked, checked, snap };
+      return { prevented, during, stillChecked, checked, snap, split };
     })()`);
+    check(
+      'checkbox is the only control in the label',
+      editEnter.split
+        && editEnter.split.aria === '完成：待办1'
+        && editEnter.split.textOutside
+        && editEnter.split.onlyCheckbox
+        && editEnter.stillChecked === false,
+      JSON.stringify(editEnter.split),
+    );
     check(
       'composition Enter does not rename a todo',
       editEnter.prevented === true
@@ -1348,6 +1436,7 @@ async function main() {
           ids: window.__sopifyStore.todos.map((item) => item.id),
           count: window.__sopifyStore.todos.length,
           editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+          focus: document.activeElement && document.activeElement.id,
         };
         if (snap.text === '失焦也存' && !snap.editing) break;
         await new Promise((r) => setTimeout(r, 16));
@@ -1360,8 +1449,98 @@ async function main() {
         && editBlur.title === '改过的第一件'
         && !editBlur.editing
         && editBlur.count === 2
+        && editBlur.focus === 'todo-input-dialog'
         && JSON.stringify(editBlur.ids) === JSON.stringify(['t1', 't2']),
       JSON.stringify(editBlur),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [
+        { id: 't1', text: '待办1', done: false },
+        { id: 't2', text: '待办2', done: false },
+      ],
+      sites: [],
+      failTodos: true,
+    });
+    const editFail = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      document.querySelector('#todos-dialog-list [data-todo-text="t1"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.value = '还没存上';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const start = Date.now();
+      let failed = null;
+      while (Date.now() - start < 3000) {
+        const err = document.getElementById('todo-dialog-save-error');
+        const draft = document.querySelector('#todos-dialog-list .todo-edit');
+        failed = {
+          error: err ? err.textContent : '',
+          hidden: err ? err.hidden : true,
+          editing: !!draft,
+          value: draft ? draft.value : '',
+          text: (window.__sopifyStore.todos.find((item) => item.id === 't1') || {}).text,
+          count: window.__sopifyStore.todos.length,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+        };
+        if (failed.error === '没存上，再点一次' && failed.editing) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      const draft = document.querySelector('#todos-dialog-list .todo-edit');
+      document.getElementById('todo-input-dialog').focus();
+      const blurWait = Date.now();
+      let afterBlur = null;
+      while (Date.now() - blurWait < 3000) {
+        const err = document.getElementById('todo-dialog-save-error');
+        const still = document.querySelector('#todos-dialog-list .todo-edit');
+        afterBlur = {
+          focus: document.activeElement && document.activeElement.id,
+          editing: !!still,
+          value: still ? still.value : '',
+          text: (window.__sopifyStore.todos.find((item) => item.id === 't1') || {}).text,
+          error: err ? err.textContent : '',
+        };
+        if (afterBlur.editing && afterBlur.focus === 'todo-input-dialog' && afterBlur.error === '没存上，再点一次') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      await new Promise((r) => setTimeout(r, 80));
+      window.__sopifySetFailTodos(false);
+      const again = document.querySelector('#todos-dialog-list .todo-edit');
+      again.focus();
+      again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const wait = Date.now();
+      let saved = null;
+      while (Date.now() - wait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        saved = {
+          text: row && row.text,
+          count: window.__sopifyStore.todos.length,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          editing: !!document.querySelector('#todos-dialog-list .todo-edit'),
+        };
+        if (saved.text === '还没存上' && !saved.editing) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return { failed, afterBlur, saved };
+    })()`);
+    check(
+      'a failed rename keeps the same draft',
+      editFail.failed
+        && editFail.failed.error === '没存上，再点一次'
+        && editFail.failed.hidden === false
+        && editFail.failed.editing
+        && editFail.failed.value === '还没存上'
+        && editFail.failed.text === '待办1'
+        && editFail.failed.count === 2
+        && JSON.stringify(editFail.failed.ids) === JSON.stringify(['t1', 't2'])
+        && editFail.afterBlur.focus === 'todo-input-dialog'
+        && editFail.afterBlur.editing
+        && editFail.afterBlur.value === '还没存上'
+        && editFail.afterBlur.text === '待办1'
+        && editFail.saved.text === '还没存上'
+        && editFail.saved.count === 2
+        && !editFail.saved.editing
+        && JSON.stringify(editFail.saved.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(editFail),
     );
 
     const longTodo = '一二三四五六七八九十一二三四五六七八九十多出来';
@@ -1685,12 +1864,20 @@ async function main() {
     if (exception.homeSites !== 8 || !exception.moreHidden) failures.push('exception should render all 8 sites without 全部');
 
     console.log('w13 fresh session: new Chrome process before 3a cases');
+    const firstPid = chrome.pid;
+    const firstPort = first.port;
     cdp.close();
     killChrome(chrome);
-    const second = await openChrome(9478);
+    const second = await openChrome();
     chrome = second.child;
     cdp = second.conn;
     version = second.versionInfo;
+    let firstDead = false;
+    try { process.kill(firstPid, 0); } catch { firstDead = true; }
+    assert.notStrictEqual(second.child.pid, firstPid, 'second chrome reused the first pid');
+    assert.notStrictEqual(second.port, firstPort, 'second chrome reused the first port');
+    assert.ok(firstDead, 'first chrome was still running');
+    console.log(`w13 second chrome pid ${second.child.pid} port ${second.port}`);
     scriptId = null;
     caseNo = 0;
 

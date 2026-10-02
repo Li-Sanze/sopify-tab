@@ -2059,7 +2059,7 @@
     return s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }
 
-  function openTodosDialog() {
+  function openTodosDialog(opts) {
     const dialog = $('#ops-todos-dialog');
     const body = $('#ops-todos-dialog-body');
     if (!dialog || !body) return;
@@ -2071,8 +2071,7 @@
     const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
-    const nextTodo = state.todos.find((t) => t && !t.done && String(t.text || '').trim());
-    const nextTodoId = nextTodo ? nextTodo.id : '';
+    const nextTodoId = pickResume(state.todos).todoId || '';
     const todoRows = domainUnread.todos
       ? '<li class="empty">待办暂时没能读取</li>'
       : (state.todos.length ? state.todos.map((t) => {
@@ -2082,9 +2081,9 @@
           return `
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
-              <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
-              <button type="button" class="todo-text" data-todo-text="${esc(t.id)}">${esc(t.text)}</button>
+              <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''} aria-label="完成：${esc(t.text)}">
             </label>
+            <button type="button" class="todo-text" data-todo-text="${esc(t.id)}">${esc(t.text)}</button>
             ${promote}
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
@@ -2146,6 +2145,14 @@
       if (dialog.open) openTodosDialog();
     };
     if (firstOpen) dialog.showModal();
+    if (opts && opts.keepFocus) {
+      if (previous && previous.isConnected) return;
+      if (previous && previous.id) {
+        const kept = document.getElementById(previous.id);
+        if (kept) kept.focus();
+      }
+      return;
+    }
     const focusInput = body.querySelector('#todo-input-dialog');
     if (firstOpen || previousWasInput) {
       if (focusInput) focusInput.focus();
@@ -2181,26 +2188,34 @@
     input.autocomplete = 'off';
     textBtn.replaceWith(input);
     let settled = false;
+    let saving = false;
     const focusText = () => {
       const again = body.querySelector(`[data-todo-text="${cssEscape(id)}"]`);
       if (again) again.focus();
     };
-    const finish = async (commit) => {
-      if (settled) return;
-      settled = true;
+    const finish = async (commit, reason) => {
+      if (settled || saving) return;
+      const current = state.todos.find((t) => t && t.id === id);
       const nextText = input.value.trim();
-      if (!commit || !nextText || nextText === String(item.text || '').trim()) {
-        if (dialog.open) openTodosDialog();
-        focusText();
+      const unchanged = !current || !commit || !nextText || nextText === String(current.text || '').trim();
+      if (unchanged) {
+        settled = true;
+        hideWriteError('todo-dialog-save-error');
+        if (dialog.open) openTodosDialog(reason === 'blur' ? { keepFocus: true } : undefined);
+        if (reason !== 'blur') focusText();
         return;
       }
+      saving = true;
       const next = state.todos.map((t) => (
         t.id === id ? { id: t.id, text: nextText, done: t.done } : t
       ));
       const saved = await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
-      if (dialog.open) openTodosDialog();
-      focusText();
+      saving = false;
+      if (settled) return;
       if (!saved) return;
+      settled = true;
+      if (dialog.open) openTodosDialog(reason === 'blur' ? { keepFocus: true } : undefined);
+      if (reason !== 'blur') focusText();
     };
     const editIme = createImeGuard();
     input.addEventListener('compositionstart', () => editIme.onCompositionStart());
@@ -2216,50 +2231,110 @@
       if (e.key !== 'Enter' && e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      finish(e.key === 'Enter');
+      finish(e.key === 'Enter', e.key === 'Enter' ? 'enter' : 'escape');
     });
     input.addEventListener('blur', () => {
       setTimeout(() => {
-        if (input.isConnected && document.activeElement !== input) finish(true);
+        if (input.isConnected && document.activeElement !== input) finish(true, 'blur');
       }, 0);
     });
     input.focus();
     input.select();
   }
 
+  let lastClosedUrls = [];
+  let reopenBusy = false;
+
+  function tabPageUrl(tab) {
+    return String((tab && (tab.url || tab.pendingUrl)) || '');
+  }
+
+  function offerReopen(message, urls) {
+    lastClosedUrls = (urls || []).filter((url) => url);
+    if (!lastClosedUrls.length) {
+      toast(message);
+      return;
+    }
+    toast(message, { action: { label: '重新打开', onClick: () => { reopenClosed(); } } });
+  }
+
+  async function reopenClosed() {
+    if (reopenBusy) return;
+    const pending = lastClosedUrls.slice();
+    if (!pending.length || !hasTabs) return;
+    reopenBusy = true;
+    const opened = [];
+    const failed = [];
+    try {
+      for (const url of pending) {
+        try {
+          await chrome.tabs.create({ url });
+          opened.push(url);
+        } catch {
+          failed.push(url);
+        }
+      }
+    } finally {
+      reopenBusy = false;
+    }
+    lastClosedUrls = failed.slice();
+    if (!failed.length) {
+      toast(opened.length === 1 ? '已重新打开' : `已重新打开 ${opened.length} 个`);
+      return;
+    }
+    const message = opened.length
+      ? `打开了 ${opened.length} 个，还有 ${failed.length} 个没打开`
+      : `没打开，还有 ${failed.length} 个`;
+    offerReopen(message, failed);
+  }
+
   async function closeTab(id) {
     const n = Number(id);
     if (!hasTabs || !Number.isFinite(n)) return;
-    try { await chrome.tabs.remove(n); } catch { /* already gone */ }
+    const tab = state.tabs.find((t) => t && t.id === n);
+    const url = tabPageUrl(tab);
+    try {
+      await chrome.tabs.remove(n);
+    } catch {
+      return;
+    }
+    if (url) offerReopen('已关闭', [url]);
+    else {
+      lastClosedUrls = [];
+      toast('已关闭');
+    }
   }
 
   async function closeHost(host) {
     const visible = tabsToCloseForHost(state.tabs, state.filter, host);
-    const ids = visible.map((t) => t.id);
-    if (!ids.length || !hasTabs) return;
+    if (!visible.length || !hasTabs) return;
+    const urls = [];
     let closed = 0;
     let failed = 0;
-    for (const id of ids) {
+    for (const tab of visible) {
+      const url = tabPageUrl(tab);
       try {
-        await chrome.tabs.remove(id);
+        await chrome.tabs.remove(tab.id);
         closed += 1;
+        if (url) urls.push(url);
       } catch {
         failed += 1;
       }
     }
     const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
-    const hiddenLeft = String(state.filter || '').trim() && all > ids.length;
+    const hiddenLeft = String(state.filter || '').trim() && all > visible.length;
     const tail = hiddenLeft ? '，筛选外的还在' : '';
-    if (closed === 0) {
-      toast(`没关掉 ${host}${tail}`);
+    let message;
+    if (closed === 0) message = `没关掉 ${host}${tail}`;
+    else if (failed > 0) message = `关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`;
+    else if (hiddenLeft) message = `已关闭 ${closed} 个 ${host}，筛选外的还在`;
+    else message = `已关闭 ${host}`;
+    if (!urls.length) {
+      lastClosedUrls = [];
+      toast(message);
       return;
     }
-    if (failed > 0) {
-      toast(`关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`);
-      return;
-    }
-    if (hiddenLeft) toast(`已关闭 ${closed} 个 ${host}，筛选外的还在`);
-    else toast(`已关闭 ${host}`);
+    offerReopen(message, urls);
   }
 
   let noteSaveActive = false;

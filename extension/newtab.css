@@ -976,6 +976,7 @@ dialog.ops-dialog::backdrop {
 .todo { display: flex; align-items: center; gap: 10px; min-height: 42px; border-bottom: 1px solid var(--line); }
 .todo:last-child { border-bottom: 0; }
 .todo label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; padding: 6px 0; }
+#todos-dialog-list > .todo > label { flex: none; }
 .todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-ink); cursor: pointer; flex: none; }
 .todo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
 .todo.done span { color: var(--ink-3); text-decoration: line-through; }

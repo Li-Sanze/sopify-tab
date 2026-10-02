@@ -100,7 +100,16 @@
       var key = itemKey(item, domain);
       nextBy[key] = item;
       if (!prevBy[key]) ops.push({ op: 'add', item: item });
-      else if (changedItem(prevBy[key], item, domain)) ops.push({ op: 'update', id: key, item: item });
+      else if (changedItem(prevBy[key], item, domain)) {
+        if (domain === 'todos') {
+          var fields = {};
+          if (prevBy[key].text !== item.text) fields.text = item.text;
+          if (prevBy[key].done !== item.done) fields.done = item.done === true;
+          ops.push({ op: 'update', id: key, fields: fields });
+        } else {
+          ops.push({ op: 'update', id: key, item: item });
+        }
+      }
     }
     for (i = 0; i < before.length; i += 1) {
       var oldKey = itemKey(before[i], domain);
@@ -141,9 +150,19 @@
           else items.splice(slot, 0, added);
         }
       } else if (op.op === 'update') {
-        var updated = normalizeItem(op.item, domain);
-        if (!updated || itemKey(updated, domain) !== key || at === -1) return { ok: false, missing: true };
-        items[at] = updated;
+        if (at === -1) return { ok: false, missing: true };
+        if (op.fields && typeof op.fields === 'object') {
+          var patched = clone(items[at]);
+          if (Object.prototype.hasOwnProperty.call(op.fields, 'text')) patched.text = op.fields.text;
+          if (Object.prototype.hasOwnProperty.call(op.fields, 'done')) patched.done = op.fields.done === true;
+          var normalized = normalizeItem(patched, domain);
+          if (!normalized || itemKey(normalized, domain) !== key) return { ok: false, error: true };
+          items[at] = normalized;
+        } else {
+          var updated = normalizeItem(op.item, domain);
+          if (!updated || itemKey(updated, domain) !== key) return { ok: false, missing: true };
+          items[at] = updated;
+        }
       } else if (op.op === 'remove') {
         if (at !== -1) items.splice(at, 1);
       } else if (op.op === 'move') {
