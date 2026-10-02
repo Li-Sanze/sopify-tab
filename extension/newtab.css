@@ -829,6 +829,12 @@ html[data-sky="night"] dialog.ops-dialog {
 dialog.ops-dialog::backdrop {
   background: rgba(8, 10, 16, 0.78);
 }
+.ops-dialog input:focus,
+.ops-dialog input:focus-visible {
+  outline: none;
+  border-color: var(--studio-accent);
+  box-shadow: 0 0 0 3px var(--studio-flash);
+}
 .ops-dialog-inner {
   margin: 0;
   display: flex;
@@ -1132,6 +1138,7 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 .grouphead b { font-size: 15px; font-weight: 700; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grouphead .count {
   margin-left: 6px;
+  flex: none;
   font-size: 12px;
   font-weight: 500;
   color: var(--studio-muted);
@@ -1165,12 +1172,18 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 }
 .toast-retry[hidden] { display: none !important; }
 
+@media (max-width: 1000px) {
+  .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .groups { grid-template-columns: 1fr; }
+}
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
   .main { padding: 0 20px 32px; }
   .viewhead h1 { font-size: 22px; }
   .tabtools .field { max-width: none; }
-  .groups, .settings { grid-template-columns: 1fr; }
+  .settings { grid-template-columns: 1fr; }
   .tile, .tile.add { width: calc(33.33% - 7px); }
 }
 
@@ -1178,6 +1191,7 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 body .sky .air {
   inset: -10%;
 }
+#main:focus, #main:focus-visible { outline: none; }
 body .shell { grid-template-columns: minmax(0, 1fr); }
 body .main {
   padding: 0 32px 32px;
@@ -1553,6 +1567,12 @@ body .studio-topbar :focus-visible,
   outline: 2px solid var(--studio-accent);
   outline-offset: 3px;
 }
+#main dialog.ops-dialog input:focus,
+#main dialog.ops-dialog input:focus-visible {
+  outline: none;
+  border-color: var(--studio-accent);
+  box-shadow: 0 0 0 3px var(--studio-flash);
+}
 
 .view[data-view="tabs"],
 .view[data-view="settings"] {
@@ -1606,12 +1626,6 @@ body .studio-topbar :focus-visible,
 }
 .view[data-view="settings"] .cardhead h2,
 .view[data-view="tabs"] .grouphead b,
-.view[data-view="tabs"] .grouphead .count {
-  margin-left: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--studio-muted);
-}
 .view[data-view="tabs"] .count,
 .view[data-view="settings"] .count,
 .view[data-view="settings"] .frow label,
@@ -1619,6 +1633,13 @@ body .studio-topbar :focus-visible,
 .view[data-view="tabs"] .tabrow .t span:first-child,
 .view[data-view="settings"] .savedset .t span:first-child {
   color: var(--studio-ink);
+}
+.view[data-view="tabs"] .grouphead .count {
+  margin-left: 6px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--studio-muted);
 }
 .view[data-view="settings"] .cardhead h2 svg.i {
   color: var(--studio-accent);

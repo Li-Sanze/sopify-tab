@@ -175,8 +175,21 @@ assert.ok(html.includes('只有这一页') && html.includes('打开几个网页�
 assert.ok(js.includes('打开几个网页后，可以在这里存下来') && !js.includes('新标签页本身不会写进存下的窗口。'));
 assert.ok(html.includes('跟随系统时，随电脑的白天和夜晚切换。'));
 assert.ok(html.includes('>实验</h2>') && html.includes('在常用站下面放一张 3D 书桌。默认关闭。'));
+const themeAt = html.indexOf('id="s-theme"');
+const workAt = html.indexOf('id="s-worksets"');
+const expAt = html.indexOf('id="s-experiment"');
+assert.ok(themeAt > 0 && themeAt < workAt && workAt < expAt, 'settings row is 外观, 存下的窗口, then 实验');
 assert.ok(!html.includes('localhost 端口只是标签'));
 assert.ok(/\.groups\s*\{[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css));
+assert.ok(/@media \(max-width: 1000px\) \{\s*\.groups \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/.test(css));
+assert.ok(/@media \(max-width: 600px\) \{\s*\.groups \{ grid-template-columns: 1fr; \}/.test(css));
+assert.ok(css.includes('#main:focus, #main:focus-visible { outline: none; }'));
+assert.ok(/\.ops-dialog input:focus-visible \{[^}]*outline: none;/.test(css));
+assert.ok(/#main dialog\.ops-dialog input:focus-visible \{[^}]*outline: none;/.test(css));
+const inkHeadings = css.slice(css.indexOf('.view[data-view="settings"] .cardhead h2,'), css.indexOf('.view[data-view="tabs"] .grouphead .count {'));
+assert.ok(inkHeadings.includes('.view[data-view="tabs"] .grouphead b,') && inkHeadings.includes('color: var(--studio-ink)') && !inkHeadings.includes('font-size: 12px'), 'card and group titles stay on the ink rule');
+const countOnly = css.slice(css.indexOf('.view[data-view="tabs"] .grouphead .count {'), css.indexOf('.view[data-view="settings"] .cardhead h2 svg.i'));
+assert.ok(countOnly.includes('flex: none') && countOnly.includes('color: var(--studio-muted)') && !countOnly.includes('cardhead'));
 assert.ok(!/body \.shell\s*\{[^}]*!important/.test(css));
 assert.ok(/z-index:\s*70/.test(braceBlock(css, '.toast')), 'toast z-index stays 70');
 
@@ -636,6 +649,55 @@ async function main() {
         throw new Error(out.exceptionDetails.text || JSON.stringify(out.exceptionDetails));
       }
       return out.result ? out.result.value : undefined;
+    }
+
+    async function evalNow(expression) {
+      const out = await cdp.send('Runtime.evaluate', {
+        expression,
+        returnByValue: true,
+        awaitPromise: false,
+      });
+      if (out.exceptionDetails) {
+        throw new Error(out.exceptionDetails.text || JSON.stringify(out.exceptionDetails));
+      }
+      return out.result ? out.result.value : undefined;
+    }
+
+    async function mouseClick(selector) {
+      await evalNow(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'center' });
+      })()`);
+      const box = await evalNow(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+      })()`);
+      if (!box || box.w < 1 || box.h < 1) throw new Error(`no mouse target ${selector}`);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.y });
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed', x: box.x, y: box.y, button: 'left', clickCount: 1,
+      });
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased', x: box.x, y: box.y, button: 'left', clickCount: 1,
+      });
+    }
+
+    function readConfirmExpr() {
+      return `(() => {
+        const d = document.getElementById('ops-confirm-dialog');
+        const focus = document.activeElement;
+        return {
+          open: !!(d && d.open),
+          err: d ? (d.dataset.confirmError || '') : 'missing',
+          title: document.getElementById('ops-confirm-title').textContent,
+          body: document.getElementById('ops-confirm-body').textContent,
+          ok: document.getElementById('ops-confirm-ok').textContent,
+          danger: document.getElementById('ops-confirm-ok').classList.contains('danger'),
+          focus: focus ? focus.id : '',
+        };
+      })()`;
     }
 
     async function loadSeed(width, height, seed) {
@@ -1142,6 +1204,118 @@ async function main() {
       check(`brand left matches across views at ${w}x${h}`, sameBrand && aligned, JSON.stringify(edges));
     }
 
+    const tabSeed = [
+      { id: 1, title: 'tabs API', url: 'https://developer.chrome.com/docs/extensions/reference/tabs' },
+      { id: 2, title: 'pulls', url: 'https://github.com/Li-Sanze/sopify-tab/pull/51' },
+      { id: 3, title: 'desk', url: 'https://localhost:5173/desk' },
+    ];
+    await loadSeed(1440, 900, { todos: todoItems('1'), sites: [], tabs: tabSeed });
+    await evalNow(`document.querySelector('.studio-navbtn[data-view="settings"]').click()`);
+    const dayHeads = await evalNow(`(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--studio-ink)';
+      document.body.appendChild(probe);
+      const ink = getComputedStyle(probe).color;
+      probe.remove();
+      const heads = [...document.querySelectorAll('.view[data-view="settings"] .cardhead h2')].map((el) => {
+        const cs = getComputedStyle(el);
+        return { text: el.textContent.replace(/\\s+/g, ''), size: parseFloat(cs.fontSize), color: cs.color };
+      });
+      const cards = ['s-theme', 's-worksets', 's-experiment'].map((id) => {
+        const el = document.getElementById(id).closest('section');
+        const r = el.getBoundingClientRect();
+        return { id, top: Math.round(r.top), left: Math.round(r.left) };
+      });
+      const main = document.getElementById('main');
+      main.focus();
+      const outline = getComputedStyle(main).outlineStyle;
+      return { ink, heads, cards, outline };
+    })()`);
+    const dayInk = dayHeads && dayHeads.heads.every((h) => h.size >= 14 && h.color === dayHeads.ink);
+    check('settings headings use studio ink at 14px+', dayInk && dayHeads.heads.length === 3, JSON.stringify(dayHeads));
+    const row1 = dayHeads && dayHeads.cards[0].top === dayHeads.cards[1].top && dayHeads.cards[0].left < dayHeads.cards[1].left;
+    const row2 = dayHeads && dayHeads.cards[2].top > dayHeads.cards[0].top + 20;
+    check('settings order is appearance + saved windows, then experiment', row1 && row2, JSON.stringify(dayHeads && dayHeads.cards));
+    check('main focus has no outline', dayHeads && dayHeads.outline === 'none', JSON.stringify(dayHeads && dayHeads.outline));
+    await evalNow(`document.querySelector('input[name="themePreset"][value="night"]').click()`);
+    const nightHeads = await waitUntil(
+      () => evalNow(`(() => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--studio-ink)';
+        document.body.appendChild(probe);
+        const ink = getComputedStyle(probe).color;
+        probe.remove();
+        const heads = [...document.querySelectorAll('.view[data-view="settings"] .cardhead h2')].map((el) => {
+          const cs = getComputedStyle(el);
+          return { size: parseFloat(cs.fontSize), color: cs.color, sky: document.documentElement.dataset.sky || '' };
+        });
+        return { ink, heads };
+      })()`),
+      (row) => row && row.heads.every((h) => h.sky === 'night' && h.size >= 14 && h.color === row.ink),
+      2000,
+    );
+    check('settings headings stay studio ink at night', !!(nightHeads && nightHeads.heads && nightHeads.heads.length === 3), JSON.stringify(nightHeads));
+    await evalNow(`document.querySelector('.studio-navbtn[data-view="desk"]').click()`);
+    await mouseClick('#todos-open');
+    const todoFocus = await waitUntil(
+      () => evalNow(`(() => {
+        const d = document.getElementById('ops-todos-dialog');
+        const input = document.getElementById('todo-input-dialog');
+        if (!d || !d.open || !input) return { open: !!(d && d.open) };
+        input.focus({ focusVisible: true });
+        const cs = getComputedStyle(input);
+        return { open: true, outline: cs.outlineStyle, shadow: cs.boxShadow, border: cs.borderTopColor };
+      })()`),
+      (row) => row && row.open === true && row.outline === 'none' && typeof row.shadow === 'string' && row.shadow !== 'none' && row.shadow.includes('px'),
+      2000,
+    );
+    check('todo dialog input has one focus ring', !!(todoFocus && todoFocus.outline === 'none' && todoFocus.shadow && todoFocus.shadow !== 'none'), JSON.stringify(todoFocus));
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+    });
+
+    async function groupLayout() {
+      return evalNow(`(() => {
+        document.querySelector('.studio-navbtn[data-view="tabs"]').click();
+        const groups = document.querySelector('.groups');
+        const cols = getComputedStyle(groups).gridTemplateColumns.split(/\\s+/).filter(Boolean);
+        const b = document.querySelector('.grouphead b');
+        const count = document.querySelector('.grouphead .count');
+        const cs = getComputedStyle(b);
+        const probe = document.createElement('span');
+        probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + cs.font;
+        probe.textContent = (b.textContent || '').slice(0, 16);
+        document.body.appendChild(probe);
+        const need = probe.getBoundingClientRect().width;
+        probe.remove();
+        const inkProbe = document.createElement('span');
+        inkProbe.style.color = 'var(--studio-ink)';
+        document.body.appendChild(inkProbe);
+        const ink = getComputedStyle(inkProbe).color;
+        inkProbe.remove();
+        const countCs = getComputedStyle(count);
+        return {
+          cols: cols.length,
+          domain: b.textContent,
+          size: parseFloat(cs.fontSize),
+          color: cs.color,
+          ink,
+          width: b.getBoundingClientRect().width,
+          need,
+          flexGrow: countCs.flexGrow,
+          flexShrink: countCs.flexShrink,
+        };
+      })()`);
+    }
+    const wideGroups = await groupLayout();
+    check('current tabs are 3 columns at 1440 and titles are ink', wideGroups && wideGroups.cols === 3 && wideGroups.size >= 14 && wideGroups.color === wideGroups.ink && wideGroups.flexShrink === '0', JSON.stringify(wideGroups));
+    await loadSeed(900, 1000, { todos: [], sites: [], tabs: tabSeed });
+    const narrowGroups = await groupLayout();
+    check('current tabs are 2 columns at 900 and the domain shows 16 characters', narrowGroups && narrowGroups.cols === 2 && narrowGroups.size >= 14 && narrowGroups.color === narrowGroups.ink && narrowGroups.width + 1 >= narrowGroups.need && narrowGroups.flexShrink === '0', JSON.stringify(narrowGroups));
+
     await loadSeed(1440, 900, {
       todos: [],
       sites: [],
@@ -1159,21 +1333,12 @@ async function main() {
       3000,
     );
     check('clear fixture lists the saved window', listed === 1, String(listed));
-    const confirmOpened = await evalJson(`(() => {
-      const btn = document.getElementById('worksets-clear');
-      btn.click();
-      const d = document.getElementById('ops-confirm-dialog');
-      const focus = document.activeElement;
-      return {
-        open: d.open,
-        err: d.dataset.confirmError || '',
-        title: document.getElementById('ops-confirm-title').textContent,
-        body: document.getElementById('ops-confirm-body').textContent,
-        ok: document.getElementById('ops-confirm-ok').textContent,
-        danger: document.getElementById('ops-confirm-ok').classList.contains('danger'),
-        focus: focus ? focus.id : '',
-      };
-    })()`);
+    await mouseClick('#worksets-clear');
+    const confirmOpened = await waitUntil(
+      () => evalNow(readConfirmExpr()),
+      (row) => row && row.open === true,
+      2000,
+    );
     check('clear opens the in-page confirm', confirmOpened && confirmOpened.open === true && confirmOpened.title === '清空全部存下的窗口？' && confirmOpened.body === '只影响这台电脑，清空后找不回来。' && confirmOpened.ok === '清空' && confirmOpened.danger === true && confirmOpened.focus === 'ops-confirm-cancel', JSON.stringify(confirmOpened));
     await cdp.send('Input.dispatchKeyEvent', {
       type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
@@ -1182,7 +1347,7 @@ async function main() {
       type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
     });
     const afterEsc = await waitUntil(
-      () => evalJson(`({
+      () => evalNow(`({
         open: document.getElementById('ops-confirm-dialog').open,
         stored: window.__sopifyStore.worksets.length,
         rows: document.querySelectorAll('#saved-worksets .savedset').length,
@@ -1192,23 +1357,23 @@ async function main() {
     );
     check('clear Esc does not delete', confirmOpened && confirmOpened.open === true && afterEsc && afterEsc.open === false && afterEsc.stored === 1 && afterEsc.rows === 1, JSON.stringify(afterEsc));
     await sleep(50);
-    const cleared = await evalJson(`(async () => {
-      const btn = document.getElementById('worksets-clear');
-      btn.click();
-      const d = document.getElementById('ops-confirm-dialog');
-      const syncOpen = d.open;
-      const err = d.dataset.confirmError || '';
-      if (syncOpen) document.getElementById('ops-confirm-ok').click();
-      await new Promise((r) => setTimeout(r, 80));
-      return {
-        syncOpen,
-        err,
-        stillOpen: d.open,
+    await mouseClick('#worksets-clear');
+    const reopened = await waitUntil(
+      () => evalNow(`document.getElementById('ops-confirm-dialog').open`),
+      (open) => open === true,
+      2000,
+    );
+    await mouseClick('#ops-confirm-ok');
+    const cleared = await waitUntil(
+      () => evalNow(`({
+        open: document.getElementById('ops-confirm-dialog').open,
         stored: window.__sopifyStore.worksets.length,
         text: document.getElementById('saved-worksets').textContent,
-      };
-    })()`);
-    check('clear confirm empties the list', cleared.syncOpen === true && cleared.stillOpen === false && cleared.stored === 0 && cleared.text.includes('还没有存下的窗口'), JSON.stringify(cleared));
+      })`),
+      (row) => row && row.open === false && row.stored === 0,
+      2000,
+    );
+    check('clear confirm empties the list', reopened === true && cleared && cleared.open === false && cleared.stored === 0 && cleared.text.includes('还没有存下的窗口'), JSON.stringify({ reopened, cleared }));
     const desk3dNet = await evalJson(`performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /embed\\.js|scene\\.js|three\\.module/.test(n))`);
     check('space view off skips desk-3d payload', Array.isArray(desk3dNet) && desk3dNet.length === 0, JSON.stringify(desk3dNet));
 
