@@ -1095,7 +1095,7 @@
       if (input) input.placeholder = done > 0 ? '都做完了，还有什么？' : '今天先做什么？';
       if (hint) {
         hint.innerHTML = done > 0
-          ? `刚完成了 ${done} 件。想到下一件就写下来，按 <kbd>回车</kbd>`
+          ? '想到下一件就写下来，按 <kbd>回车</kbd>'
           : '写一句，按 <kbd>回车</kbd>，它就是下一件事';
       }
     }

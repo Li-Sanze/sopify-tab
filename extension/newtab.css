@@ -1108,7 +1108,8 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
   outline: 2px solid var(--studio-accent); outline-offset: 2px;
 }
 
-.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: start; }
+.settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.settings-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .form { display: flex; flex-direction: column; gap: 16px; }
 .frow { display: flex; flex-direction: column; gap: 8px; }
 .frow label,

@@ -178,7 +178,12 @@ assert.ok(html.includes('>实验</h2>') && html.includes('在常用站下面放�
 const themeAt = html.indexOf('id="s-theme"');
 const workAt = html.indexOf('id="s-worksets"');
 const expAt = html.indexOf('id="s-experiment"');
-assert.ok(themeAt > 0 && themeAt < workAt && workAt < expAt, 'settings row is 外观, 存下的窗口, then 实验');
+assert.ok(themeAt > 0 && themeAt < expAt && expAt < workAt, 'settings columns are 外观 then 实验, beside 存下的窗口');
+assert.ok(html.includes('class="settings-stack"'));
+assert.ok(css.includes('.settings-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }'));
+assert.ok(js.includes('想到下一件就写下来，按 <kbd>回车</kbd>') && !js.includes('刚完成了'));
+assert.ok(js.includes('查看已完成 ${done} 件'));
+assert.ok(fs.readFileSync(__filename, 'utf8').includes('9478'), '3a cases open a second Chrome process');
 assert.ok(!html.includes('localhost 端口只是标签'));
 assert.ok(/\.groups\s*\{[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(css));
 assert.ok(/@media \(max-width: 1000px\) \{\s*\.groups \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/.test(css));
@@ -591,35 +596,27 @@ async function main() {
   const server = await serve(EXT);
   const port = server.address().port;
   const origin = `http://127.0.0.1:${port}`;
-  const profile = trackProfile(fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-')));
-  const cdpPort = 9477;
-  const chrome = trackChrome(spawn(chromePath, [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    `--remote-debugging-port=${cdpPort}`,
-    `--user-data-dir=${profile}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-sync',
-    '--disable-extensions',
-    'about:blank',
-  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
   let chromeLog = '';
-  chrome.stdout.on('data', (d) => { chromeLog += d; });
-  chrome.stderr.on('data', (d) => { chromeLog += d; });
-  const shotDir = writableDir([
-    process.env.SOPIFY_ARTIFACT_DIR
-      ? path.join(process.env.SOPIFY_ARTIFACT_DIR, 'firstscreen-reliability')
-      : '/opt/cursor/artifacts/firstscreen-reliability',
-    path.join(os.tmpdir(), 'sopify-firstscreen-reliability'),
-  ]);
-  let cdp;
-  try {
-    const version = await waitJson(cdpPort);
+  async function openChrome(port) {
+    const profile = trackProfile(fs.mkdtempSync(path.join('/tmp', 'sopify-firstscreen-')));
+    const child = trackChrome(spawn(chromePath, [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      `--remote-debugging-port=${port}`,
+      `--user-data-dir=${profile}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-sync',
+      '--disable-extensions',
+      'about:blank',
+    ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
+    child.stdout.on('data', (d) => { chromeLog += d; });
+    child.stderr.on('data', (d) => { chromeLog += d; });
+    const versionInfo = await waitJson(port);
     const listRes = await new Promise((resolve, reject) => {
-      http.get({ host: '127.0.0.1', port: cdpPort, path: '/json/list' }, (res) => {
+      http.get({ host: '127.0.0.1', port, path: '/json/list' }, (res) => {
         let buf = '';
         res.on('data', (d) => { buf += d; });
         res.on('end', () => {
@@ -629,13 +626,29 @@ async function main() {
     });
     const page = listRes.find((t) => t.type === 'page') || listRes[0];
     assert.ok(page && page.webSocketDebuggerUrl, 'chrome page target');
-    cdp = await connectCdp(page.webSocketDebuggerUrl);
-    await cdp.send('Page.enable');
-    await cdp.send('Runtime.enable');
-    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
-    await cdp.send('Emulation.setEmulatedMedia', {
+    const conn = await connectCdp(page.webSocketDebuggerUrl);
+    await conn.send('Page.enable');
+    await conn.send('Runtime.enable');
+    await conn.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    await conn.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value: 'light' }],
     });
+    return { child, conn, versionInfo };
+  }
+  const shotDir = writableDir([
+    process.env.SOPIFY_ARTIFACT_DIR
+      ? path.join(process.env.SOPIFY_ARTIFACT_DIR, 'firstscreen-reliability')
+      : '/opt/cursor/artifacts/firstscreen-reliability',
+    path.join(os.tmpdir(), 'sopify-firstscreen-reliability'),
+  ]);
+  let chrome;
+  let cdp;
+  let version;
+  try {
+    const first = await openChrome(9477);
+    chrome = first.child;
+    cdp = first.conn;
+    version = first.versionInfo;
     let scriptId = null;
     let caseNo = 0;
 
@@ -1073,7 +1086,11 @@ async function main() {
       sites: [],
     });
     const doneLabel = await evalJson(`document.getElementById('todos-open').textContent`);
+    const doneHint = await evalJson(`document.getElementById('todo-hint').textContent`);
+    const doneHistory = await evalJson(`document.getElementById('todos-done-history').textContent`);
     check('done-only todos say 已完成 1 件', doneLabel === '全部待办 · 已完成 1 件', doneLabel);
+    check('done hint drops the finished count', doneHint === '想到下一件就写下来，按 回车', doneHint);
+    check('done history button still counts', doneHistory === '查看已完成 1 件', doneHistory);
     await loadSeed(1440, 900, {
       todos: [
         { id: 'open-1', text: '还剩一件', done: false },
@@ -1172,6 +1189,16 @@ async function main() {
     if (exception.lblTitle !== `${LONG_SITE}1`) failures.push(`exception label title=${exception.lblTitle}`);
     if (exception.homeSites !== 8 || !exception.moreHidden) failures.push('exception should render all 8 sites without 全部');
 
+    console.log('w13 fresh session: new Chrome process before 3a cases');
+    cdp.close();
+    killChrome(chrome);
+    const second = await openChrome(9478);
+    chrome = second.child;
+    cdp = second.conn;
+    version = second.versionInfo;
+    scriptId = null;
+    caseNo = 0;
+
     for (const [w, h] of [[1440, 900], [1280, 720], [900, 1000]]) {
       await loadSeed(w, h, { todos: todoItems('1'), sites: siteItems(2, false) });
       const edges = await evalJson(`(async () => {
@@ -1224,7 +1251,7 @@ async function main() {
       const cards = ['s-theme', 's-worksets', 's-experiment'].map((id) => {
         const el = document.getElementById(id).closest('section');
         const r = el.getBoundingClientRect();
-        return { id, top: Math.round(r.top), left: Math.round(r.left) };
+        return { id, top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left) };
       });
       const main = document.getElementById('main');
       main.focus();
@@ -1233,9 +1260,28 @@ async function main() {
     })()`);
     const dayInk = dayHeads && dayHeads.heads.every((h) => h.size >= 14 && h.color === dayHeads.ink);
     check('settings headings use studio ink at 14px+', dayInk && dayHeads.heads.length === 3, JSON.stringify(dayHeads));
-    const row1 = dayHeads && dayHeads.cards[0].top === dayHeads.cards[1].top && dayHeads.cards[0].left < dayHeads.cards[1].left;
-    const row2 = dayHeads && dayHeads.cards[2].top > dayHeads.cards[0].top + 20;
-    check('settings order is appearance + saved windows, then experiment', row1 && row2, JSON.stringify(dayHeads && dayHeads.cards));
+    const byId = dayHeads && Object.fromEntries(dayHeads.cards.map((card) => [card.id, card]));
+    const stacked = byId && Math.abs(byId['s-theme'].left - byId['s-experiment'].left) <= 2
+      && byId['s-experiment'].top > byId['s-theme'].bottom
+      && byId['s-experiment'].top - byId['s-theme'].bottom < 48;
+    const beside = byId && byId['s-worksets'].left > byId['s-theme'].left + 40
+      && Math.abs(byId['s-worksets'].top - byId['s-theme'].top) <= 2;
+    check('settings stacks appearance and experiment beside saved windows', stacked && beside, JSON.stringify(dayHeads && dayHeads.cards));
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 720, height: 1000, deviceScaleFactor: 1, mobile: false,
+    });
+    const narrowSettings = await evalNow(`(() => {
+      return ['s-theme', 's-experiment', 's-worksets'].map((id) => {
+        const r = document.getElementById(id).closest('section').getBoundingClientRect();
+        return { id, top: Math.round(r.top), left: Math.round(r.left) };
+      });
+    })()`);
+    const narrowLeft = narrowSettings && narrowSettings.every((card) => Math.abs(card.left - narrowSettings[0].left) <= 2);
+    const narrowOrder = narrowSettings && narrowSettings[0].top < narrowSettings[1].top && narrowSettings[1].top < narrowSettings[2].top;
+    check('settings is one column at 720', narrowLeft && narrowOrder, JSON.stringify(narrowSettings));
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
+    });
     check('main focus has no outline', dayHeads && dayHeads.outline === 'none', JSON.stringify(dayHeads && dayHeads.outline));
     await evalNow(`document.querySelector('input[name="themePreset"][value="night"]').click()`);
     const nightHeads = await waitUntil(

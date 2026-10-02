@@ -277,6 +277,7 @@
           <p class="desk-write-error" id="name-save-error" role="alert" hidden></p>
         </div>
         <div class="settings">
+          <div class="settings-stack">
           <section class="card" aria-labelledby="s-theme">
             <div class="cardhead">
               <h2 id="s-theme"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 4.5v1.5M12 18v1.5M4.5 12h1.5M18 12h1.5M6.2 6.2l1.1 1.1M16.7 16.7l1.1 1.1M6.2 17.8l1.1-1.1M16.7 7.3l1.1-1.1"/></svg>外观</h2>
@@ -302,21 +303,6 @@
             </div>
           </section>
 
-          <section class="card" aria-labelledby="s-worksets">
-            <div class="cardhead">
-              <h2 id="s-worksets" tabindex="-1"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>存下的窗口</h2>
-              <span class="count" id="c-worksets">0</span>
-            </div>
-            <div class="cardbody">
-              <p class="help">只有点『保存这个窗口』才写入本机，最多 5 个，每个最多 50 个网页。关窗口不会自动存。</p>
-              <div class="savedsets" id="saved-worksets"></div>
-              <p class="desk-write-error" id="worksets-save-error" role="alert" hidden></p>
-            </div>
-            <div class="cardfoot">
-              <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部存下的窗口</button>
-            </div>
-          </section>
-
           <section class="card" aria-labelledby="s-experiment">
             <div class="cardhead">
               <h2 id="s-experiment">实验</h2>
@@ -331,6 +317,24 @@
               </div>
             </div>
           </section>
+          </div>
+
+          <div class="settings-stack">
+          <section class="card" aria-labelledby="s-worksets">
+            <div class="cardhead">
+              <h2 id="s-worksets" tabindex="-1"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 3.5h4a1 1 0 0 1 1 1V6"/></svg>存下的窗口</h2>
+              <span class="count" id="c-worksets">0</span>
+            </div>
+            <div class="cardbody">
+              <p class="help">只有点『保存这个窗口』才写入本机，最多 5 个，每个最多 50 个网页。关窗口不会自动存。</p>
+              <div class="savedsets" id="saved-worksets"></div>
+              <p class="desk-write-error" id="worksets-save-error" role="alert" hidden></p>
+            </div>
+            <div class="cardfoot">
+              <button type="button" class="linkbtn danger" id="worksets-clear" disabled>清空全部存下的窗口</button>
+            </div>
+          </section>
+          </div>
         </div>
       </section>
 
