@@ -1516,13 +1516,131 @@
     (nav || $('#main')).focus({ preventScroll: true });
   }
 
-  let toastT;
-  function toast(msg) {
-    const t = $('#toast');
-    t.textContent = msg;
-    t.classList.add('show');
+  let toastT = null;
+  let toastGen = 0;
+  let toastLeft = 0;
+  let toastMark = 0;
+  let toastPaused = false;
+
+  function toastActionHeld() {
+    const btn = $('#toast-action');
+    if (!btn || btn.hidden) return false;
+    return btn.matches(':hover') || document.activeElement === btn;
+  }
+
+  function clearToastAction() {
+    const btn = $('#toast-action');
+    if (!btn) return;
+    btn.hidden = true;
+    btn.textContent = '';
+    btn.onclick = null;
+    btn.onmouseenter = null;
+    btn.onmouseleave = null;
+    btn.onfocus = null;
+    btn.onblur = null;
+  }
+
+  function hideToast() {
+    toastGen += 1;
+    toastPaused = false;
     clearTimeout(toastT);
-    toastT = setTimeout(() => t.classList.remove('show'), 2400);
+    toastT = null;
+    const t = $('#toast');
+    if (t) t.classList.remove('show');
+    clearToastAction();
+  }
+
+  function expireToast(gen) {
+    if (gen !== toastGen) return;
+    toastT = null;
+    if (toastActionHeld()) {
+      toastPaused = true;
+      toastLeft = 0;
+      return;
+    }
+    hideToast();
+  }
+
+  function armToast(ms) {
+    toastLeft = ms;
+    toastPaused = false;
+    toastMark = Date.now();
+    clearTimeout(toastT);
+    const gen = toastGen;
+    toastT = setTimeout(() => expireToast(gen), ms);
+  }
+
+  function pauseToast() {
+    if (toastPaused || !toastT) return;
+    toastLeft = Math.max(0, toastLeft - (Date.now() - toastMark));
+    toastPaused = true;
+    clearTimeout(toastT);
+    toastT = null;
+  }
+
+  function resumeToast() {
+    if (!toastPaused) return;
+    if (toastActionHeld()) return;
+    if (toastLeft <= 0) {
+      hideToast();
+      return;
+    }
+    toastPaused = false;
+    toastMark = Date.now();
+    const gen = toastGen;
+    clearTimeout(toastT);
+    toastT = setTimeout(() => expireToast(gen), toastLeft);
+  }
+
+  function placeToastAction() {
+    const t = $('#toast');
+    const btn = $('#toast-action');
+    if (!t || !btn || btn.hidden) return;
+    const rect = t.getBoundingClientRect();
+    const width = btn.offsetWidth || 0;
+    const height = btn.offsetHeight || 0;
+    const left = Math.min(rect.right + 8, Math.max(8, window.innerWidth - width - 8));
+    const top = rect.top + (rect.height - height) / 2;
+    btn.style.left = `${Math.round(left)}px`;
+    btn.style.top = `${Math.round(Math.max(8, top))}px`;
+  }
+
+  function toast(msg, opts) {
+    const t = $('#toast');
+    if (!t) return;
+    toastGen += 1;
+    toastPaused = false;
+    clearTimeout(toastT);
+    toastT = null;
+    t.textContent = msg == null ? '' : String(msg);
+    t.classList.add('show');
+    const btn = $('#toast-action');
+    const action = opts && opts.action;
+    const hasAction = !!(action && action.label && typeof action.onClick === 'function');
+    if (btn) {
+      btn.onclick = null;
+      btn.onmouseenter = null;
+      btn.onmouseleave = null;
+      btn.onfocus = null;
+      btn.onblur = null;
+      if (hasAction) {
+        btn.hidden = false;
+        btn.textContent = String(action.label);
+        btn.onclick = (e) => {
+          e.preventDefault();
+          action.onClick();
+        };
+        btn.onmouseenter = () => pauseToast();
+        btn.onmouseleave = () => resumeToast();
+        btn.onfocus = () => pauseToast();
+        btn.onblur = () => resumeToast();
+        placeToastAction();
+      } else {
+        btn.hidden = true;
+        btn.textContent = '';
+      }
+    }
+    armToast(hasAction ? 6000 : 2400);
   }
 
   function applyDesk(data, opts) {
@@ -1816,6 +1934,64 @@
     if (act) act.focus({ preventScroll: true });
   }
 
+  let undoBusy = false;
+  async function undoCompletedTodo(id) {
+    if (undoBusy || !id) return;
+    const item = state.todos.find((t) => t && t.id === id);
+    if (!item) {
+      toast('这条已经删掉了');
+      return;
+    }
+    const next = state.todos.map((t) => (
+      t.id === id ? { id: t.id, text: t.text, done: false } : t
+    ));
+    undoBusy = true;
+    try {
+      if (!window.SopifyCollection) {
+        const saved = await replaceTodos(next, 'todo-save-error', '没存上，再点一次');
+        if (saved) hideToast();
+        return;
+      }
+      const ops = window.SopifyCollection.diffTodos(state.todos, next);
+      let committed;
+      try {
+        committed = await requestCollectionCommit({ domain: 'todos', ops: ops });
+      } catch {
+        committed = null;
+      }
+      if (committed && committed.blocked) {
+        showWriteError('todo-save-error', '待办暂时没能读取');
+        showTodoLoadError();
+        return;
+      }
+      if (committed && committed.missing) {
+        toast('这条已经删掉了');
+        const loaded = await loadDesk();
+        if (loaded && loaded.ok === true) applyDesk(loaded, { notes: false });
+        return;
+      }
+      const saved = (!committed || committed.ok !== true)
+        ? confirmDeskWrite(committed, null)
+        : confirmDeskWrite(
+          { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+          { ok: committed.readback !== false },
+        );
+      if (!saved || saved.ok !== true) {
+        showWriteError('todo-save-error', writeFailMessage(saved, '待办暂时没能读取', '没存上，再点一次'));
+        if (saved && saved.blocked) showTodoLoadError();
+        renderTodos();
+        return;
+      }
+      hideWriteError('todo-save-error');
+      hideWriteError('todo-dialog-save-error');
+      adoptCollection('todos', saved);
+      renderTodos();
+      hideToast();
+    } finally {
+      undoBusy = false;
+    }
+  }
+
   let completingId = null;
   function runResumeAction() {
     if (completingId) return;
@@ -1843,6 +2019,10 @@
         renderResume();
         return;
       }
+      const clip = [...String(target.text || '').trim()].slice(0, 20).join('');
+      toast(`已完成「${clip}」`, {
+        action: { label: '撤销', onClick: () => { undoCompletedTodo(id); } },
+      });
       if (openBefore <= 1) {
         const input = $('#todo-input');
         if (input) input.focus();
@@ -2780,6 +2960,10 @@
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
     const retryUnopenedBtn = $('#workset-retry-unopened');
     if (retryUnopenedBtn) retryUnopenedBtn.addEventListener('click', () => { retryUnopened(); });
+    window.addEventListener('resize', () => {
+      const btn = $('#toast-action');
+      if (btn && !btn.hidden) placeToastAction();
+    });
     $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 

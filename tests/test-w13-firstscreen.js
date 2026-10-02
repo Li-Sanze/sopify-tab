@@ -193,6 +193,17 @@ const editBody = fnBody(js, 'function beginTodoTextEdit(id)');
 assert.ok(editBody.includes('createImeGuard()') && editBody.includes('replaceTodos('));
 assert.ok(editBody.includes("e.key === 'Enter'") && editBody.includes('editIme.blocks(e)'));
 assert.ok(todosDialogBody.includes('data-todo-text') && todosDialogBody.includes('beginTodoTextEdit'));
+const toastBody = fnBody(js, 'function toast(msg, opts)');
+assert.ok(toastBody.includes("$('#toast-action')") && toastBody.includes('6000') && toastBody.includes('2400'));
+assert.ok(toastBody.includes('onmouseenter') && toastBody.includes('onmouseleave') && toastBody.includes('onfocus') && toastBody.includes('onblur'));
+assert.ok(!toastBody.includes('workset-retry-unopened') && !toastBody.includes('.focus('));
+assert.ok(html.includes('id="toast-action"') && html.includes('id="workset-retry-unopened"'));
+assert.ok(html.indexOf('id="toast"') < html.indexOf('id="toast-action"') && html.indexOf('id="toast-action"') < html.indexOf('id="workset-retry-unopened"'));
+const resumeActBody = fnBody(js, 'function runResumeAction()');
+assert.ok(resumeActBody.includes('已完成「') && resumeActBody.includes("label: '撤销'") && resumeActBody.includes('undoCompletedTodo'));
+const undoBody = fnBody(js, 'async function undoCompletedTodo(id)');
+assert.ok(undoBody.includes('done: false') && undoBody.includes('这条已经删掉了') && undoBody.includes('diffTodos'));
+assert.ok(!todosDialogBody.includes('undoCompletedTodo') && !todosDialogBody.includes('已完成「'));
 assert.ok(!js.includes('draggable'), '3b.2 does not add drag sorting');
 assert.ok(css.includes('.todo:hover > .todo-next') && css.includes('.todo:focus-within > .todo-next'));
 assert.ok(/@media \(max-width: 600px\) \{[\s\S]*\.todo-next \{ opacity: 1; pointer-events: auto; \}/.test(css));
@@ -1351,6 +1362,170 @@ async function main() {
         && editBlur.count === 2
         && JSON.stringify(editBlur.ids) === JSON.stringify(['t1', 't2']),
       JSON.stringify(editBlur),
+    );
+
+    const longTodo = '一二三四五六七八九十一二三四五六七八九十多出来';
+    const clipTodo = [...longTodo].slice(0, 20).join('');
+    await loadSeed(1440, 900, {
+      todos: [
+        { id: 't1', text: longTodo, done: false },
+        { id: 't2', text: '待办2', done: false },
+      ],
+      sites: [],
+    });
+    const completed = await evalJson(`(async () => {
+      const beforeFocus = document.activeElement && document.activeElement.id;
+      document.getElementById('resume-act').click();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        const action = document.getElementById('toast-action');
+        const toast = document.getElementById('toast');
+        snap = {
+          done: !!(row && row.done),
+          text: row && row.text,
+          title: document.getElementById('resume-title').textContent,
+          toast: toast.textContent,
+          shown: toast.classList.contains('show'),
+          action: action.textContent,
+          actionHidden: action.hidden,
+          focus: document.activeElement && document.activeElement.id,
+          tabbable: action.tabIndex >= 0 && !action.disabled,
+          separate: action !== document.getElementById('workset-retry-unopened'),
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          beforeFocus,
+        };
+        if (snap.done && snap.shown && snap.action === '撤销') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      '完成 shows an undo toast and does not steal focus',
+      completed.done
+        && completed.text === longTodo
+        && completed.title === '待办2'
+        && completed.toast === `已完成「${clipTodo}」`
+        && completed.shown
+        && completed.action === '撤销'
+        && !completed.actionHidden
+        && completed.focus !== 'toast-action'
+        && completed.tabbable
+        && completed.separate
+        && JSON.stringify(completed.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(completed),
+    );
+    const undone = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      document.querySelector('#todos-dialog-list [data-todo-text="t1"]').click();
+      const input = document.querySelector('#todos-dialog-list .todo-edit');
+      input.value = '最新的字';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const start = Date.now();
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        if (row && row.text === '最新的字' && row.done && !document.querySelector('#todos-dialog-list .todo-edit')) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      document.getElementById('ops-todos-dialog').close();
+      document.getElementById('toast-action').click();
+      const wait = Date.now();
+      let snap = null;
+      while (Date.now() - wait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        const action = document.getElementById('toast-action');
+        snap = {
+          text: row && row.text,
+          done: !!(row && row.done),
+          title: document.getElementById('resume-title').textContent,
+          actionHidden: action.hidden,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          count: window.__sopifyStore.todos.length,
+        };
+        if (snap.text === '最新的字' && !snap.done && snap.title === '最新的字') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      '撤销 uses the latest text and clears done',
+      undone.text === '最新的字'
+        && !undone.done
+        && undone.title === '最新的字'
+        && undone.actionHidden
+        && undone.count === 2
+        && JSON.stringify(undone.ids) === JSON.stringify(['t1', 't2']),
+      JSON.stringify(undone),
+    );
+    const missingUndo = await evalJson(`(async () => {
+      document.getElementById('resume-act').click();
+      const start = Date.now();
+      while (Date.now() - start < 3000) {
+        const action = document.getElementById('toast-action');
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        if (row && row.done && action && !action.hidden && action.textContent === '撤销') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      window.__sopifyStore.todos = window.__sopifyStore.todos.filter((item) => item.id !== 't1');
+      document.getElementById('toast-action').click();
+      const wait = Date.now();
+      let snap = null;
+      while (Date.now() - wait < 3000) {
+        const action = document.getElementById('toast-action');
+        const toast = document.getElementById('toast');
+        snap = {
+          toast: toast.textContent,
+          shown: toast.classList.contains('show'),
+          actionHidden: action.hidden,
+          title: document.getElementById('resume-title').textContent,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          gone: !window.__sopifyStore.todos.some((item) => item.id === 't1'),
+        };
+        if (snap.toast === '这条已经删掉了' && snap.gone && snap.title === '待办2') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      'undo says the item was already deleted',
+      missingUndo.toast === '这条已经删掉了'
+        && missingUndo.shown
+        && missingUndo.actionHidden
+        && missingUndo.gone
+        && missingUndo.title === '待办2'
+        && JSON.stringify(missingUndo.ids) === JSON.stringify(['t2']),
+      JSON.stringify(missingUndo),
+    );
+    const dialogDone = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      document.querySelector('#todos-dialog-list [data-todo-id="t2"]').click();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't2');
+        const action = document.getElementById('toast-action');
+        const toast = document.getElementById('toast');
+        snap = {
+          done: !!(row && row.done),
+          actionHidden: action.hidden,
+          action: action.textContent,
+          toast: toast.textContent,
+          title: document.getElementById('resume-title').textContent,
+        };
+        if (snap.done) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      'dialog checkbox does not offer undo',
+      dialogDone.done
+        && dialogDone.actionHidden
+        && dialogDone.action === ''
+        && dialogDone.toast !== '已完成「待办2」'
+        && dialogDone.title === '',
+      JSON.stringify(dialogDone),
     );
 
     await loadSeed(1440, 900, { todos: [], sites: [] });
