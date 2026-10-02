@@ -182,6 +182,16 @@ assert.ok(themeAt > 0 && themeAt < expAt && expAt < workAt, 'settings columns ar
 assert.ok(html.includes('class="settings-stack"'));
 assert.ok(css.includes('.settings-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }'));
 assert.ok(js.includes('想到下一件就写下来，按 <kbd>回车</kbd>') && !js.includes('刚完成了'));
+const moveBody = fnBody(js, 'async function moveTodoToFront(id)');
+assert.ok(moveBody.includes('requestCollectionCommit'));
+assert.ok(moveBody.includes("op: 'move'") && moveBody.includes("to: 'front'"));
+assert.ok(moveBody.includes('confirmDeskWrite') && moveBody.includes("adoptCollection('todos'"));
+assert.ok(moveBody.includes('这条已在另一页删掉了') && moveBody.includes('没存上，再点一次') && moveBody.includes("toast('已设为下一件')"));
+const todosDialogBody = fnBody(js, 'function openTodosDialog()');
+assert.ok(todosDialogBody.includes('设为下一件') && todosDialogBody.includes('data-todo-next'));
+assert.ok(!js.includes('draggable'), '3b.2 does not add drag sorting');
+assert.ok(css.includes('.todo:hover > .todo-next') && css.includes('.todo:focus-within > .todo-next'));
+assert.ok(/@media \(max-width: 600px\) \{[\s\S]*\.todo-next \{ opacity: 1; pointer-events: auto; \}/.test(css));
 assert.ok(js.includes('查看已完成 ${done} 件'));
 assert.ok(fs.readFileSync(__filename, 'utf8').includes('9478'), '3a cases open a second Chrome process');
 assert.ok(!html.includes('localhost 端口只是标签'));
@@ -317,6 +327,10 @@ function stubSource(seed) {
             return new Promise((resolve, reject) => {
               const run = () => {
                 if (seed.failNotes && partial && Object.prototype.hasOwnProperty.call(partial, 'notes')) {
+                  reject(new Error('storage failed'));
+                  return;
+                }
+                if (seed.failTodos && partial && Object.prototype.hasOwnProperty.call(partial, 'todos')) {
                   reject(new Error('storage failed'));
                   return;
                 }
@@ -697,6 +711,21 @@ async function main() {
       });
     }
 
+    async function mouseMove(selector) {
+      await evalNow(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'center' });
+      })()`);
+      const box = await evalNow(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+      })()`);
+      if (!box || box.w < 1 || box.h < 1) throw new Error(`no mouse target ${selector}`);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.y });
+    }
+
     function readConfirmExpr() {
       return `(() => {
         const d = document.getElementById('ops-confirm-dialog');
@@ -1032,6 +1061,144 @@ async function main() {
       return { open: !!(dialog && dialog.open), all: document.querySelectorAll('#sites-all .tile').length };
     })()`);
     check('全部 N 个 opens the sites dialog', opened.open && opened.all === 16, JSON.stringify(opened));
+
+
+    const nextSeed = {
+      todos: [
+        { id: 't1', text: '待办1', done: false },
+        { id: 't2', text: '待办2', done: false },
+        { id: 'done', text: '已完成', done: true },
+        { id: 't3', text: '待办3', done: false },
+      ],
+      sites: [],
+    };
+    function nextButtonShown(id) {
+      return `(() => {
+        const el = document.querySelector('#todos-dialog-list [data-todo-next="${id}"]');
+        if (!el) return { present: false };
+        const cs = getComputedStyle(el);
+        return { present: true, opacity: cs.opacity, pointer: cs.pointerEvents, text: el.textContent };
+      })()`;
+    }
+    await loadSeed(1440, 900, nextSeed);
+    await evalJson(`document.getElementById('todos-open').click()`);
+    const nextButtons = await evalJson(`(() => {
+      const rows = [...document.querySelectorAll('#todos-dialog-list .todo')].map((row) => ({
+        id: (row.querySelector('[data-todo-id]') || {}).dataset ? row.querySelector('[data-todo-id]').dataset.todoId : '',
+        text: row.querySelector('.todo-next') ? row.querySelector('.todo-next').textContent : '',
+      }));
+      return rows;
+    })()`);
+    check(
+      '设为下一件 is on later open todos only',
+      nextButtons.length === 4
+        && nextButtons[0].id === 't1' && nextButtons[0].text === ''
+        && nextButtons[1].id === 't2' && nextButtons[1].text === '设为下一件'
+        && nextButtons[2].id === 'done' && nextButtons[2].text === ''
+        && nextButtons[3].id === 't3' && nextButtons[3].text === '设为下一件',
+      JSON.stringify(nextButtons),
+    );
+    const hiddenWide = await evalJson(nextButtonShown('t2'));
+    check('wide screen hides 设为下一件 until the row is pointed at', hiddenWide.present && hiddenWide.opacity === '0' && hiddenWide.pointer === 'none', JSON.stringify(hiddenWide));
+    await mouseMove('#todos-dialog-list .todo:nth-child(2)');
+    const hovered = await evalJson(nextButtonShown('t2'));
+    check('hover shows 设为下一件', hovered.opacity === '1' && hovered.pointer === 'auto', JSON.stringify(hovered));
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 });
+    await evalJson(`document.activeElement && document.activeElement.blur()`);
+    const afterLeave = await evalJson(nextButtonShown('t2'));
+    check('leaving the row hides 设为下一件 again', afterLeave.opacity === '0' && afterLeave.pointer === 'none', JSON.stringify(afterLeave));
+    await evalJson(`document.querySelector('#todos-dialog-list .todo:nth-child(2) input').focus()`);
+    const focusedRow = await evalJson(nextButtonShown('t2'));
+    check('row focus shows 设为下一件', focusedRow.opacity === '1' && focusedRow.pointer === 'auto', JSON.stringify(focusedRow));
+    const promoted = await evalJson(`(async () => {
+      document.querySelector('#todos-dialog-list [data-todo-next="t3"]').click();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const box = document.querySelector('#todos-dialog-list input[data-todo-id="t3"]');
+        const toast = document.getElementById('toast');
+        snap = {
+          title: document.getElementById('resume-title').textContent,
+          toast: toast.textContent,
+          shown: toast.classList.contains('show'),
+          focus: document.activeElement === box,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          buttonGone: !document.querySelector('#todos-dialog-list [data-todo-next="t3"]'),
+          t1Has: !!document.querySelector('#todos-dialog-list [data-todo-next="t1"]'),
+        };
+        if (snap.title === '待办3' && snap.shown && snap.toast === '已设为下一件' && snap.focus && snap.buttonGone && snap.t1Has) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      '设为下一件 updates the first screen and keeps focus',
+      promoted.title === '待办3'
+        && promoted.toast === '已设为下一件'
+        && promoted.shown
+        && promoted.focus
+        && promoted.buttonGone
+        && promoted.t1Has
+        && JSON.stringify(promoted.ids) === JSON.stringify(['t3', 't1', 't2', 'done']),
+      JSON.stringify(promoted),
+    );
+
+    await loadSeed(560, 800, nextSeed);
+    await evalJson(`document.getElementById('todos-open').click()`);
+    const narrow = await evalJson(nextButtonShown('t3'));
+    check('narrow screen always shows 设为下一件', narrow.present && narrow.opacity === '1' && narrow.pointer === 'auto', JSON.stringify(narrow));
+
+    await loadSeed(1440, 900, nextSeed);
+    const missingMove = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      window.__sopifyStore.todos = window.__sopifyStore.todos.filter((item) => item.id !== 't3');
+      document.querySelector('#todos-dialog-list [data-todo-next="t3"]').click();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const err = document.getElementById('todo-dialog-save-error');
+        snap = {
+          text: err ? err.textContent : '',
+          hidden: err ? err.hidden : true,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          rowGone: !document.querySelector('#todos-dialog-list [data-todo-id="t3"]'),
+          title: document.getElementById('resume-title').textContent,
+        };
+        if (snap.text === '这条已在另一页删掉了' && snap.rowGone && snap.title === '待办1') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      'missing move says the other page deleted it',
+      missingMove.text === '这条已在另一页删掉了' && !missingMove.hidden && missingMove.rowGone && missingMove.title === '待办1' && JSON.stringify(missingMove.ids) === JSON.stringify(['t1', 't2', 'done']),
+      JSON.stringify(missingMove),
+    );
+
+    await loadSeed(1440, 900, Object.assign({ failTodos: true }, nextSeed));
+    const failedMove = await evalJson(`(async () => {
+      document.getElementById('todos-open').click();
+      document.querySelector('#todos-dialog-list [data-todo-next="t3"]').click();
+      const start = Date.now();
+      let snap = null;
+      while (Date.now() - start < 3000) {
+        const err = document.getElementById('todo-dialog-save-error');
+        snap = {
+          text: err ? err.textContent : '',
+          hidden: err ? err.hidden : true,
+          ids: window.__sopifyStore.todos.map((item) => item.id),
+          still: !!document.querySelector('#todos-dialog-list [data-todo-next="t3"]'),
+        };
+        if (snap.text === '没存上，再点一次') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return snap;
+    })()`);
+    check(
+      'failed move says to click again',
+      failedMove.text === '没存上，再点一次' && !failedMove.hidden && failedMove.still && JSON.stringify(failedMove.ids) === JSON.stringify(['t1', 't2', 'done', 't3']),
+      JSON.stringify(failedMove),
+    );
 
     await loadSeed(1440, 900, { todos: [], sites: [] });
     const urlError = await evalJson(`(() => {

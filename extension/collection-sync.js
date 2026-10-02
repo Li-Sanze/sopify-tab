@@ -146,6 +146,14 @@
         items[at] = updated;
       } else if (op.op === 'remove') {
         if (at !== -1) items.splice(at, 1);
+      } else if (op.op === 'move') {
+        if (domain !== 'todos' || op.to !== 'front') return { ok: false, error: true };
+        if (at === -1) return { ok: false, missing: true };
+        if (at > 0) {
+          var moved = items[at];
+          items.splice(at, 1);
+          items.unshift(moved);
+        }
       } else {
         return { ok: false, error: true };
       }

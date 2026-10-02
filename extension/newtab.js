@@ -617,6 +617,46 @@
     );
   }
 
+  async function moveTodoToFront(id) {
+    let committed;
+    try {
+      committed = await requestCollectionCommit({
+        domain: 'todos',
+        ops: [{ op: 'move', id: id, to: 'front' }],
+      });
+    } catch {
+      committed = null;
+    }
+    if (committed && committed.blocked) {
+      showWriteError('todo-dialog-save-error', '待办暂时没能读取');
+      showTodoLoadError();
+      return committed;
+    }
+    if (committed && committed.missing) {
+      showWriteError('todo-dialog-save-error', '这条已在另一页删掉了');
+      const loaded = await loadDesk();
+      if (loaded && loaded.ok === true) applyDesk(loaded, { notes: false });
+      return committed;
+    }
+    const saved = (!committed || committed.ok !== true)
+      ? confirmDeskWrite(committed, null)
+      : confirmDeskWrite(
+        { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+        { ok: committed.readback !== false },
+      );
+    if (!saved || saved.ok !== true) {
+      showWriteError('todo-dialog-save-error', writeFailMessage(saved, '待办暂时没能读取', '没存上，再点一次'));
+      if (saved && saved.blocked) showTodoLoadError();
+      return saved;
+    }
+    hideWriteError('todo-save-error');
+    hideWriteError('todo-dialog-save-error');
+    adoptCollection('todos', saved);
+    renderTodos();
+    toast('已设为下一件');
+    return saved;
+  }
+
   async function commitSiteIntent(next) {
     if (!window.SopifyCollection) return confirmDeskWrite(null, null);
     const ops = window.SopifyCollection.diffSites(state.sites, next);
@@ -1851,18 +1891,26 @@
     const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
+    const nextTodo = state.todos.find((t) => t && !t.done && String(t.text || '').trim());
+    const nextTodoId = nextTodo ? nextTodo.id : '';
     const todoRows = domainUnread.todos
       ? '<li class="empty">待办暂时没能读取</li>'
-      : (state.todos.length ? state.todos.map((t) => `
+      : (state.todos.length ? state.todos.map((t) => {
+          const promote = (!t.done && t.id !== nextTodoId)
+            ? `<button type="button" class="todo-next" data-todo-next="${esc(t.id)}">设为下一件</button>`
+            : '';
+          return `
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
               <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
               <span>${esc(t.text)}</span>
             </label>
+            ${promote}
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </li>`).join('') : '<li class="empty">还没有待办。</li>');
+          </li>`;
+        }).join('') : '<li class="empty">还没有待办。</li>');
     body.innerHTML = `
       <ul class="todos" id="todos-dialog-list">
         ${todoRows}
@@ -1875,6 +1923,20 @@
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
     body.onclick = async (e) => {
+      const nextBtn = e.target.closest('[data-todo-next]');
+      if (nextBtn) {
+        const id = nextBtn.dataset.todoNext;
+        const saved = await moveTodoToFront(id);
+        if (saved && saved.missing) {
+          if (dialog.open) openTodosDialog();
+          return;
+        }
+        if (!saved || saved.ok !== true) return;
+        if (dialog.open) openTodosDialog();
+        const box = body.querySelector(`input[type="checkbox"][data-todo-id="${cssEscape(id)}"]`);
+        if (box) box.focus();
+        return;
+      }
       const del = e.target.closest('[data-del-todo]');
       if (!del) return;
       const planned = formOps().planRemove(todoRemoveRecord, del.dataset.delTodo, uid);

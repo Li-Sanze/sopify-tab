@@ -499,6 +499,49 @@ async function raceNotes(cdpA, cdpB) {
   return { ok, detail: JSON.stringify({ snapA, snapB, stored, panel }) };
 }
 
+async function raceMoveAndAdd(cdpA, cdpB) {
+  const seed = [1, 2, 3, 4].map((n) => ({ id: 't' + n, text: '待办' + n, done: false }));
+  await evalOn(cdpA, `chrome.storage.local.set(${JSON.stringify({ todos: seed, todosRev: 1 })})`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return { ok: false, detail: 'move seed reboot failed' };
+  }
+  const clickNext = `(() => {
+    document.getElementById('todos-open').click();
+    const btn = document.querySelector('#todos-dialog-list [data-todo-next="t3"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`;
+  const add = `(() => {
+    const input = document.getElementById('todo-input');
+    input.value = '新的一件';
+    document.getElementById('todo-form').requestSubmit();
+    return true;
+  })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: clickNext, returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: add, returnByValue: true }),
+  ]);
+  let stored = [];
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ todos: [] }); return (data.todos || []).map((t) => t && t.text); })()`);
+    if (stored[0] === '待办3' && stored.includes('新的一件') && stored.includes('待办1')) break;
+    await sleep(50);
+  }
+  const domA = await evalOn(cdpA, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const domB = await evalOn(cdpB, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const kept = stored[0] === '待办3' && stored.includes('新的一件') && stored.includes('待办1') && stored.includes('待办2') && stored.includes('待办4');
+  const ok = kept
+    && domA.includes('待办3') && domA.includes('新的一件')
+    && domB.includes('待办3') && domB.includes('新的一件');
+  return { ok, detail: JSON.stringify({ stored, domA, domB }) };
+}
+
 async function runTwoPages(port, opened) {
   const ver = await getJson(port, '/json/version');
   const browser = await connectCdp(ver.webSocketDebuggerUrl);
@@ -544,7 +587,8 @@ async function runTwoPages(port, opened) {
     return { detail: 'note reboot failed', todo, note: { ok: false, detail: 'reboot' } };
   }
   const note = await raceNotes(cdpA, cdpB);
-  return { detail: 'two pages shared storage.local', todo, note };
+  const move = await raceMoveAndAdd(cdpA, cdpB);
+  return { detail: 'two pages shared storage.local', todo, note, move };
 }
 
 async function exerciseRealExtension(bin) {
@@ -623,7 +667,7 @@ async function exerciseRealExtension(bin) {
     confirmed = true;
     const loaded = (worker.url || classified.detail) + '; chrome.runtime.id matched; chrome.action.onClicked.hasListeners() is true';
     const pages = await runTwoPages(realPort, opened);
-    const twoPage = !!(pages.todo && pages.todo.ok && pages.note && pages.note.ok);
+    const twoPage = !!(pages.todo && pages.todo.ok && pages.note && pages.note.ok && pages.move && pages.move.ok);
     return finish({
       ok: true,
       skipped: false,
@@ -632,6 +676,7 @@ async function exerciseRealExtension(bin) {
       twoPage,
       todo: pages.todo,
       note: pages.note,
+      move: pages.move,
     });
   } catch (err) {
     return finish({
@@ -1571,6 +1616,7 @@ async function main() {
     check('real extension loaded', true, real.detail);
     check('real extension keeps both concurrent todos', realRun.todo && realRun.todo.ok, realRun.todo && realRun.todo.detail);
     check('real extension note race shows both drafts', realRun.note && realRun.note.ok, realRun.note && realRun.note.detail);
+    check('real extension keeps a moved todo and a concurrent add', realRun.move && realRun.move.ok, realRun.move && realRun.move.detail);
   }
 
   const report = {
@@ -1680,6 +1726,14 @@ async function main() {
         真扩展: real.ok ? 'pass' : (real.skipped ? 'skip' : '未测'),
         IME: '未测',
         未测: '反例在 node 里拒绝其他 chrome-extension。真中文 IME / 3D 运行时',
+      },
+      {
+        item: '3b.2 设为下一件和另一页新增同时留下',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: realCol('real extension keeps a moved todo and a concurrent add'),
+        IME: '未测',
+        未测: 'Mac 未测。按钮和首屏在 w13 替身里点过。不做拖拽排序',
       },
       {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',

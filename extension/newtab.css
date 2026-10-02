@@ -979,6 +979,20 @@ dialog.ops-dialog::backdrop {
 .todo input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--studio-ink); cursor: pointer; flex: none; }
 .todo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
 .todo.done span { color: var(--ink-3); text-decoration: line-through; }
+.todo-next {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  color: var(--studio-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+}
+.todo:hover > .todo-next,
+.todo:focus-within > .todo-next { opacity: 1; pointer-events: auto; }
+.todo-next:hover { background: var(--well-2); }
 .iconbtn {
   width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--ink-3);
   transition: background var(--dur) var(--out), color var(--dur) var(--out);
@@ -1178,6 +1192,7 @@ html[data-sky="night"] .favicon:has(img.fav.ok) { background: var(--tile-bg); }
 }
 @media (max-width: 600px) {
   .groups { grid-template-columns: 1fr; }
+  .todo-next { opacity: 1; pointer-events: auto; }
 }
 @media (max-width: 760px) {
   .shell { grid-template-columns: 1fr; }
