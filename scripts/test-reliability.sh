@@ -31,18 +31,26 @@ is_browser() {
 }
 
 reap_sopify_chrome() {
-  local pids dir
+  local pids dir tmp root
+  tmp="$(node -p 'require("os").tmpdir()')"
   # Match Chrome's own --user-data-dir path. Keep the needles out of one
   # process's argv so the scan cannot select itself.
-  pids="$(ps -eo pid=,args= | grep -F -- '--user-data-dir=' | grep -F '/tmp/sopify-' | grep -v grep | awk '{ print $1 }')"
+  # Linux profiles live under /tmp. macOS os.tmpdir() is usually /var/folders/.../T.
+  pids="$(ps -eo pid=,args= | grep -F -- '--user-data-dir=' | grep -F -e '/tmp/sopify-' -e "${tmp}/sopify-" | grep -v grep | awk '{ print $1 }')"
   if [[ -n "$pids" ]]; then
     echo "reliability: cleaning leftover chrome: ${pids//$'\n'/ }"
     # shellcheck disable=SC2086
     kill -KILL $pids 2>/dev/null || true
   fi
   shopt -s nullglob
-  for dir in /tmp/sopify-r17-* /tmp/sopify-firstscreen-*; do
-    rm -rf "$dir" 2>/dev/null || true
+  local roots=("/tmp")
+  if [[ -n "$tmp" && "$tmp" != "/tmp" ]]; then
+    roots+=("$tmp")
+  fi
+  for root in "${roots[@]}"; do
+    for dir in "$root"/sopify-r17-* "$root"/sopify-firstscreen-*; do
+      rm -rf "$dir" 2>/dev/null || true
+    done
   done
   shopt -u nullglob
 }
@@ -99,7 +107,9 @@ run() {
   start=$(date +%s%N)
   echo "reliability: run ${name}"
   if is_browser "$name"; then
-    timeout -k 10s 240s node "$name"
+    # Each browser file arms its own 240s watchdog. No GNU timeout wrapper:
+    # macOS does not ship coreutils, and the gate must not require it.
+    node "$name"
     status=$?
     reap_sopify_chrome
   else

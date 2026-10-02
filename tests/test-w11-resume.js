@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const EXT = path.join(__dirname, '..', 'extension');
+const REPO = path.join(__dirname, '..');
+const EXT = path.join(REPO, 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
   'worksets', 'spaceView',
@@ -72,6 +73,30 @@ assert.ok(!/storage\.sync/.test(js));
 assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
 assert.ok(!('optional_permissions' in manifest));
 assert.ok(!('side_panel' in manifest));
+assert.ok(!manifest.permissions.includes('nativeMessaging'));
+assert.strictEqual(manifest.action && manifest.action.default_title, 'Sopify Tab');
+assert.ok(!fs.existsSync(path.join(REPO, 'host', 'host.js')), 'host runtime is already offline');
+assert.ok(!fs.existsSync(path.join(REPO, 'host', 'install-host.sh')), 'host installer is already offline');
+for (const name of ['sidepanel.js', 'sidepanel.html', 'sidepanel.css']) {
+  assert.ok(!fs.existsSync(path.join(EXT, name)), `${name} is already offline`);
+}
+assert.ok(!html.includes('name="hostUpstream"'), 'upstream selector is already offline');
+assert.ok(!js.includes('chrome.storage.local.set({ hostUpstream: next })'));
+
+function walkExt(dir, acc) {
+  for (const name of fs.readdirSync(dir)) {
+    if (name === 'vendor' || name === 'test-gates.js') continue;
+    const full = path.join(dir, name);
+    if (fs.statSync(full).isDirectory()) walkExt(full, acc);
+    else if (/\.(js|html|css|json)$/.test(name)) acc.push(full);
+  }
+  return acc;
+}
+const bannedHost = /connectNative|sendNativeMessage|\bsidePanel\b|side_panel|nativeMessaging|openSidePanel|openPanelOnActionClick|id="open-chat"|class="rail"/;
+for (const file of walkExt(EXT, [])) {
+  const src = fs.readFileSync(file, 'utf8');
+  assert.ok(!bannedHost.test(src), `${path.relative(REPO, file)} still has a Host or Side Panel surface`);
+}
 
 assert.ok(/\.next-title[\s\S]*?-webkit-line-clamp:\s*2/.test(css), 'short titles clamp to 2 lines');
 assert.ok(/data-size="m"\][\s\S]*?-webkit-line-clamp:\s*3/.test(css), 'medium titles clamp to 3 lines');
