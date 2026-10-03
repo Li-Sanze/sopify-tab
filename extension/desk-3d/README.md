@@ -47,7 +47,7 @@ chromium --user-data-dir="$HOME/sopify-tab-clean-profile" \
 ## 行为
 
 - 「下一件事」是 `#resume`，纯 DOM，不经 3D。面板用 `--next-h` / `--resume-bottom`（ResizeObserver）避开它。
-- **默认关闭。** 开关只在设置页「空间视图（实验）」，键是 `chrome.storage.local` 的 `spaceView`。关着时 `boot.js` 不 `import()` `embed.js`，因此不加载 `scene.js` 和 `vendor/three/three.module.js`。
+- **默认关闭。** 开关在设置页「实验」卡里的「空间视图」，键是 `chrome.storage.local` 的 `spaceView`。关着时 `boot.js` 不 `import()` `embed.js`，因此不加载 `scene.js` 和 `vendor/three/three.module.js`。
 - 打开后舞台出现在常用站下方。关掉调用 `dispose()`：断开观察器和监听、清掉舞台和面板。反复开关不会叠两套监听。加载过程中关掉，动态 import 完成后不再挂载。
 - 桌面最多 **两个** 存下的窗口（屏幕 + 资料夹）；「查看全部存下的窗口」去设置页。没有保存时这个入口隐藏。
 - 随手记 = 书桌那一条 `notes` 字符串。空着就空着，不造第二条。

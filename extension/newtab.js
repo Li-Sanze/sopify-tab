@@ -6,12 +6,6 @@
   const WORKSET_STORE_CAP = 5;
   const WORKSET_TAB_CAP = 50;
   const WORKSET_TITLE_MAX = 200;
-  const HOST_ID = 'com.sopify.tab';
-  const HOST_CHECKS = [
-    ['installed', 'Host 已安装', '装在你自己的机器上，不随扩展一起装。'],
-    ['authorized', '扩展已获授权', 'Host 的清单里允许这个扩展 ID 连接。'],
-    ['bridge', 'Native Messaging 可用', 'Chrome 能拉起 Host 并收到第一条回应。'],
-  ];
 
   const state = {
     view: 'desk',
@@ -23,15 +17,6 @@
     filter: '',
     worksetFilter: '',
     worksets: [],
-    cwd: '',
-    hostUpstream: 'cursor',
-    hostChecked: false,
-    hostBusy: false,
-    host: { installed: false, authorized: false, bridge: false },
-    hostReason: '',
-    cursorAvailable: false,
-    claudeAvailable: false,
-    codexAvailable: false,
   };
 
   const desk3dSubs = [];
@@ -632,6 +617,46 @@
     );
   }
 
+  async function moveTodoToFront(id) {
+    let committed;
+    try {
+      committed = await requestCollectionCommit({
+        domain: 'todos',
+        ops: [{ op: 'move', id: id, to: 'front' }],
+      });
+    } catch {
+      committed = null;
+    }
+    if (committed && committed.blocked) {
+      showWriteError('todo-dialog-save-error', '待办暂时没能读取');
+      showTodoLoadError();
+      return committed;
+    }
+    if (committed && committed.missing) {
+      showWriteError('todo-dialog-save-error', '这条已在另一页删掉了');
+      const loaded = await loadDesk();
+      if (loaded && loaded.ok === true) applyDesk(loaded, { notes: false });
+      return committed;
+    }
+    const saved = (!committed || committed.ok !== true)
+      ? confirmDeskWrite(committed, null)
+      : confirmDeskWrite(
+        { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+        { ok: committed.readback !== false },
+      );
+    if (!saved || saved.ok !== true) {
+      showWriteError('todo-dialog-save-error', writeFailMessage(saved, '待办暂时没能读取', '没存上，再点一次'));
+      if (saved && saved.blocked) showTodoLoadError();
+      return saved;
+    }
+    hideWriteError('todo-save-error');
+    hideWriteError('todo-dialog-save-error');
+    adoptCollection('todos', saved);
+    renderTodos();
+    toast('已设为下一件');
+    return saved;
+  }
+
   async function commitSiteIntent(next) {
     if (!window.SopifyCollection) return confirmDeskWrite(null, null);
     const ops = window.SopifyCollection.diffSites(state.sites, next);
@@ -732,41 +757,6 @@
     renderSavedWorksets();
     notifyDesk3d();
     return saved;
-  }
-
-  async function loadCwd() {
-    if (!hasStorage) return '';
-    try {
-      const data = await chrome.storage.local.get({ cwd: '' });
-      return typeof data.cwd === 'string' ? data.cwd : '';
-    } catch {
-      return null;
-    }
-  }
-
-  async function saveCwd(cwd) {
-    if (!hasStorage) return;
-    await chrome.storage.local.set({ cwd: typeof cwd === 'string' ? cwd : '' });
-  }
-
-  function normalizeUpstream(id) {
-    return id === 'claude' || id === 'codex' ? id : 'cursor';
-  }
-
-  async function loadUpstream() {
-    if (!hasStorage) return 'cursor';
-    try {
-      const data = await chrome.storage.local.get({ hostUpstream: 'cursor' });
-      return normalizeUpstream(data.hostUpstream);
-    } catch {
-      return null;
-    }
-  }
-
-  async function saveUpstream(id) {
-    const next = normalizeUpstream(id);
-    state.hostUpstream = next;
-    if (hasStorage) await chrome.storage.local.set({ hostUpstream: next });
   }
 
   async function queryWindowTabs() {
@@ -1145,7 +1135,7 @@
       if (input) input.placeholder = done > 0 ? '都做完了，还有什么？' : '今天先做什么？';
       if (hint) {
         hint.innerHTML = done > 0
-          ? `刚完成了 ${done} 件。想到下一件就写下来，按 <kbd>回车</kbd>`
+          ? '想到下一件就写下来，按 <kbd>回车</kbd>'
           : '写一句，按 <kbd>回车</kbd>，它就是下一件事';
       }
     }
@@ -1428,13 +1418,22 @@
       bindFaviconFallback(favs);
     }
     const sub = $('#window-sub');
-    if (sub) {
-      sub.textContent = savable
-        ? `${savable} 个网页可以存下，回头一键恢复`
-        : '还没有可以保存的网页';
-    }
     const saveBtn = $('#workset-save');
-    if (saveBtn) saveBtn.disabled = savable === 0;
+    if (savable === 0) {
+      if (lead) lead.textContent = '只有这一页';
+      if (sub) sub.textContent = '打开几个网页后，可以在这里存下来';
+      if (saveBtn) {
+        saveBtn.hidden = true;
+        saveBtn.disabled = false;
+      }
+    } else {
+      if (lead) lead.innerHTML = `<b>${allCount}</b> 个标签`;
+      if (sub) sub.textContent = `${savable} 个网页可以存下，回头一键恢复`;
+      if (saveBtn) {
+        saveBtn.hidden = false;
+        saveBtn.disabled = false;
+      }
+    }
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
       : (filtered.length ? `${filtered.length} 个网页` : '');
@@ -1447,14 +1446,16 @@
     const groups = groupTabs(list);
     const allGroups = groupTabs(state.tabs);
     const savable = worksetTabs(state.tabs).length;
-    $('#tabs-sub').textContent = `当前标签 ${state.tabs.length} / 可保存网页 ${savable} · ${allGroups.length} 个域名，localhost 端口只是标签。`;
+    let tabsLine = `${state.tabs.length} 个标签，来自 ${allGroups.length} 个网站`;
+    if (savable !== state.tabs.length) tabsLine += `，其中 ${savable} 个可以存下`;
+    $('#tabs-sub').textContent = tabsLine;
     const filterOn = String(q || '').trim().length > 0;
     const closeTitle = filterOn ? '只关闭筛选里显示的这组' : '关闭这个域名下的标签';
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
       <section class="card group" aria-label="${esc(host)}" style="--h:${hue(host)}">
         <div class="grouphead">
           <span class="favicon" aria-hidden="true">${esc(mono(host))}</span>
-          <b>${esc(host)}</b><span class="count">${tabs.length}</span>
+          <b>${esc(host)}</b><span class="count" aria-label="${tabs.length} 个">${tabs.length}</span>
           <button type="button" class="linkbtn act" data-close-host="${esc(host)}" title="${esc(closeTitle)}">${esc(closeHostButtonLabel(tabsToCloseForHost(state.tabs, q, host).length))}</button>
         </div>
         ${tabs.map((t) => {
@@ -1474,55 +1475,6 @@
       </section>`).join('') : `<section class="card" style="grid-column: 1 / -1"><p class="empty">${q.trim() ? '没有匹配的标签。' : '这个窗口还没有标签。'}</p></section>`;
   }
 
-  function hostConnected() {
-    return state.host.installed && state.host.authorized && state.host.bridge;
-  }
-
-  function renderChatEntry() {
-    const chatBtn = $('#open-chat');
-    if (!chatBtn) return;
-    const on = hostConnected();
-    chatBtn.hidden = !on;
-    chatBtn.classList.toggle('is-ready', on);
-  }
-
-  function classifyHostError(message) {
-    const msg = String(message || '');
-    if (/not found/i.test(msg)) return 'not_found';
-    if (/forbidden|access/i.test(msg)) return 'forbidden';
-    if (/denied|user/i.test(msg)) return 'denied';
-    return 'failed';
-  }
-
-  function sendNativeDetect() {
-    return new Promise((resolve, reject) => {
-      if (!chrome?.runtime?.sendNativeMessage) {
-        reject(new Error('no_api'));
-        return;
-      }
-      chrome.runtime.sendNativeMessage(HOST_ID, { type: 'detect' }, (response) => {
-        const err = chrome.runtime.lastError && chrome.runtime.lastError.message;
-        if (err) reject(new Error(err));
-        else resolve(response);
-      });
-    });
-  }
-
-  async function requestNativeMessaging() {
-    if (!chrome?.permissions?.request) return { granted: false, reason: 'no_api' };
-    try {
-      const granted = await chrome.permissions.request({ permissions: ['nativeMessaging'] });
-      return { granted: Boolean(granted), reason: granted ? 'ok' : 'denied' };
-    } catch (e) {
-      return { granted: false, reason: classifyHostError(e && e.message) };
-    }
-  }
-
-  async function revokeNativeMessaging() {
-    if (!chrome?.permissions?.remove) return;
-    try { await chrome.permissions.remove({ permissions: ['nativeMessaging'] }); } catch { /* ignore */ }
-  }
-
   function renderTheme() {
     const preset = window.SopifyTheme ? window.SopifyTheme.getPreset() : 'system';
     $$('input[name="themePreset"]').forEach((el) => {
@@ -1530,152 +1482,6 @@
     });
     const box = $('#space-view-toggle');
     if (box && box !== document.activeElement) box.checked = spaceViewOn === true;
-  }
-
-  function renderHost() {
-    const badge = $('#s-host-badge');
-    const status = $('#host-status');
-    const checks = $('#host-checks');
-    const toggle = $('#host-toggle');
-    const help = $('#host-help');
-    if (!badge || !status || !checks || !toggle || !help) return;
-
-    const probed = state.hostChecked;
-    const on = hostConnected();
-    $$('.host-probe').forEach((el) => { el.hidden = !probed; });
-    if (probed) {
-      status.innerHTML = `<span class="dot ${on ? 'on' : ''}" aria-hidden="true"></span><span>${on ? '已连接 · Native Messaging' : '没连上'}</span>`;
-      badge.textContent = on ? '已连接' : '没连上';
-      badge.classList.toggle('on', on);
-      badge.classList.toggle('warn', !on);
-      checks.innerHTML = HOST_CHECKS.map(([k, t, d]) => `
-        <li class="check ${state.host[k] ? 'ok' : ''}">
-          <span class="mark" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
-          <span><span class="sr-only">${state.host[k] ? '已满足：' : '未满足：'}</span>${t}<small>${d}</small></span>
-        </li>`).join('');
-    }
-    toggle.disabled = state.hostBusy;
-    toggle.textContent = on ? '断开' : '检测 Host';
-    toggle.className = on ? 'btn ghost' : 'btn';
-    if (state.hostBusy) help.textContent = '正在检测…';
-    else if (on) help.textContent = '已连上，断开后书桌照常。';
-    else if (probed && state.hostReason === 'denied') help.textContent = '没有授权 Native Messaging，书桌不受影响。';
-    else if (probed && state.hostReason === 'not_found') help.textContent = '没找到本机 Host，需要时在仓库跑 ./host/install-host.sh。';
-    else if (probed && state.hostReason === 'forbidden') help.textContent = 'Host 清单没有允许这个扩展，书桌不受影响。';
-    else if (probed) help.textContent = '可以再检一次，或先用书桌。';
-    else help.textContent = '需要时再连，没装也不影响书桌。';
-    renderUpstream();
-    renderChatEntry();
-  }
-
-  function renderUpstream() {
-    $$('input[name="hostUpstream"]').forEach((el) => {
-      el.checked = el.value === state.hostUpstream;
-    });
-    const help = $('#upstream-help');
-    if (!help) return;
-    if (state.hostUpstream === 'claude') {
-      if (state.hostChecked && hostConnected() && !state.claudeAvailable) {
-        help.textContent = '没找到本机 claude，装到 PATH 后再跑一次 ./host/install-host.sh。';
-      } else {
-        help.textContent = 'Claude 只读：仅 Read，不写不执行，需本机已装 claude。';
-      }
-    } else if (state.hostUpstream === 'codex') {
-      if (state.hostChecked && hostConnected() && !state.codexAvailable) {
-        help.textContent = '没找到本机 Codex，装到 PATH 后再跑一次 ./host/install-host.sh。';
-      } else {
-        help.textContent = 'Codex 只读：仅 read-only，不写不执行，需本机已装并已登录 Codex。';
-      }
-    } else if (state.hostChecked && hostConnected() && !state.cursorAvailable) {
-      help.textContent = 'Host 还没有快照 cursor-agent-proxy，重新跑一次 ./host/install-host.sh。';
-    } else {
-      help.textContent = '默认 Cursor，只影响本机对话，不改书桌。';
-    }
-  }
-
-  async function detectHost() {
-    if (state.hostBusy) return;
-    state.hostBusy = true;
-    renderHost();
-    try {
-      const perm = await requestNativeMessaging();
-      if (!perm.granted) {
-        state.hostChecked = true;
-        state.host = { installed: false, authorized: false, bridge: false };
-        state.hostReason = perm.reason || 'denied';
-        state.cursorAvailable = false;
-        state.claudeAvailable = false;
-        state.codexAvailable = false;
-        return;
-      }
-      try {
-        const response = await sendNativeDetect();
-        const ok = Boolean(response && response.ok);
-        state.hostChecked = true;
-        state.host = { installed: true, authorized: true, bridge: ok };
-        state.hostReason = ok ? 'ok' : 'failed';
-        state.cursorAvailable = Boolean(response && (response.cursorAvailable || response.proxySnapshotted));
-        state.claudeAvailable = Boolean(response && response.claudeAvailable);
-        state.codexAvailable = Boolean(response && response.codexAvailable);
-        if (ok) toast('已通过 Native Messaging 连上本机 Host');
-      } catch (e) {
-        const reason = classifyHostError(e && e.message);
-        state.hostChecked = true;
-        state.host = {
-          installed: reason !== 'not_found' && reason !== 'no_api' && reason !== 'denied',
-          authorized: reason === 'failed',
-          bridge: false,
-        };
-        if (reason === 'forbidden') {
-          state.host.installed = true;
-          state.host.authorized = false;
-        }
-        state.hostReason = reason;
-        state.cursorAvailable = false;
-        state.claudeAvailable = false;
-        state.codexAvailable = false;
-      }
-    } finally {
-      state.hostBusy = false;
-      renderHost();
-    }
-  }
-
-  async function disconnectHost() {
-    if (state.hostBusy) return;
-    state.hostBusy = true;
-    renderHost();
-    try {
-      await revokeNativeMessaging();
-    } finally {
-      state.hostChecked = false;
-      state.host = { installed: false, authorized: false, bridge: false };
-      state.hostReason = '';
-      state.cursorAvailable = false;
-      state.claudeAvailable = false;
-      state.codexAvailable = false;
-      state.hostBusy = false;
-      renderHost();
-      toast('已断开本机 Host');
-    }
-  }
-
-  async function openDialogue() {
-    try {
-      if (chrome?.sidePanel?.open) {
-        const win = await chrome.windows.getCurrent();
-        if (win && win.id != null) {
-          await chrome.sidePanel.open({ windowId: win.id });
-          return;
-        }
-      }
-    } catch { /* fall through */ }
-    if (!chrome?.runtime?.sendMessage) return;
-    try {
-      chrome.runtime.sendMessage({ type: 'openSidePanel' }, () => {
-        void chrome.runtime.lastError;
-      });
-    } catch { /* fail-soft: desk still works */ }
   }
 
   function setView(v, opts) {
@@ -1691,23 +1497,18 @@
     const main = $('#main');
     if (main) main.scrollTop = 0;
     window.scrollTo(0, 0);
-    $$('.navbtn, .studio-navbtn').forEach((b) => {
+    $$('.studio-navbtn').forEach((b) => {
       if (b.dataset.view === v) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     });
     document.body.classList.toggle('studio-home', v === 'desk');
     if (v === 'tabs') renderGroups();
     if (v === 'settings') {
-      $('#cwd').value = state.cwd;
-      renderHost();
-      renderUpstream();
       renderTheme();
       renderSavedWorksets();
     }
     const focusNav = opts && opts.focusNav;
-    const nav = focusNav
-      ? ($(`.studio-navbtn[data-view="${v}"]`) || $(`.navbtn[data-view="${v}"]`))
-      : null;
+    const nav = focusNav ? $(`.studio-navbtn[data-view="${v}"]`) : null;
     if (v === 'desk' && !focusNav) {
       focusDeskPrimary();
       return;
@@ -1715,13 +1516,131 @@
     (nav || $('#main')).focus({ preventScroll: true });
   }
 
-  let toastT;
-  function toast(msg) {
-    const t = $('#toast');
-    t.textContent = msg;
-    t.classList.add('show');
+  let toastT = null;
+  let toastGen = 0;
+  let toastLeft = 0;
+  let toastMark = 0;
+  let toastPaused = false;
+
+  function toastActionHeld() {
+    const btn = $('#toast-action');
+    if (!btn || btn.hidden) return false;
+    return btn.matches(':hover') || document.activeElement === btn;
+  }
+
+  function clearToastAction() {
+    const btn = $('#toast-action');
+    if (!btn) return;
+    btn.hidden = true;
+    btn.textContent = '';
+    btn.onclick = null;
+    btn.onmouseenter = null;
+    btn.onmouseleave = null;
+    btn.onfocus = null;
+    btn.onblur = null;
+  }
+
+  function hideToast() {
+    toastGen += 1;
+    toastPaused = false;
     clearTimeout(toastT);
-    toastT = setTimeout(() => t.classList.remove('show'), 2400);
+    toastT = null;
+    const t = $('#toast');
+    if (t) t.classList.remove('show');
+    clearToastAction();
+  }
+
+  function expireToast(gen) {
+    if (gen !== toastGen) return;
+    toastT = null;
+    if (toastActionHeld()) {
+      toastPaused = true;
+      toastLeft = 0;
+      return;
+    }
+    hideToast();
+  }
+
+  function armToast(ms) {
+    toastLeft = ms;
+    toastPaused = false;
+    toastMark = Date.now();
+    clearTimeout(toastT);
+    const gen = toastGen;
+    toastT = setTimeout(() => expireToast(gen), ms);
+  }
+
+  function pauseToast() {
+    if (toastPaused || !toastT) return;
+    toastLeft = Math.max(0, toastLeft - (Date.now() - toastMark));
+    toastPaused = true;
+    clearTimeout(toastT);
+    toastT = null;
+  }
+
+  function resumeToast() {
+    if (!toastPaused) return;
+    if (toastActionHeld()) return;
+    if (toastLeft <= 0) {
+      hideToast();
+      return;
+    }
+    toastPaused = false;
+    toastMark = Date.now();
+    const gen = toastGen;
+    clearTimeout(toastT);
+    toastT = setTimeout(() => expireToast(gen), toastLeft);
+  }
+
+  function placeToastAction() {
+    const t = $('#toast');
+    const btn = $('#toast-action');
+    if (!t || !btn || btn.hidden) return;
+    const rect = t.getBoundingClientRect();
+    const width = btn.offsetWidth || 0;
+    const height = btn.offsetHeight || 0;
+    const left = Math.min(rect.right + 8, Math.max(8, window.innerWidth - width - 8));
+    const top = rect.top + (rect.height - height) / 2;
+    btn.style.left = `${Math.round(left)}px`;
+    btn.style.top = `${Math.round(Math.max(8, top))}px`;
+  }
+
+  function toast(msg, opts) {
+    const t = $('#toast');
+    if (!t) return;
+    toastGen += 1;
+    toastPaused = false;
+    clearTimeout(toastT);
+    toastT = null;
+    t.textContent = msg == null ? '' : String(msg);
+    t.classList.add('show');
+    const btn = $('#toast-action');
+    const action = opts && opts.action;
+    const hasAction = !!(action && action.label && typeof action.onClick === 'function');
+    if (btn) {
+      btn.onclick = null;
+      btn.onmouseenter = null;
+      btn.onmouseleave = null;
+      btn.onfocus = null;
+      btn.onblur = null;
+      if (hasAction) {
+        btn.hidden = false;
+        btn.textContent = String(action.label);
+        btn.onclick = (e) => {
+          e.preventDefault();
+          action.onClick();
+        };
+        btn.onmouseenter = () => pauseToast();
+        btn.onmouseleave = () => resumeToast();
+        btn.onfocus = () => pauseToast();
+        btn.onblur = () => resumeToast();
+        placeToastAction();
+      } else {
+        btn.hidden = true;
+        btn.textContent = '';
+      }
+    }
+    armToast(hasAction ? 6000 : 2400);
   }
 
   function applyDesk(data, opts) {
@@ -1788,6 +1707,65 @@
     col.classList.add('flash');
   }
 
+  function confirmInPage(opts) {
+    const dialog = $('#ops-confirm-dialog');
+    const title = $('#ops-confirm-title');
+    const body = $('#ops-confirm-body');
+    const ok = $('#ops-confirm-ok');
+    const cancel = $('#ops-confirm-cancel');
+    const closeX = $('#ops-confirm-x');
+    if (!dialog || !title || !body || !ok || !cancel) return Promise.resolve(false);
+    const spec = opts || {};
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    title.textContent = spec.title || '';
+    body.textContent = spec.body || '';
+    ok.textContent = spec.confirmLabel || '确认';
+    ok.classList.toggle('danger', spec.danger === true);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        dialog.removeEventListener('close', onClose);
+        dialog.removeEventListener('cancel', onCancel);
+        dialog.removeEventListener('click', onBackdrop);
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onNo);
+        if (closeX) closeX.removeEventListener('click', onNo);
+        if (dialog.open) dialog.close();
+        resolve(!!value);
+        const viewTitle = document.querySelector('.view.active h1') || $('#resume-kicker') || $('#main');
+        const back = trigger && trigger.isConnected && !dialog.contains(trigger) ? trigger : viewTitle;
+        if (back && typeof back.focus === 'function') back.focus();
+      };
+      const onOk = () => finish(true);
+      const onNo = () => finish(false);
+      const onClose = () => finish(false);
+      const onCancel = (event) => {
+        event.preventDefault();
+        finish(false);
+      };
+      const onBackdrop = (event) => {
+        if (event.target === dialog) finish(false);
+      };
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onNo);
+      if (closeX) closeX.addEventListener('click', onNo);
+      dialog.addEventListener('close', onClose);
+      dialog.addEventListener('cancel', onCancel);
+      dialog.addEventListener('click', onBackdrop);
+      try {
+        if (!dialog.open) dialog.showModal();
+      } catch (err) {
+        dialog.dataset.confirmError = err && err.message ? err.message : String(err);
+        finish(false);
+        return;
+      }
+      delete dialog.dataset.confirmError;
+      (spec.focusConfirm === true ? ok : cancel).focus();
+    });
+  }
+
   async function saveThisWindow() {
     const planned = formOps().planWorksetSave(worksetSaveRecord, uid, Date.now());
     worksetSaveRecord = planned.record;
@@ -1802,7 +1780,13 @@
     }
     if (proposal.overflow) {
       const n = proposal.totalTabs;
-      const okTabs = window.confirm('这个窗口有 ' + n + ' 个网页。只保存前 ' + WORKSET_TAB_CAP + ' 个？');
+      const okTabs = await confirmInPage({
+        title: '这个窗口有 ' + n + ' 个网页',
+        body: '只能存前 ' + WORKSET_TAB_CAP + ' 个。',
+        confirmLabel: '存前 ' + WORKSET_TAB_CAP + ' 个',
+        danger: false,
+        focusConfirm: true,
+      });
       if (!okTabs) {
         toast('未保存');
         return;
@@ -1811,7 +1795,12 @@
     if (proposal.reason === 'full') {
       const oldest = proposal.oldest;
       const label = oldest && oldest.name ? oldest.name : '最早的一条';
-      const ok = window.confirm(`已存了 ${WORKSET_STORE_CAP} 个窗口，覆盖最早的『${label}』？`);
+      const ok = await confirmInPage({
+        title: '已经存了 ' + WORKSET_STORE_CAP + ' 个窗口',
+        body: '存这一份会替换最早的『' + label + '』。',
+        confirmLabel: '替换',
+        danger: false,
+      });
       if (!ok) {
         toast('未保存');
         return;
@@ -1923,7 +1912,12 @@
 
   async function clearAllWorksets() {
     if (!(state.worksets || []).length) return;
-    const ok = window.confirm('清空全部存下的窗口？只影响本机，不可撤销。');
+    const ok = await confirmInPage({
+      title: '清空全部存下的窗口？',
+      body: '只影响这台电脑，清空后找不回来。',
+      confirmLabel: '清空',
+      danger: true,
+    });
     if (!ok) return;
     const saved = await persistWorksets([]);
     if (!saved || saved.ok !== true) {
@@ -1938,6 +1932,64 @@
     const next = pickResume(state.todos);
     const act = next.kind === 'todo' ? $('#resume-act') : $('#todo-input');
     if (act) act.focus({ preventScroll: true });
+  }
+
+  let undoBusy = false;
+  async function undoCompletedTodo(id) {
+    if (undoBusy || !id) return;
+    const item = state.todos.find((t) => t && t.id === id);
+    if (!item) {
+      toast('这条已经删掉了');
+      return;
+    }
+    const next = state.todos.map((t) => (
+      t.id === id ? { id: t.id, text: t.text, done: false } : t
+    ));
+    undoBusy = true;
+    try {
+      if (!window.SopifyCollection) {
+        const saved = await replaceTodos(next, 'todo-save-error', '没存上，再点一次');
+        if (saved) hideToast();
+        return;
+      }
+      const ops = window.SopifyCollection.diffTodos(state.todos, next);
+      let committed;
+      try {
+        committed = await requestCollectionCommit({ domain: 'todos', ops: ops });
+      } catch {
+        committed = null;
+      }
+      if (committed && committed.blocked) {
+        showWriteError('todo-save-error', '待办暂时没能读取');
+        showTodoLoadError();
+        return;
+      }
+      if (committed && committed.missing) {
+        toast('这条已经删掉了');
+        const loaded = await loadDesk();
+        if (loaded && loaded.ok === true) applyDesk(loaded, { notes: false });
+        return;
+      }
+      const saved = (!committed || committed.ok !== true)
+        ? confirmDeskWrite(committed, null)
+        : confirmDeskWrite(
+          { ok: true, items: committed.items, rev: committed.rev, idempotent: committed.idempotent },
+          { ok: committed.readback !== false },
+        );
+      if (!saved || saved.ok !== true) {
+        showWriteError('todo-save-error', writeFailMessage(saved, '待办暂时没能读取', '没存上，再点一次'));
+        if (saved && saved.blocked) showTodoLoadError();
+        renderTodos();
+        return;
+      }
+      hideWriteError('todo-save-error');
+      hideWriteError('todo-dialog-save-error');
+      adoptCollection('todos', saved);
+      renderTodos();
+      hideToast();
+    } finally {
+      undoBusy = false;
+    }
   }
 
   let completingId = null;
@@ -1967,6 +2019,10 @@
         renderResume();
         return;
       }
+      const clip = [...String(target.text || '').trim()].slice(0, 20).join('');
+      toast(`已完成「${clip}」`, {
+        action: { label: '撤销', onClick: () => { undoCompletedTodo(id); } },
+      });
       if (openBefore <= 1) {
         const input = $('#todo-input');
         if (input) input.focus();
@@ -2003,7 +2059,7 @@
     return s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
   }
 
-  function openTodosDialog() {
+  function openTodosDialog(opts) {
     const dialog = $('#ops-todos-dialog');
     const body = $('#ops-todos-dialog-body');
     if (!dialog || !body) return;
@@ -2015,18 +2071,25 @@
     const previousWasInput = !!(previous && previous.id === 'todo-input-dialog');
     const left = state.todos.filter((t) => !t.done).length;
     const done = state.todos.filter((t) => t.done).length;
+    const nextTodoId = pickResume(state.todos).todoId || '';
     const todoRows = domainUnread.todos
       ? '<li class="empty">待办暂时没能读取</li>'
-      : (state.todos.length ? state.todos.map((t) => `
+      : (state.todos.length ? state.todos.map((t) => {
+          const promote = (!t.done && t.id !== nextTodoId)
+            ? `<button type="button" class="todo-next" data-todo-next="${esc(t.id)}">设为下一件</button>`
+            : '';
+          return `
           <li class="todo ${t.done ? 'done' : ''}">
             <label>
-              <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''}>
-              <span>${esc(t.text)}</span>
+              <input type="checkbox" data-todo-id="${esc(t.id)}" ${t.done ? 'checked' : ''} aria-label="完成：${esc(t.text)}">
             </label>
+            <button type="button" class="todo-text" data-todo-text="${esc(t.id)}">${esc(t.text)}</button>
+            ${promote}
             <button type="button" class="iconbtn" data-del-todo="${esc(t.id)}" aria-label="删除待办：${esc(t.text)}">
               <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
-          </li>`).join('') : '<li class="empty">还没有待办。</li>');
+          </li>`;
+        }).join('') : '<li class="empty">还没有待办。</li>');
     body.innerHTML = `
       <ul class="todos" id="todos-dialog-list">
         ${todoRows}
@@ -2039,6 +2102,27 @@
       <p class="muted">${done ? `已完成 ${done}` : ''}${left ? ` · ${left} 项未完成` : ''}</p>
     `;
     body.onclick = async (e) => {
+      const textBtn = e.target.closest('[data-todo-text]');
+      if (textBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        beginTodoTextEdit(textBtn.dataset.todoText);
+        return;
+      }
+      const nextBtn = e.target.closest('[data-todo-next]');
+      if (nextBtn) {
+        const id = nextBtn.dataset.todoNext;
+        const saved = await moveTodoToFront(id);
+        if (saved && saved.missing) {
+          if (dialog.open) openTodosDialog();
+          return;
+        }
+        if (!saved || saved.ok !== true) return;
+        if (dialog.open) openTodosDialog();
+        const box = body.querySelector(`input[type="checkbox"][data-todo-id="${cssEscape(id)}"]`);
+        if (box) box.focus();
+        return;
+      }
       const del = e.target.closest('[data-del-todo]');
       if (!del) return;
       const planned = formOps().planRemove(todoRemoveRecord, del.dataset.delTodo, uid);
@@ -2061,6 +2145,14 @@
       if (dialog.open) openTodosDialog();
     };
     if (firstOpen) dialog.showModal();
+    if (opts && opts.keepFocus) {
+      if (previous && previous.isConnected) return;
+      if (previous && previous.id) {
+        const kept = document.getElementById(previous.id);
+        if (kept) kept.focus();
+      }
+      return;
+    }
     const focusInput = body.querySelector('#todo-input-dialog');
     if (firstOpen || previousWasInput) {
       if (focusInput) focusInput.focus();
@@ -2080,39 +2172,177 @@
     else if (focusInput) focusInput.focus();
   }
 
+  function beginTodoTextEdit(id) {
+    const dialog = $('#ops-todos-dialog');
+    const body = $('#ops-todos-dialog-body');
+    if (!dialog || !body || body.querySelector('.todo-edit')) return;
+    const item = state.todos.find((t) => t && t.id === id);
+    if (!item) return;
+    const textBtn = body.querySelector(`[data-todo-text="${cssEscape(id)}"]`);
+    if (!textBtn) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'field todo-edit';
+    input.value = item.text;
+    input.setAttribute('aria-label', '修改待办');
+    input.autocomplete = 'off';
+    textBtn.replaceWith(input);
+    let settled = false;
+    let saving = false;
+    const focusText = () => {
+      const again = body.querySelector(`[data-todo-text="${cssEscape(id)}"]`);
+      if (again) again.focus();
+    };
+    const finish = async (commit, reason) => {
+      if (settled || saving) return;
+      const current = state.todos.find((t) => t && t.id === id);
+      const nextText = input.value.trim();
+      const unchanged = !current || !commit || !nextText || nextText === String(current.text || '').trim();
+      if (unchanged) {
+        settled = true;
+        hideWriteError('todo-dialog-save-error');
+        if (dialog.open) openTodosDialog(reason === 'blur' ? { keepFocus: true } : undefined);
+        if (reason !== 'blur') focusText();
+        return;
+      }
+      saving = true;
+      const submitted = nextText;
+      const next = state.todos.map((t) => (
+        t.id === id ? { id: t.id, text: submitted, done: t.done } : t
+      ));
+      const saved = await replaceTodos(next, 'todo-dialog-save-error', '没存上，再点一次');
+      saving = false;
+      if (settled) return;
+      if (!saved) return;
+      const live = input.isConnected ? input.value.trim() : submitted;
+      if (live !== submitted) return;
+      settled = true;
+      if (dialog.open) openTodosDialog(reason === 'blur' ? { keepFocus: true } : undefined);
+      if (reason !== 'blur') focusText();
+    };
+    const editIme = createImeGuard();
+    input.addEventListener('compositionstart', () => editIme.onCompositionStart());
+    input.addEventListener('compositionend', () => editIme.onCompositionEnd());
+    input.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.key === 'Process' || editIme.blocks(e)) {
+        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Process') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      finish(e.key === 'Enter', e.key === 'Enter' ? 'enter' : 'escape');
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (input.isConnected && document.activeElement !== input) finish(true, 'blur');
+      }, 0);
+    });
+    input.focus();
+    input.select();
+  }
+
+  let lastClosedUrls = [];
+  let reopenBusy = false;
+
+  function tabPageUrl(tab) {
+    return String((tab && (tab.url || tab.pendingUrl)) || '');
+  }
+
+  function offerReopen(message, urls) {
+    lastClosedUrls = (urls || []).filter((url) => url);
+    if (!lastClosedUrls.length) {
+      toast(message);
+      return;
+    }
+    toast(message, { action: { label: '重新打开', onClick: () => { reopenClosed(); } } });
+  }
+
+  async function reopenClosed() {
+    if (reopenBusy) return;
+    const pending = lastClosedUrls.slice();
+    const epoch = toastGen;
+    if (!pending.length || !hasTabs) return;
+    reopenBusy = true;
+    const opened = [];
+    const failed = [];
+    try {
+      for (const url of pending) {
+        if (epoch !== toastGen) return;
+        try {
+          await chrome.tabs.create({ url });
+          if (epoch !== toastGen) return;
+          opened.push(url);
+        } catch {
+          if (epoch !== toastGen) return;
+          failed.push(url);
+        }
+      }
+    } finally {
+      reopenBusy = false;
+    }
+    if (epoch !== toastGen) return;
+    lastClosedUrls = failed.slice();
+    if (!failed.length) {
+      toast(opened.length === 1 ? '已重新打开' : `已重新打开 ${opened.length} 个`);
+      return;
+    }
+    const message = opened.length
+      ? `打开了 ${opened.length} 个，还有 ${failed.length} 个没打开`
+      : `没打开，还有 ${failed.length} 个`;
+    offerReopen(message, failed);
+  }
+
   async function closeTab(id) {
     const n = Number(id);
     if (!hasTabs || !Number.isFinite(n)) return;
-    try { await chrome.tabs.remove(n); } catch { /* already gone */ }
+    const tab = state.tabs.find((t) => t && t.id === n);
+    const url = tabPageUrl(tab);
+    try {
+      await chrome.tabs.remove(n);
+    } catch {
+      return;
+    }
+    if (url) offerReopen('已关闭', [url]);
+    else {
+      lastClosedUrls = [];
+      toast('已关闭');
+    }
   }
 
   async function closeHost(host) {
     const visible = tabsToCloseForHost(state.tabs, state.filter, host);
-    const ids = visible.map((t) => t.id);
-    if (!ids.length || !hasTabs) return;
+    if (!visible.length || !hasTabs) return;
+    const urls = [];
     let closed = 0;
     let failed = 0;
-    for (const id of ids) {
+    for (const tab of visible) {
+      const url = tabPageUrl(tab);
       try {
-        await chrome.tabs.remove(id);
+        await chrome.tabs.remove(tab.id);
         closed += 1;
+        if (url) urls.push(url);
       } catch {
         failed += 1;
       }
     }
     const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
-    const hiddenLeft = String(state.filter || '').trim() && all > ids.length;
+    const hiddenLeft = String(state.filter || '').trim() && all > visible.length;
     const tail = hiddenLeft ? '，筛选外的还在' : '';
-    if (closed === 0) {
-      toast(`没关掉 ${host}${tail}`);
+    let message;
+    if (closed === 0) message = `没关掉 ${host}${tail}`;
+    else if (failed > 0) message = `关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`;
+    else if (hiddenLeft) message = `已关闭 ${closed} 个 ${host}，筛选外的还在`;
+    else message = `已关闭 ${host}`;
+    if (!urls.length) {
+      lastClosedUrls = [];
+      toast(message);
       return;
     }
-    if (failed > 0) {
-      toast(`关掉了 ${closed} 个 ${host}，还有 ${failed} 个没关掉${tail}`);
-      return;
-    }
-    if (hiddenLeft) toast(`已关闭 ${closed} 个 ${host}，筛选外的还在`);
-    else toast(`已关闭 ${host}`);
+    offerReopen(message, urls);
   }
 
   let noteSaveActive = false;
@@ -2427,7 +2657,7 @@
     }
   }
   function bind() {
-    $$('.navbtn, .studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+    $$('.studio-navbtn').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
     const studioBrand = $('#studio-brand');
     if (studioBrand) {
       studioBrand.addEventListener('click', (e) => {
@@ -2435,8 +2665,6 @@
         setView('desk');
       });
     }
-    const chatBtn = $('#open-chat');
-    if (chatBtn) chatBtn.addEventListener('click', () => { openDialogue(); });
     document.addEventListener('click', (e) => {
       const g = e.target.closest('[data-goto]');
       if (g) setView(g.dataset.goto, { focusNav: true });
@@ -2815,6 +3043,10 @@
     $('#workset-restore-recent').addEventListener('click', () => { restoreWorksetById(); });
     const retryUnopenedBtn = $('#workset-retry-unopened');
     if (retryUnopenedBtn) retryUnopenedBtn.addEventListener('click', () => { retryUnopened(); });
+    window.addEventListener('resize', () => {
+      const btn = $('#toast-action');
+      if (btn && !btn.hidden) placeToastAction();
+    });
     $('#saved-worksets').addEventListener('click', onSavedWorksetClick);
     $('#worksets-clear').addEventListener('click', () => { clearAllWorksets(); });
 
@@ -2838,15 +3070,6 @@
           const box = $('#space-view-toggle');
           if (box) box.checked = spaceViewOn;
           publishSpaceView();
-        }
-        if ('cwd' in changes && typeof changes.cwd.newValue === 'string') {
-          state.cwd = changes.cwd.newValue;
-          const input = $('#cwd');
-          if (input && input !== document.activeElement) input.value = state.cwd;
-        }
-        if ('hostUpstream' in changes) {
-          state.hostUpstream = normalizeUpstream(changes.hostUpstream.newValue);
-          renderUpstream();
         }
         if ('worksets' in changes || 'worksetsRev' in changes) {
           const incomingRev = 'worksetsRev' in changes ? collectionRev(changes.worksetsRev.newValue) : null;
@@ -2891,25 +3114,6 @@
       });
     });
     document.documentElement.addEventListener('sopify-theme', renderTheme);
-    $('#host-toggle').addEventListener('click', () => {
-      if (hostConnected()) disconnectHost();
-      else detectHost();
-    });
-    $$('input[name="hostUpstream"]').forEach((el) => {
-      el.addEventListener('change', () => {
-        if (!el.checked) return;
-        saveUpstream(el.value).then(() => {
-          renderUpstream();
-          if (hostConnected()) detectHost();
-        });
-      });
-    });
-    let cwdTimer;
-    $('#cwd').addEventListener('input', (e) => {
-      state.cwd = e.target.value;
-      clearTimeout(cwdTimer);
-      cwdTimer = setTimeout(() => { saveCwd(state.cwd); }, 240);
-    });
 
     if (hasTabs) {
       const bump = () => { refreshTabs(); };
@@ -2959,20 +3163,10 @@
     domainUnread.worksets = false;
     state.worksets = loadedSets;
     hideWorksetLoadError();
-    const cwd = await loadCwd();
-    if (!shouldApplyLoad(gen, loadGen)) return;
-    if (cwd != null) state.cwd = cwd;
-    const upstream = await loadUpstream();
-    if (!shouldApplyLoad(gen, loadGen)) return;
-    if (upstream != null) state.hostUpstream = upstream;
     hideDeskLoadError();
     ['todo-save-error', 'todo-dialog-save-error', 'site-save-error', 'sites-save-error', 'workset-save-error', 'last-save-error', 'worksets-save-error', 'name-save-error'].forEach(hideWriteError);
-    const cwdEl = $('#cwd');
-    if (cwdEl && cwdEl !== document.activeElement) cwdEl.value = state.cwd;
     renderWorkset();
     renderSavedWorksets();
-    renderHost();
-    renderUpstream();
     renderTheme();
   }
 
@@ -2999,23 +3193,15 @@
           state.worksets = loadedSets;
         }
       }
-      const cwd = await loadCwd();
-      if (shouldApplyLoad(gen, loadGen) && cwd != null) state.cwd = cwd;
-      const upstream = await loadUpstream();
-      if (shouldApplyLoad(gen, loadGen) && upstream != null) state.hostUpstream = upstream;
     } catch {
       if (shouldApplyLoad(gen, loadGen)) {
         deskLoadBroken = true;
         markDeskUnread();
       }
     }
-    const cwdEl = $('#cwd');
-    if (cwdEl) cwdEl.value = state.cwd;
     renderWorkset();
     renderSavedWorksets();
     renderResume();
-    renderHost();
-    renderUpstream();
     renderTheme();
     bind();
     if (domainUnread.todos) showTodoLoadError();

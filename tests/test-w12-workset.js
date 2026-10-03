@@ -20,7 +20,6 @@ const css = read('newtab.css');
 const js = read('newtab.js');
 const collection = read('collection-sync.js');
 const manifest = JSON.parse(read('manifest.json'));
-const readme = fs.readFileSync(path.join(REPO, 'README.md'), 'utf8');
 const desk = html.slice(html.indexOf('id="resume"'), html.indexOf('id="tabs-h"'));
 const settings = html.slice(html.indexOf('aria-labelledby="settings-h"'));
 
@@ -67,13 +66,19 @@ assert.strictEqual(persistCalls.length, 6, 'define + save + overwrite + delete +
 assert.ok(js.includes('function startRename'), 'inline rename');
 assert.ok(/w\.id === id \? \{ id: w\.id, name: next, savedAt: w\.savedAt, tabs: w\.tabs \}/.test(js),
   'rename writes only the name field');
-assert.ok(js.includes('function saveThisWindow') && js.includes("window.confirm"));
-assert.ok(js.includes('覆盖最早的'), 'full cap prompts overwrite, no silent drop');
-assert.ok(js.includes('只保存前 ') && js.includes('WORKSET_TAB_CAP'), '>50 tabs prompts, no silent drop');
+assert.ok(js.includes('function saveThisWindow') && js.includes('function confirmInPage'));
+assert.ok(!/window\.confirm\s*\(/.test(js) && !/window\.alert\s*\(/.test(js), 'confirms stay in the page');
+assert.ok(html.includes('id="ops-confirm-dialog"'));
+assert.ok(js.includes('存这一份会替换最早的') && js.includes("confirmLabel: '替换'"), 'full cap prompts replace, no silent drop');
+const fullConfirm = js.slice(js.indexOf("title: '已经存了 '"), js.indexOf("title: '清空全部存下的窗口？'"));
+assert.ok(fullConfirm.includes('danger: false') && !fullConfirm.includes('focusConfirm'), 'replace confirm is not danger and keeps cancel focused');
+assert.ok(js.includes('只能存前 ') && js.includes('存前 ') && js.includes('WORKSET_TAB_CAP') && js.includes('focusConfirm: true'), '>50 tabs prompts and focuses confirm');
+assert.ok(/\(spec\.focusConfirm === true \? ok : cancel\)\.focus\(\)/.test(js), 'default focus follows the scenario');
 const restoreFn = js.slice(js.indexOf('async function restoreWorksetById'), js.indexOf('async function deleteWorksetById'));
 assert.ok(restoreFn.includes('chrome.tabs.create') && restoreFn.includes('activateTab'));
 assert.ok(!/tabs\.remove/.test(restoreFn), 'restore must not close other tabs');
-assert.ok(js.includes('清空全部存下的窗口？') || js.includes('清空全部存下的窗口'));
+assert.ok(js.includes("title: '清空全部存下的窗口？'"));
+assert.ok(js.includes('只影响这台电脑，清空后找不回来。'));
 
 const setKeys = [...js.matchAll(/storage\.local\.set\(\s*\{([^}]+)\}/g)].map((m) => m[1]);
 for (const chunk of setKeys) {
@@ -84,25 +89,21 @@ for (const chunk of setKeys) {
   }
 }
 
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!('side_panel' in manifest));
+assert.ok(!/connectNative|sendNativeMessage|\bsidePanel\b|nativeMessaging|id="open-chat"|class="rail"/.test(js + html),
+  'workset sources are already offline for Host and Side Panel');
 
 assert.ok(/\.savedset\s*\{/.test(css), 'saved workset rows are styled');
 assert.ok(/\.cardfoot-acts/.test(css));
 
-assert.ok(/下一件事/.test(readme), 'README documents the next-thing hero');
-assert.ok(/不拿标签或便签凑数/.test(readme) || /不拿标签/.test(readme));
-assert.ok(/保存这个窗口/.test(readme));
-assert.ok(/接着上次/.test(readme) && /空间视图/.test(readme));
-assert.ok(/50 个网页/.test(readme));
-assert.ok(/worksets/.test(readme) && /title, url/.test(readme));
-assert.ok(/不存 favicon|不存favicon/.test(readme));
-assert.ok(/最多 5/.test(readme) && /覆盖/.test(readme));
-assert.ok(/关窗口不会自动存/.test(readme));
-assert.ok(/chrome\.storage\.local/.test(readme));
-assert.ok(!/storage\.sync/.test(readme) || /不用 `storage\.sync`/.test(readme));
-assert.ok(/可选：本机对话|设置深路径/.test(readme), 'Host is demoted');
-assert.ok(!/智能聚类|AI 聚类|自动整理/.test(readme), 'no unreleased AI claims');
+assert.ok(html.includes('空间视图'), 'space view stays a desk surface');
+assert.ok(/let spaceViewOn = false/.test(js), 'space view defaults off');
+assert.ok(/chrome\.storage\.local|storage\.local/.test(js), 'desk persists with storage.local');
+assert.ok(!/kind:\s*'tab'|kind:\s*'note'/.test(js), 'resume does not fill from tabs or notes');
+assert.ok(!/智能聚类|AI 聚类|自动整理/.test(html + js), 'no unreleased clustering in the desk');
+assert.ok(!/chrome\.proxy/.test(js + html), 'workset path does not touch proxy');
 
 const start = js.indexOf('function domainOf');
 const end = js.indexOf('async function loadDesk');

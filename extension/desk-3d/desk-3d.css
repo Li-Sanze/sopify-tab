@@ -100,7 +100,7 @@
 
 .desk-stage-toggle:has(input:checked) .desk-stage-toggle-icon,
 .desk-stage-toggle:has(input:focus-visible) {
-  color: var(--accent);
+  color: var(--studio-accent);
 }
 
 .desk3d-board {
@@ -398,8 +398,8 @@ html[data-sky="night"] .desk3d-banner {
 
 .desk3d-rail-btn:hover,
 .desk3d-rail-btn:focus-visible {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--studio-flash);
+  border-color: var(--studio-accent);
 }
 
 .desk3d-rail-btn.note {
@@ -410,7 +410,7 @@ html[data-sky="night"] .desk3d-banner {
   margin-top: 0;
   border: 0;
   background: transparent;
-  color: var(--studio-accent, var(--accent));
+  color: var(--studio-accent);
   font: inherit;
   font-size: 11px;
   font-weight: 500;
@@ -531,7 +531,7 @@ dialog.desk3d-panel::backdrop {
 
 .desk3d-icon-close:hover,
 .desk3d-icon-close:focus-visible {
-  background: var(--accent-soft);
+  background: var(--studio-flash);
   color: var(--ink);
 }
 
@@ -588,8 +588,8 @@ dialog.desk3d-panel::backdrop {
 
 .desk3d-primary {
   border: 0;
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--studio-ink);
+  color: var(--studio-paper);
   border-radius: var(--r-md);
   padding: 8px 14px;
   font: inherit;
@@ -628,8 +628,8 @@ html[data-sky="night"] #desk3d-note-editor {
 
 #desk3d-note-editor:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--studio-accent);
+  box-shadow: 0 0 0 3px var(--studio-flash);
 }
 
 .desk3d-save-hint {

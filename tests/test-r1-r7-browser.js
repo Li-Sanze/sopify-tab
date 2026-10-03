@@ -5,7 +5,16 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const net = require('net');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
+
+function runTemp() {
+  const root = process.env.SOPIFY_RUN_ROOT;
+  if (root) {
+    fs.mkdirSync(root, { recursive: true });
+    return root;
+  }
+  return os.tmpdir();
+}
 
 const REPO = path.join(__dirname, '..');
 const EXT = path.join(REPO, 'extension');
@@ -43,24 +52,50 @@ function isThisExtensionTarget(target, extensionId) {
   return url === prefix || url.startsWith(prefix + '/');
 }
 
+function targetBlob(target) {
+  return [target && target.url, target && target.title].filter(Boolean).join(' ');
+}
+
+function mentionsExtension(target, extensionId) {
+  const id = String(extensionId || '');
+  if (!id) return false;
+  const blob = targetBlob(target);
+  return blob.includes('chrome-extension://' + id + '/') || blob === 'chrome-extension://' + id;
+}
+
+function isExtensionWorker(target) {
+  const type = String(target && target.type || '');
+  return type === 'service_worker' || type === 'background_page';
+}
+
 function classifyExtensionTargets(targets, extensionId) {
   const list = Array.isArray(targets) ? targets : [];
-  const ours = list.filter((target) => isThisExtensionTarget(target, extensionId));
-  const foreign = list.filter((target) => /^chrome-extension:/.test(String(target && target.url || '')) && !isThisExtensionTarget(target, extensionId));
+  const id = String(extensionId || '');
+  const ours = list.filter((target) => isExtensionWorker(target) && mentionsExtension(target, id));
   if (ours.length) {
-    return { ok: true, id: extensionId, detail: ours[0].url || '', foreign: foreign.length };
+    const sample = ours[0];
+    return {
+      ok: true,
+      id,
+      kind: 'service_worker',
+      detail: String(sample.url || sample.title || ''),
+    };
   }
+  const foreign = list.filter((target) => /chrome-extension:\/\//.test(targetBlob(target)) && !mentionsExtension(target, id));
   if (foreign.length) {
+    const sample = foreign[0];
     return {
       ok: false,
-      id: extensionId,
-      detail: 'foreign extension target is not ' + extensionId + ': ' + (foreign[0].url || ''),
+      id,
+      kind: 'foreign',
+      detail: 'foreign extension target is not ' + id + ': ' + String(sample.url || sample.title || ''),
     };
   }
   return {
     ok: false,
-    id: extensionId,
-    detail: 'CLI load did not expose chrome-extension://' + extensionId + '/; branded Chrome ignores --load-extension',
+    id,
+    kind: 'absent',
+    detail: 'service worker for chrome-extension://' + id + '/ was not in the target list',
   };
 }
 
@@ -81,6 +116,30 @@ function assertExtensionIdentity() {
   if (!/foreign extension/.test(onlyForeign.detail)) throw new Error('foreign-only check did not fail');
   const titled = classifyExtensionTargets([{ url: 'about:blank', title: 'Sopify Tab' }], id);
   if (titled.ok) throw new Error('a Sopify title counted as this extension');
+  const absent = classifyExtensionTargets([], id);
+  if (absent.ok) throw new Error('empty targets counted as this extension');
+  if (/ignores --load-extension/.test(absent.detail)) throw new Error('missing worker blamed branded Chrome');
+  const worker = classifyExtensionTargets([
+    {
+      type: 'service_worker',
+      url: 'chrome-extension://' + id + '/background.js',
+      title: 'Service Worker chrome-extension://' + id + '/background.js',
+    },
+    foreign,
+  ], id);
+  if (!worker.ok) throw new Error('own service worker was rejected: ' + worker.detail);
+  const titledWorker = classifyExtensionTargets([{
+    type: 'service_worker',
+    url: '',
+    title: 'Service Worker chrome-extension://' + id + '/background.js',
+  }], id);
+  if (!titledWorker.ok) throw new Error('service worker title was rejected');
+  const pageOnly = classifyExtensionTargets([{
+    type: 'page',
+    url: 'chrome-extension://' + id + '/newtab.html',
+    title: 'chrome-extension://' + id + '/newtab.html',
+  }], id);
+  if (pageOnly.ok) throw new Error('a page url without a service worker counted as loaded');
   console.log('extension id check: foreign target fails, id ' + id);
 }
 
@@ -143,6 +202,9 @@ function stubSource(seed) {
     let noteWrites = 0;
     let readsLeft = seed.failReads || 0;
     let failCreate = seed.failCreate || '';
+    let holdCreates = 0;
+    window.__sopifyHoldCreates = (n) => { holdCreates = Number(n) || 0; };
+    window.__sopifyReleaseCreate = () => {};
     window.__sopifySetFailCreate = (value) => { failCreate = value || ''; };
     const removed = [];
     const created = [];
@@ -261,9 +323,18 @@ function stubSource(seed) {
         create(opts) {
           const url = opts && opts.url ? String(opts.url) : '';
           if (failCreate && url.includes(failCreate)) return Promise.reject(new Error('blocked'));
-          const tab = { id: 500 + created.length, url: url, title: url };
-          created.push(tab);
-          return Promise.resolve(tab);
+          const make = () => {
+            const tab = { id: 500 + created.length, url: url, title: url };
+            created.push(tab);
+            return tab;
+          };
+          if (holdCreates > 0) {
+            holdCreates -= 1;
+            return new Promise((resolve) => {
+              window.__sopifyReleaseCreate = () => resolve(make());
+            });
+          }
+          return Promise.resolve(make());
         },
         update() { return Promise.resolve(); },
         remove(ids) {
@@ -313,6 +384,384 @@ function serve(root, hits) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
+function getJson(port, pathname) {
+  return new Promise((resolve, reject) => {
+    const req = http.get({ host: '127.0.0.1', port, path: pathname }, (res) => {
+      let buf = '';
+      res.on('data', (d) => { buf += d; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
+      });
+    });
+    req.on('error', reject);
+  });
+}
+
+function chromeProductLine(bin) {
+  try {
+    const out = spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    const line = String((out && out.stdout) || '').trim() || String((out && out.stderr) || '').trim();
+    return line || 'unknown browser';
+  } catch (err) {
+    return 'unknown browser';
+  }
+}
+
+function realLoadIsRequired(productLine) {
+  const line = String(productLine || '');
+  if (/for Testing/i.test(line)) return true;
+  if (/(^|\s)Chromium\b/i.test(line)) return true;
+  return false;
+}
+
+async function evalOn(cdp, expression) {
+  const out = await cdp.send('Runtime.evaluate', {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (out.exceptionDetails) {
+    const described = out.exceptionDetails.exception && out.exceptionDetails.exception.description;
+    throw new Error(described || out.exceptionDetails.text || JSON.stringify(out.exceptionDetails));
+  }
+  return out.result ? out.result.value : undefined;
+}
+
+async function waitPage(port, targetId) {
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline) {
+    const list = await getJson(port, '/json/list');
+    const hit = list.find((target) => target.id === targetId && target.webSocketDebuggerUrl);
+    if (hit) return hit;
+    await sleep(40);
+  }
+  throw new Error('extension page target missing ' + targetId);
+}
+
+async function waitDesk(cdp) {
+  const deadline = Date.now() + 8000;
+  const id = JSON.stringify(SOPIFY_EXTENSION_ID);
+  while (Date.now() < deadline) {
+    const ready = await evalOn(cdp, `!!(document.getElementById('todo-input') && document.getElementById('notes') && document.getElementById('resume') && document.getElementById('resume').dataset.has !== 'pending' && chrome.runtime && chrome.runtime.id === ${id})`);
+    if (ready) return true;
+    await sleep(40);
+  }
+  return false;
+}
+
+async function raceTodos(cdpA, cdpB) {
+  const fire = (text) => `(() => { const input = document.getElementById('todo-input'); input.value = ${JSON.stringify(text)}; document.getElementById('todo-form').requestSubmit(); return true; })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: fire('甲待办'), returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: fire('乙待办'), returnByValue: true }),
+  ]);
+  let stored = [];
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ todos: [] }); return (data.todos || []).map((t) => t && t.text); })()`);
+    if (stored.includes('甲待办') && stored.includes('乙待办')) break;
+    await sleep(50);
+  }
+  const domA = await evalOn(cdpA, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const domB = await evalOn(cdpB, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const ok = stored.includes('甲待办') && stored.includes('乙待办')
+    && domA.includes('甲待办') && domA.includes('乙待办')
+    && domB.includes('甲待办') && domB.includes('乙待办');
+  return { ok, detail: JSON.stringify({ stored, domA, domB }) };
+}
+
+async function raceNotes(cdpA, cdpB) {
+  const fire = (text) => `(() => { const ta = document.getElementById('notes'); ta.focus(); ta.value = ${JSON.stringify(text)}; ta.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: fire('甲便签正文'), returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: fire('乙便签正文'), returnByValue: true }),
+  ]);
+  const read = `(() => {
+    const saved = document.getElementById('notes-saved');
+    const open = document.getElementById('note-show-conflict');
+    return {
+      value: document.getElementById('notes').value,
+      status: saved ? saved.textContent : '',
+      conflictOpen: !!(open && open.hidden === false),
+    };
+  })()`;
+  let snapA;
+  let snapB;
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    snapA = await evalOn(cdpA, read);
+    snapB = await evalOn(cdpB, read);
+    const pending = [snapA, snapB].some((snap) => snap.status === '保存中…' || snap.status === '');
+    const sawConflict = [snapA, snapB].some((snap) => snap.conflictOpen);
+    if (sawConflict && !pending) break;
+    await sleep(50);
+  }
+  const stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ notes: '', notesRev: 0 }); return { notes: data.notes, rev: data.notesRev }; })()`);
+  const draftsOk = snapA.value === '甲便签正文' && snapB.value === '乙便签正文';
+  const storedOk = stored.notes === '甲便签正文' || stored.notes === '乙便签正文';
+  const loserIsA = snapA.value !== stored.notes;
+  const loser = loserIsA ? snapA : snapB;
+  const loserCdp = loserIsA ? cdpA : cdpB;
+  const loserShows = loser.conflictOpen === true && loser.status === '便签在另一页更新了';
+  let panel = null;
+  if (loserShows) {
+    panel = await evalOn(loserCdp, `(() => {
+      document.getElementById('note-show-conflict').click();
+      const box = document.getElementById('note-conflict');
+      return {
+        hidden: box ? box.hidden : true,
+        local: document.getElementById('note-local-preview').textContent,
+        remote: document.getElementById('note-remote-preview').textContent,
+      };
+    })()`);
+  }
+  const panelOk = !!(panel && panel.hidden === false && panel.local === loser.value && panel.remote === stored.notes && panel.local !== panel.remote);
+  const ok = draftsOk && storedOk && loserShows && panelOk;
+  return { ok, detail: JSON.stringify({ snapA, snapB, stored, panel }) };
+}
+
+async function raceMoveAndAdd(cdpA, cdpB) {
+  const seed = [1, 2, 3, 4].map((n) => ({ id: 't' + n, text: '待办' + n, done: false }));
+  await evalOn(cdpA, `chrome.storage.local.set(${JSON.stringify({ todos: seed, todosRev: 1 })})`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return { ok: false, detail: 'move seed reboot failed' };
+  }
+  const clickNext = `(() => {
+    document.getElementById('todos-open').click();
+    const btn = document.querySelector('#todos-dialog-list [data-todo-next="t3"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`;
+  const add = `(() => {
+    const input = document.getElementById('todo-input');
+    input.value = '新的一件';
+    document.getElementById('todo-form').requestSubmit();
+    return true;
+  })()`;
+  await Promise.all([
+    cdpA.send('Runtime.evaluate', { expression: clickNext, returnByValue: true }),
+    cdpB.send('Runtime.evaluate', { expression: add, returnByValue: true }),
+  ]);
+  let stored = [];
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    stored = await evalOn(cdpA, `(async () => { const data = await chrome.storage.local.get({ todos: [] }); return (data.todos || []).map((t) => t && t.text); })()`);
+    if (stored[0] === '待办3' && stored.includes('新的一件') && stored.includes('待办1')) break;
+    await sleep(50);
+  }
+  const domA = await evalOn(cdpA, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const domB = await evalOn(cdpB, `[...document.querySelectorAll('#todos .todo span')].map((n) => n.textContent)`);
+  const kept = stored[0] === '待办3' && stored.includes('新的一件') && stored.includes('待办1') && stored.includes('待办2') && stored.includes('待办4');
+  const ok = kept
+    && domA.includes('待办3') && domA.includes('新的一件')
+    && domB.includes('待办3') && domB.includes('新的一件');
+  return { ok, detail: JSON.stringify({ stored, domA, domB }) };
+}
+
+async function runTwoPages(port, opened) {
+  const ver = await getJson(port, '/json/version');
+  const browser = await connectCdp(ver.webSocketDebuggerUrl);
+  opened.push(browser);
+  const pageUrl = 'chrome-extension://' + SOPIFY_EXTENSION_ID + '/newtab.html';
+  const createdA = await browser.send('Target.createTarget', { url: pageUrl });
+  const createdB = await browser.send('Target.createTarget', { url: pageUrl });
+  const pageA = await waitPage(port, createdA.targetId);
+  const pageB = await waitPage(port, createdB.targetId);
+  const cdpA = await connectCdp(pageA.webSocketDebuggerUrl);
+  const cdpB = await connectCdp(pageB.webSocketDebuggerUrl);
+  opened.push(cdpA, cdpB);
+  await cdpA.send('Runtime.enable');
+  await cdpB.send('Runtime.enable');
+  await cdpA.send('Page.enable');
+  await cdpB.send('Page.enable');
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return {
+      detail: 'newtab did not boot',
+      todo: { ok: false, detail: 'boot' },
+      note: { ok: false, detail: 'boot' },
+    };
+  }
+  await evalOn(cdpA, `chrome.storage.local.set({ todos: [], todosRev: 0, notes: '', notesRev: 0, notesStamp: 'seed', sites: [], name: '' })`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return {
+      detail: 'newtab did not reboot',
+      todo: { ok: false, detail: 'reboot' },
+      note: { ok: false, detail: 'reboot' },
+    };
+  }
+  const todo = await raceTodos(cdpA, cdpB);
+  await evalOn(cdpA, `chrome.storage.local.set({ notes: '', notesRev: 0, notesStamp: 'seed' })`);
+  await Promise.all([
+    cdpA.send('Page.reload', { ignoreCache: true }),
+    cdpB.send('Page.reload', { ignoreCache: true }),
+  ]);
+  if (!await waitDesk(cdpA) || !await waitDesk(cdpB)) {
+    return { detail: 'note reboot failed', todo, note: { ok: false, detail: 'reboot' } };
+  }
+  const note = await raceNotes(cdpA, cdpB);
+  const move = await raceMoveAndAdd(cdpA, cdpB);
+  const reopen = await realCloseReopen(cdpA);
+  return { detail: 'two pages shared storage.local', todo, note, move, reopen };
+}
+
+async function realCloseReopen(cdp) {
+  try {
+    const created = await evalOn(cdp, `(async () => {
+      const tab = await chrome.tabs.create({ url: 'https://example.com/sopify-reopen', active: false });
+      return { id: tab.id, url: tab.pendingUrl || tab.url || '' };
+    })()`);
+    if (!created || !created.id) return { ok: false, detail: 'tabs.create did not return an id' };
+    const closed = await evalOn(cdp, `(async () => {
+      const id = ${JSON.stringify(created.id)};
+      const start = Date.now();
+      let btn = null;
+      while (Date.now() - start < 4000) {
+        const nav = document.querySelector('[data-view="tabs"]');
+        if (nav) nav.click();
+        btn = document.querySelector('[data-close-tab="' + id + '"]');
+        if (btn) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      if (!btn) return { ok: false, detail: 'close button missing for ' + id };
+      btn.click();
+      const wait = Date.now();
+      let action = null;
+      while (Date.now() - wait < 4000) {
+        action = document.getElementById('toast-action');
+        if (action && !action.hidden && action.textContent === '重新打开') break;
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      if (!action || action.hidden || action.textContent !== '重新打开') {
+        return { ok: false, detail: 'reopen action missing' };
+      }
+      action.click();
+      const again = Date.now();
+      let found = [];
+      while (Date.now() - again < 4000) {
+        const tabs = await chrome.tabs.query({});
+        const gone = !tabs.some((t) => t.id === id);
+        found = tabs.filter((t) => String(t.url || t.pendingUrl || '').includes('sopify-reopen'));
+        if (gone && found.length === 1 && found[0].id !== id) {
+          return { ok: true, detail: 'closed ' + id + ' reopened ' + found[0].id, count: found.length };
+        }
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      return { ok: false, detail: 'reopen count ' + found.length, count: found.length };
+    })()`);
+    return closed && closed.ok ? closed : { ok: false, detail: closed && closed.detail ? closed.detail : 'reopen failed' };
+  } catch (err) {
+    return { ok: false, detail: String(err && err.message ? err.message : err) };
+  }
+}
+
+async function exerciseRealExtension(bin) {
+  const product = chromeProductLine(bin);
+  const required = realLoadIsRequired(product);
+  const realProfile = trackProfile(fs.mkdtempSync(path.join(runTemp(), 'sopify-r17-ext-')));
+  const realPort = await freePort();
+  const realChrome = trackChrome(spawn(bin, [
+    '--headless=new',
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-features=DisableLoadExtensionCommandLineSwitch',
+    `--load-extension=${EXT}`,
+    `--disable-extensions-except=${EXT}`,
+    `--remote-debugging-port=${realPort}`,
+    `--user-data-dir=${realProfile}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-sync',
+    'about:blank',
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
+  const opened = [];
+  let confirmed = false;
+  const finish = (result) => {
+    for (const cdp of opened) {
+      try { cdp.close(); } catch { /* already closed */ }
+    }
+    killChrome(realChrome);
+    rmDir(realProfile);
+    return result;
+  };
+  try {
+    await waitJson(realPort);
+    let targets = [];
+    let classified = classifyExtensionTargets([], SOPIFY_EXTENSION_ID);
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      targets = await getJson(realPort, '/json/list');
+      classified = classifyExtensionTargets(targets, SOPIFY_EXTENSION_ID);
+      if (classified.ok) break;
+      await sleep(100);
+    }
+    if (!classified.ok) {
+      return finish({
+        ok: false,
+        skipped: !required,
+        product,
+        detail: classified.detail + '. ' + product + ' did not show this extension service worker on this launch',
+        twoPage: false,
+      });
+    }
+    const worker = targets.find((target) => isExtensionWorker(target) && mentionsExtension(target, SOPIFY_EXTENSION_ID) && target.webSocketDebuggerUrl);
+    if (!worker) {
+      return finish({
+        ok: false,
+        skipped: !required,
+        product,
+        detail: 'service worker for ' + SOPIFY_EXTENSION_ID + ' had no debugger url. ' + product,
+        twoPage: false,
+      });
+    }
+    const sw = await connectCdp(worker.webSocketDebuggerUrl);
+    opened.push(sw);
+    await sw.send('Runtime.enable');
+    const probe = await evalOn(sw, `({ id: chrome.runtime && chrome.runtime.id, listeners: !!(chrome.action && chrome.action.onClicked && chrome.action.onClicked.hasListeners && chrome.action.onClicked.hasListeners()) })`);
+    if (!probe || probe.id !== SOPIFY_EXTENSION_ID || probe.listeners !== true) {
+      return finish({
+        ok: false,
+        skipped: false,
+        product,
+        detail: 'service worker ' + (worker.url || '') + ' did not report id ' + SOPIFY_EXTENSION_ID + ' with chrome.action.onClicked.hasListeners(); got ' + JSON.stringify(probe),
+        twoPage: false,
+      });
+    }
+    confirmed = true;
+    const loaded = (worker.url || classified.detail) + '; chrome.runtime.id matched; chrome.action.onClicked.hasListeners() is true';
+    const pages = await runTwoPages(realPort, opened);
+    const twoPage = !!(pages.todo && pages.todo.ok && pages.note && pages.note.ok && pages.move && pages.move.ok);
+    return finish({
+      ok: true,
+      skipped: false,
+      product,
+      detail: loaded + '; ' + pages.detail,
+      twoPage,
+      todo: pages.todo,
+      note: pages.note,
+      move: pages.move,
+      reopen: pages.reopen,
+    });
+  } catch (err) {
+    return finish({
+      ok: false,
+      skipped: !confirmed && !required,
+      product,
+      detail: String(err && err.message ? err.message : err),
+      twoPage: false,
+    });
+  }
+}
+
 function waitJson(port) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
@@ -353,7 +802,20 @@ function connectCdp(wsUrl) {
         send(method, params) {
           const id = ++seq;
           return new Promise((res, rej) => {
-            pending.set(id, { resolve: res, reject: rej });
+            const timer = setTimeout(() => {
+              pending.delete(id);
+              rej(new Error(`CDP timeout ${method} after 10000ms`));
+            }, 10000);
+            pending.set(id, {
+              resolve: (value) => {
+                clearTimeout(timer);
+                res(value);
+              },
+              reject: (err) => {
+                clearTimeout(timer);
+                rej(err);
+              },
+            });
             ws.send(JSON.stringify({ id, method, params: params || {} }));
           });
         },
@@ -371,16 +833,59 @@ function rmDir(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* already gone */ }
 }
 
+const chromeChildren = [];
+const profileDirs = [];
+
+function trackChrome(child) {
+  chromeChildren.push(child);
+  return child;
+}
+
+function trackProfile(dir) {
+  profileDirs.push(dir);
+  return dir;
+}
+
+function killChrome(child) {
+  if (!child || child.pid == null) return;
+  try { process.kill(-child.pid, 'SIGKILL'); } catch {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  }
+}
+
+function cleanupBrowser() {
+  for (const child of chromeChildren) killChrome(child);
+  for (const dir of profileDirs) rmDir(dir);
+}
+
+function armWatchdog() {
+  const timer = setTimeout(() => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  }, 240000);
+  const onSignal = () => {
+    console.error('FAIL watchdog: browser test exceeded 240s');
+    cleanupBrowser();
+    process.exit(1);
+  };
+  process.once('SIGTERM', onSignal);
+  process.once('SIGINT', onSignal);
+  process.on('exit', cleanupBrowser);
+  return () => clearTimeout(timer);
+}
+
 async function main() {
   assertExtensionIdentity();
   const bin = findChrome();
   requireWebSocket();
+  const stopWatchdog = armWatchdog();
   const liveHits = [];
   const live = await serve(EXT, liveHits);
   const origin = `http://127.0.0.1:${live.address().port}`;
   const cdpPort = process.env.SOPIFY_CDP_PORT ? Number(process.env.SOPIFY_CDP_PORT) : await freePort();
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-'));
-  const chrome = spawn(bin, [
+  const profile = trackProfile(fs.mkdtempSync(path.join(runTemp(), 'sopify-r17-')));
+  const chrome = trackChrome(spawn(bin, [
     '--headless=new',
     '--no-sandbox',
     '--disable-dev-shm-usage',
@@ -392,7 +897,7 @@ async function main() {
     '--disable-sync',
     '--disable-extensions',
     'about:blank',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] }));
   let chromeLog = '';
   chrome.stdout.on('data', (d) => { chromeLog += d; });
   chrome.stderr.on('data', (d) => { chromeLog += d; });
@@ -424,6 +929,7 @@ async function main() {
     cdp = await connectCdp(page.webSocketDebuggerUrl);
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     let scriptId = null;
     let caseNo = 0;
 
@@ -934,6 +1440,43 @@ async function main() {
       return { title, count, label: btn ? btn.textContent.trim() : '', removed: window.__sopifyRemoved.slice() };
     })()`);
     check('filtered close removes only the visible host tabs', JSON.stringify(closed.removed) === '[1]' && closed.count === '1' && closed.title.includes('筛选') && closed.label === '关闭这 1 个标签', JSON.stringify(closed));
+    const filteredReopen = await evalJson(`(async () => {
+      const action = document.getElementById('toast-action');
+      const before = { hidden: action.hidden, label: action.textContent, separate: action.id !== 'workset-retry-unopened' };
+      const delays = [];
+      const orig = window.setTimeout;
+      window.setTimeout = function (fn, ms) { delays.push(ms); return orig(fn, ms); };
+      action.focus();
+      action.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      const paused = delays.length;
+      action.blur();
+      action.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      window.setTimeout = orig;
+      action.click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        before,
+        paused,
+        resumed: delays.slice(paused),
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        actionHidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check(
+      'filtered reopen opens only the closed url',
+      filteredReopen.before.hidden === false
+        && filteredReopen.before.label === '重新打开'
+        && filteredReopen.before.separate
+        && filteredReopen.paused === 0
+        && filteredReopen.resumed.length === 1
+        && filteredReopen.resumed[0] <= 6000
+        && filteredReopen.created.length === 1
+        && filteredReopen.created[0] === 'https://github.com/a'
+        && filteredReopen.toast === '已重新打开'
+        && filteredReopen.actionHidden,
+      JSON.stringify(filteredReopen),
+    );
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -950,13 +1493,22 @@ async function main() {
       btn.click();
       await new Promise((r) => setTimeout(r, 40));
       const toast = document.getElementById('toast');
+      const action = document.getElementById('toast-action');
       return {
         toast: toast.textContent,
         toastOn: toast.classList.contains('show'),
         removed: window.__sopifyRemoved.slice(),
+        label: action.textContent,
+        hidden: action.hidden,
       };
     })()`);
-    check('partial close does not claim full success', partialClose.toastOn && partialClose.toast.includes('还有 1 个没关掉') && !partialClose.toast.includes('已关闭') && JSON.stringify(partialClose.removed) === '[1]', JSON.stringify(partialClose));
+    check('partial close does not claim full success', partialClose.toastOn && partialClose.toast.includes('还有 1 个没关掉') && !partialClose.toast.includes('已关闭') && JSON.stringify(partialClose.removed) === '[1]' && partialClose.label === '重新打开' && partialClose.hidden === false, JSON.stringify(partialClose));
+    const partialReopenOnly = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return window.__sopifyCreated.map((t) => t.url);
+    })()`);
+    check('partial close reopens only the tab that closed', partialReopenOnly.length === 1 && partialReopenOnly[0] === 'https://github.com/a', JSON.stringify(partialReopenOnly));
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -976,6 +1528,325 @@ async function main() {
       };
     })()`);
     check('failed close does not toast success', failedClose.toastOn && failedClose.toast.includes('没关掉') && !failedClose.toast.includes('已关闭') && failedClose.removed.length === 0, JSON.stringify(failedClose));
+    const failedAction = await evalJson(`(() => {
+      const action = document.getElementById('toast-action');
+      return { hidden: action.hidden, label: action.textContent, created: window.__sopifyCreated.length };
+    })()`);
+    check('failed close has no reopen action', failedAction.hidden === true && failedAction.label === '' && failedAction.created === 0, JSON.stringify(failedAction));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [{ id: 11, title: 'solo', url: 'https://solo.example/a' }],
+    }, 'day');
+    const single = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      const beforeFocus = document.activeElement && document.activeElement.id;
+      document.querySelector('[data-close-tab="11"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        removed: window.__sopifyRemoved.slice(),
+        toast: document.getElementById('toast').textContent,
+        label: action.textContent,
+        hidden: action.hidden,
+        focus: document.activeElement && document.activeElement.id,
+        tabbable: action.tabIndex >= 0 && !action.disabled,
+        beforeFocus,
+      };
+    })()`);
+    check(
+      'single close records that tab and does not steal focus',
+      JSON.stringify(single.removed) === '[11]'
+        && single.toast === '已关闭'
+        && single.label === '重新打开'
+        && single.hidden === false
+        && single.focus !== 'toast-action'
+        && single.tabbable,
+      JSON.stringify(single),
+    );
+    const singleOpen = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check('single reopen loads that url once', singleOpen.created.length === 1 && singleOpen.created[0] === 'https://solo.example/a' && singleOpen.toast === '已重新打开' && singleOpen.hidden, JSON.stringify(singleOpen));
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 21, title: 'dup a', url: 'https://dup.example/x' },
+        { id: 22, title: 'dup b', url: 'https://dup.example/x' },
+        { id: 23, title: 'other', url: 'https://other.example/y' },
+      ],
+    }, 'day');
+    const dup = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="dup.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        removed: window.__sopifyRemoved.slice(),
+        label: action.textContent,
+        hidden: action.hidden,
+        toast: document.getElementById('toast').textContent,
+      };
+    })()`);
+    check(
+      'domain close keeps duplicate urls and skips other hosts',
+      JSON.stringify(dup.removed) === '[21,22]' && dup.label === '重新打开' && !dup.hidden && dup.toast === '已关闭 dup.example',
+      JSON.stringify(dup),
+    );
+    const dupOpen = await evalJson(`(async () => {
+      window.__sopifyHoldCreates(1);
+      document.getElementById('toast-action').click();
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 30));
+      const during = window.__sopifyCreated.map((t) => t.url);
+      window.__sopifyReleaseCreate();
+      await new Promise((r) => setTimeout(r, 40));
+      return { during, created: window.__sopifyCreated.map((t) => t.url), toast: document.getElementById('toast').textContent };
+    })()`);
+    check(
+      'reopen keeps both copies and ignores a second click',
+      dupOpen.during.length === 0
+        && dupOpen.created.length === 2
+        && dupOpen.created.every((url) => url === 'https://dup.example/x')
+        && dupOpen.toast === '已重新打开 2 个',
+      JSON.stringify(dupOpen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 31, title: 'ok', url: 'https://ok.example/page' },
+        { id: 32, title: 'bad', url: 'https://blocked.example/page' },
+      ],
+      failCreate: 'blocked.example',
+    }, 'day');
+    const partialReopen = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="ok.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      document.querySelector('[data-close-host="blocked.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const afterSecond = {
+        label: document.getElementById('toast-action').textContent,
+        removed: window.__sopifyRemoved.slice(),
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const action = document.getElementById('toast-action');
+      return {
+        afterSecond,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: action.textContent,
+        hidden: action.hidden,
+      };
+    })()`);
+    check(
+      'a later close replaces the earlier reopen list',
+      JSON.stringify(partialReopen.afterSecond.removed) === '[31,32]'
+        && partialReopen.afterSecond.label === '重新打开'
+        && partialReopen.created.length === 0
+        && partialReopen.toast.includes('没打开')
+        && !partialReopen.toast.includes('已重新打开')
+        && partialReopen.label === '重新打开'
+        && partialReopen.hidden === false,
+      JSON.stringify(partialReopen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 41, title: 'ok', url: 'https://keep.example/ok' },
+        { id: 42, title: 'bad', url: 'https://blocked.example/no' },
+      ],
+      failCreate: 'blocked.example',
+    }, 'day');
+    const mixed = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="keep.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      document.querySelector('[data-close-host="blocked.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return document.getElementById('toast-action').textContent;
+    })()`);
+    check('second close drops the first reopen target', mixed === '重新打开', mixed);
+    const mixedOpen = await evalJson(`(async () => {
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const mid = {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+      window.__sopifySetFailCreate('');
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        mid,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+      };
+    })()`);
+    check(
+      'partial reopen reports the real count and retries only the miss',
+      mixedOpen.mid.created.length === 0
+        && mixedOpen.mid.toast.includes('还有 1 个')
+        && !mixedOpen.mid.toast.includes('已重新打开')
+        && mixedOpen.mid.label === '重新打开'
+        && mixedOpen.created.length === 1
+        && mixedOpen.created[0] === 'https://blocked.example/no'
+        && mixedOpen.toast === '已重新打开'
+        && mixedOpen.hidden,
+      JSON.stringify(mixedOpen),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [{ id: 't1', text: '待办1', done: false }],
+      sites: [],
+      tabs: [
+        { id: 51, title: 'ok', url: 'https://pair.example/ok' },
+        { id: 52, title: 'bad', url: 'https://pair.example/blocked' },
+      ],
+      failCreate: 'blocked',
+    }, 'day');
+    const pair = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-host="pair.example"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const closed = {
+        removed: window.__sopifyRemoved.slice(),
+        label: document.getElementById('toast-action').textContent,
+        toast: document.getElementById('toast').textContent,
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const mid = {
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        retry: document.getElementById('workset-retry-unopened').hidden,
+      };
+      document.querySelector('[data-view="desk"]').click();
+      document.getElementById('resume-act').click();
+      const undoWait = Date.now();
+      let replaced = null;
+      while (Date.now() - undoWait < 3000) {
+        const row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        replaced = {
+          label: document.getElementById('toast-action').textContent,
+          created: window.__sopifyCreated.map((t) => t.url),
+          done: !!(row && row.done),
+        };
+        if (replaced.done && replaced.label === '撤销') break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      document.getElementById('toast-action').click();
+      const backWait = Date.now();
+      let row = null;
+      while (Date.now() - backWait < 3000) {
+        row = window.__sopifyStore.todos.find((item) => item.id === 't1');
+        if (row && row.done === false) break;
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      return {
+        closed,
+        mid,
+        replaced,
+        created: window.__sopifyCreated.map((t) => t.url),
+        text: row && row.text,
+        done: row && row.done,
+      };
+    })()`);
+    check(
+      'one close reopens only successes and a later undo replaces that action',
+      JSON.stringify(pair.closed.removed) === '[51,52]'
+        && pair.closed.label === '重新打开'
+        && pair.closed.toast === '已关闭 pair.example'
+        && pair.mid.created.length === 1
+        && pair.mid.created[0] === 'https://pair.example/ok'
+        && pair.mid.toast === '打开了 1 个，还有 1 个没打开'
+        && pair.mid.label === '重新打开'
+        && pair.mid.hidden === false
+        && pair.mid.retry === true
+        && pair.replaced.created.length === 1
+        && pair.replaced.label === '撤销'
+        && pair.replaced.done === true
+        && pair.created.length === 1
+        && pair.created[0] === 'https://pair.example/ok'
+        && pair.done === false
+        && pair.text === '待办1',
+      JSON.stringify(pair),
+    );
+
+    await loadSeed(1440, 900, {
+      todos: [],
+      sites: [],
+      tabs: [
+        { id: 71, title: 'page A', url: 'https://a.example/reopen' },
+        { id: 72, title: 'page B', url: 'https://b.example/reopen' },
+      ],
+    }, 'day');
+    const staleReopen = await evalJson(`(async () => {
+      document.querySelector('[data-view="tabs"]').click();
+      document.querySelector('[data-close-tab="71"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      window.__sopifyHoldCreates(1);
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 20));
+      document.querySelector('[data-close-tab="72"]').click();
+      await new Promise((r) => setTimeout(r, 40));
+      const during = {
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        created: window.__sopifyCreated.map((t) => t.url),
+      };
+      window.__sopifyReleaseCreate();
+      await new Promise((r) => setTimeout(r, 50));
+      const afterAck = {
+        toast: document.getElementById('toast').textContent,
+        label: document.getElementById('toast-action').textContent,
+        hidden: document.getElementById('toast-action').hidden,
+        created: window.__sopifyCreated.map((t) => t.url),
+      };
+      document.getElementById('toast-action').click();
+      await new Promise((r) => setTimeout(r, 40));
+      return {
+        during,
+        afterAck,
+        created: window.__sopifyCreated.map((t) => t.url),
+        toast: document.getElementById('toast').textContent,
+      };
+    })()`);
+    check(
+      'a late reopen ack does not replace a newer close',
+      staleReopen.during.toast === '已关闭'
+        && staleReopen.during.label === '重新打开'
+        && staleReopen.during.created.length === 0
+        && staleReopen.afterAck.toast === '已关闭'
+        && staleReopen.afterAck.label === '重新打开'
+        && staleReopen.afterAck.hidden === false
+        && staleReopen.afterAck.created.length === 1
+        && staleReopen.afterAck.created[0] === 'https://a.example/reopen'
+        && staleReopen.created.filter((url) => url === 'https://a.example/reopen').length === 1
+        && staleReopen.created.filter((url) => url === 'https://b.example/reopen').length === 1
+        && staleReopen.toast === '已重新打开',
+      JSON.stringify(staleReopen),
+    );
 
     await loadSeed(1440, 900, {
       todos: [],
@@ -1160,57 +2031,32 @@ async function main() {
     throw err;
   } finally {
     if (cdp) cdp.close();
-    chrome.kill('SIGKILL');
+    killChrome(chrome);
     live.close();
     rmDir(profile);
   }
 
-  let real = { ok: false, detail: 'not run' };
-  const realProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'sopify-r17-ext-'));
-  const realPort = await freePort();
-  const realChrome = spawn(bin, [
-    '--headless=new',
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-features=DisableLoadExtensionCommandLineSwitch',
-    `--load-extension=${EXT}`,
-    `--disable-extensions-except=${EXT}`,
-    `--remote-debugging-port=${realPort}`,
-    `--user-data-dir=${realProfile}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-sync',
-    'about:blank',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
-  try {
-    await waitJson(realPort);
-    const targets = await new Promise((resolve, reject) => {
-      http.get({ host: '127.0.0.1', port: realPort, path: '/json/list' }, (res) => {
-        let buf = '';
-        res.on('data', (d) => { buf += d; });
-        res.on('end', () => {
-          try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
-        });
-      }).on('error', reject);
-    });
-    const classified = classifyExtensionTargets(targets, SOPIFY_EXTENSION_ID);
-    real = {
-      ok: classified.ok === true,
-      id: SOPIFY_EXTENSION_ID,
-      detail: classified.detail,
-      twoPage: false,
-    };
-    if (classified.ok) {
-      real.detail = classified.detail + '; id matched, two-page storage.onChanged was not exercised';
-    }
-  } catch (err) {
-    real = { ok: false, detail: String(err && err.message ? err.message : err) };
-  } finally {
-    realChrome.kill('SIGKILL');
-    rmDir(realProfile);
+  const realRun = await exerciseRealExtension(bin);
+  const real = {
+    ok: realRun.ok === true,
+    skipped: realRun.skipped === true,
+    id: SOPIFY_EXTENSION_ID,
+    detail: realRun.detail,
+    twoPage: realRun.twoPage === true,
+  };
+  if (real.skipped) {
+    console.log(`real extension: skip ${realRun.product}: ${real.detail}`);
+  } else if (!real.ok) {
+    console.log(`real extension: fail ${real.detail}`);
+    check('real extension loaded', false, real.detail);
+  } else {
+    console.log(`real extension: loaded ${real.detail}`);
+    check('real extension loaded', true, real.detail);
+    check('real extension keeps both concurrent todos', realRun.todo && realRun.todo.ok, realRun.todo && realRun.todo.detail);
+    check('real extension note race shows both drafts', realRun.note && realRun.note.ok, realRun.note && realRun.note.detail);
+    check('real extension keeps a moved todo and a concurrent add', realRun.move && realRun.move.ok, realRun.move && realRun.move.detail);
+    check('real extension reopened a closed tab', realRun.reopen && realRun.reopen.ok, realRun.reopen && realRun.reopen.detail);
   }
-  console.log(`real extension: ${real.ok ? 'loaded' : 'unverified'} ${real.detail}`);
 
   const report = {
     kind: 'stub-browser',
@@ -1231,6 +2077,12 @@ async function main() {
     if (!row) return '未测';
     return row.ok ? 'pass' : 'fail';
   }
+  function realCol(name) {
+    const row = checks.find((c) => c.name === name);
+    if (row) return row.ok ? 'pass' : 'fail';
+    if (real.skipped) return 'skip';
+    return '未测';
+  }
   function cols(names) {
     const rows = names.map(col);
     if (rows.some((v) => v === 'fail')) return 'fail';
@@ -1239,7 +2091,7 @@ async function main() {
   }
   const acceptance = {
     columns: ['静态', '替身', '真扩展', 'IME', '未测'],
-    note: '替身是桩浏览器里的界面。真扩展、Host、系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
+    note: '替身是桩浏览器里的界面。系统中文输入法没有跑，不能记成通过。合成 composition 事件算替身，不算真 IME。',
     rows: [
       {
         item: 'A 读失败不当成空数据，禁止覆盖写',
@@ -1256,15 +2108,15 @@ async function main() {
         ]),
         真扩展: '未测',
         IME: '未测',
-        未测: '真扩展 / Host / 真中文 IME。A1–A6 只在替身里点过新增并核对存储',
+        未测: '真扩展 / 真中文 IME。A1–A6 只在替身里点过新增并核对存储',
       },
       {
         item: 'B 便签同一队列，先写的留下，后写的冲突并保留草稿',
         静态: staticCol,
         替身: '未测',
-        真扩展: '未测',
+        真扩展: realCol('real extension note race shows both drafts'),
         IME: '未测',
-        未测: '双页并发只在静态单测里走真实 note-sync。替身没有两页。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。真扩展 / Host / 真中文 IME',
+        未测: '系统中文输入法没有跑。空间视图默认关，3D 便签未打开；组词守卫只用合成事件。',
       },
       {
         item: 'C 确认只覆盖刚看过的版本，冲突可展开全文',
@@ -1272,15 +2124,15 @@ async function main() {
         替身: col('conflict expands the full remote text'),
         真扩展: '未测',
         IME: '未测',
-        未测: '版本被改掉后再确认只在静态单测。真扩展 / Host / 真中文 IME',
+        未测: '版本被改掉后再确认只在静态单测。真扩展 / 真中文 IME',
       },
       {
         item: 'P1 待办／常用站／窗口按意图合并，双成功不丢新增',
         静态: staticCol,
         替身: '未测',
-        真扩展: '未测',
+        真扩展: realCol('real extension keeps both concurrent todos'),
         IME: '未测',
-        未测: '真双页扩展 / 真扩展 / Host / 真中文 IME。交叉新增只在静态协调器里断言存储',
+        未测: '真中文输入法没有跑。交叉新增的存储断言在静态协调器里。',
       },
       {
         item: 'P2 旧便签回执不压掉较新冲突',
@@ -1288,7 +2140,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '真双页扩展 / 3D 便签 / 真扩展 / Host / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
+        未测: '真双页扩展 / 3D 便签 / 真扩展 / 真中文 IME。3D 与普通便签走同一保存函数，运行时未开空间视图',
       },
       {
         item: '表单重试复用同一条编号，不按文字去重',
@@ -1296,7 +2148,7 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '重试编号在 node 里走 form-ops 和协调器。替身 / 真扩展 / Host / 真中文 IME / 3D',
+        未测: '重试编号在 node 里走 form-ops 和协调器。替身 / 真扩展 / 真中文 IME / 3D',
       },
       {
         item: '旧冲突回执不盖掉较新冲突，确认只用当前有效冲突',
@@ -1304,15 +2156,23 @@ async function main() {
         替身: '未测',
         真扩展: '未测',
         IME: '未测',
-        未测: '冲突门闸在 node 里走 note-sync。真双页 / 3D / 真扩展 / Host / 真中文 IME',
+        未测: '冲突门闸在 node 里走 note-sync。真双页 / 3D / 真扩展 / 真中文 IME',
       },
       {
         item: '扩展目标只认 cgkhllpelkjmfamddkjpnmchjikdcbgp',
         静态: 'pass',
         替身: '未测',
-        真扩展: '未测',
+        真扩展: real.ok ? 'pass' : (real.skipped ? 'skip' : '未测'),
         IME: '未测',
-        未测: '反例在 node 里拒绝其他 chrome-extension。真双页 onChanged / Host / 真中文 IME / 3D 运行时',
+        未测: '反例在 node 里拒绝其他 chrome-extension。真中文 IME / 3D 运行时',
+      },
+      {
+        item: '3b.2 设为下一件和另一页新增同时留下',
+        静态: staticCol,
+        替身: '未测',
+        真扩展: realCol('real extension keeps a moved todo and a concurrent add'),
+        IME: '未测',
+        未测: 'Mac 未测。按钮和首屏在 w13 替身里点过。不做拖拽排序',
       },
       {
         item: 'R1–R7 关闭、恢复、输入法守卫、读失败提示',
@@ -1320,7 +2180,15 @@ async function main() {
         替身: failures.length ? 'fail' : 'pass',
         真扩展: '未测',
         IME: '未测',
-        未测: '真扩展 / Host / 真中文 IME。桩里的 Enter/229 只是合成事件',
+        未测: '真扩展 / 真中文 IME。桩里的 Enter/229 只是合成事件',
+      },
+      {
+        item: '3b.5 关掉之后重新打开，只含真正关掉的网址',
+        静态: staticCol,
+        替身: col('single reopen loads that url once'),
+        真扩展: realCol('real extension reopened a closed tab'),
+        IME: '未测',
+        未测: 'Mac 未测。系统中文输入法未测。不恢复滚动或表单',
       },
     ],
     realExtension: real.twoPage === true
@@ -1340,7 +2208,8 @@ async function main() {
     console.log(`test-r1-r7-browser: FAIL ${failures.length}`);
     throw new Error(failures.join('\n'));
   }
-  console.log('test-r1-r7-browser: ok (stub, not a loaded extension)');
+  stopWatchdog();
+  console.log('test-r1-r7-browser: ok');
 }
 
 main().catch((err) => {

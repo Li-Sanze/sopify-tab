@@ -189,12 +189,20 @@ assert.deepStrictEqual(
   'Three vendor lives only under extension/desk-3d'
 );
 
-const hostFiles = walk(HOST, []);
-for (const file of hostFiles) {
-  const rel = path.relative(REPO, file);
-  if (file.endsWith('three.module.js')) {
-    assert.fail(`host must not vendor Three: ${rel}`);
+if (fs.existsSync(HOST)) {
+  const hostFiles = walk(HOST, []);
+  for (const file of hostFiles) {
+    const rel = path.relative(REPO, file);
+    if (file.endsWith('three.module.js')) {
+      assert.fail(`host must not vendor Three: ${rel}`);
+    }
+    assert.ok(!/\/host\.js$|install-host\.sh$/.test(rel), `host runtime is already offline: ${rel}`);
   }
+}
+assert.ok(!fs.existsSync(path.join(HOST, 'host.js')), 'host runtime is already offline');
+assert.ok(!fs.existsSync(path.join(HOST, 'install-host.sh')), 'host installer is already offline');
+for (const name of ['js', 'html', 'css'].map((ext) => ['side', 'panel.'].join('') + ext)) {
+  assert.ok(!fs.existsSync(path.join(EXT, name)), `${name} is already offline`);
 }
 
 const topLevel = fs.readdirSync(EXT).filter((f) => /\.(js|css|html)$/.test(f));
@@ -210,18 +218,29 @@ assert.ok(proto.includes('id="next-thing"'));
 assert.ok(proto.includes('id="desk-3d-mount"'));
 assert.ok(!proto.includes('专注工作集'));
 
-const readme = read('README.md');
-assert.ok(!readme.includes('演示工作集不恢复真实标签'));
-assert.ok(!readme.includes('演示便签只进本页'));
-assert.ok(readme.includes('恢复只补上还没有打开的网页'));
 assert.ok(newtabJs.includes('async function restoreWorksetById'));
-
-const deskReadme = read('extension/desk-3d/README.md');
-assert.ok(!deskReadme.includes('演示数据只写'));
-assert.ok(deskReadme.includes('window.SopifyDesk3d') || deskReadme.includes('newtab.js'));
+assert.ok(newtabJs.includes('function planRestore'));
+assert.ok(newtabJs.includes('else create.push(tab.url)'), 'restore creates only urls that are not already open');
+const restoreFn = newtabJs.slice(
+  newtabJs.indexOf('async function restoreWorksetById'),
+  newtabJs.indexOf('let restoreRetry'),
+);
+assert.ok(restoreFn.includes('planRestore('));
+assert.ok(!/tabs\.remove/.test(restoreFn), 'restore must not close other tabs');
+assert.ok(!/演示工作集不恢复真实标签|演示便签只进本页|演示数据只写/.test(data + markup + ui + embed + boot + newtabJs));
+assert.ok(boot.includes('window.SopifyDesk3d'));
+assert.ok(newtabJs.includes('restoreWorkset: function (id) { return restoreWorksetById(id); }'));
 
 const manifest = JSON.parse(read('extension/manifest.json'));
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!(['side', 'panel'].join('_') in manifest));
+const hostSurface = new RegExp(
+  ['connect', 'Native'].join('')
+  + '|send' + ['Native', 'Message'].join('')
+  + '|\\b' + ['side', 'Panel'].join('') + '\\b'
+  + '|' + ['native', 'Messaging'].join('')
+);
+assert.ok(!hostSurface.test(newtabJs + boot));
 
 console.log('test-desk-3d-gates: ok', { vendorBytes });

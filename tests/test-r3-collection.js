@@ -260,6 +260,132 @@ async function main() {
   assert.strictEqual(replaced.ok, false);
   assert.deepStrictEqual(ids(retryStore.store.todos), ['old', 'a']);
 
+  const t1 = { id: 't1', text: '待办1', done: false };
+  const t2 = { id: 't2', text: '待办2', done: false };
+  const t3 = { id: 't3', text: '待办3', done: false };
+  const t4 = { id: 't4', text: '待办4', done: false };
+  const t5 = { id: 't5', text: '待办5', done: false };
+  const queue = [t1, t2, t3, t4];
+  const missingMove = collection.applyOps(queue, [{ op: 'move', id: 'gone', to: 'front' }], 'todos');
+  assert.strictEqual(missingMove.ok, false);
+  assert.strictEqual(missingMove.missing, true, 'move of a missing todo');
+  const alreadyFront = collection.applyOps(queue, [{ op: 'move', id: 't1', to: 'front' }], 'todos');
+  assert.strictEqual(alreadyFront.ok, true);
+  assert.deepStrictEqual(ids(alreadyFront.items), ['t1', 't2', 't3', 't4'], 'move of the first todo does not rewrite');
+  const movedFront = collection.applyOps(queue, [{ op: 'move', id: 't3', to: 'front' }], 'todos');
+  assert.strictEqual(movedFront.ok, true);
+  assert.deepStrictEqual(ids(movedFront.items), ['t3', 't1', 't2', 't4'], 'move puts the todo first');
+  assert.deepStrictEqual(collection.diffTodos(queue, [t3, t1, t2, t4]), [], 'diffTodos ignores order');
+  const siteMove = collection.applyOps(
+    [{ name: '甲', url: 'https://a.example/' }],
+    [{ op: 'move', id: 'https://a.example/', to: 'front' }],
+    'sites',
+  );
+  assert.strictEqual(siteMove.ok, false);
+  assert.strictEqual(siteMove.error, true, 'move is todos only');
+  const workMove = collection.applyOps(
+    [{ id: 'w1', name: '甲', savedAt: 2, tabs: [{ title: 'a', url: 'https://a.example/' }] }],
+    [{ op: 'move', id: 'w1', to: 'front' }],
+    'worksets',
+  );
+  assert.strictEqual(workMove.ok, false);
+  assert.strictEqual(workMove.error, true);
+
+  async function overlap(firstOps, secondOps, initial) {
+    const store = memory({ todos: (initial || queue).map((item) => ({ ...item })) });
+    const overlapCoord = collection.createCollectionCoordinator(store);
+    const entered = deferred();
+    const release = deferred();
+    const orig = store.set.bind(store);
+    store.set = async function gated(partial) {
+      if (store.sets === 0) {
+        entered.release();
+        await release.gate;
+      }
+      return orig(partial);
+    };
+    const pendingFirst = overlapCoord.commit({ domain: 'todos', ops: firstOps });
+    await entered.gate;
+    const pendingSecond = overlapCoord.commit({ domain: 'todos', ops: secondOps });
+    release.release();
+    const [firstSaved, secondSaved] = await Promise.all([pendingFirst, pendingSecond]);
+    return { store, firstSaved, secondSaved };
+  }
+
+  const moveOp = [{ op: 'move', id: 't3', to: 'front' }];
+  const addOp = [{ op: 'add', item: t5 }];
+  const moveThenAdd = await overlap(moveOp, addOp);
+  assert.strictEqual(moveThenAdd.firstSaved.ok, true);
+  assert.strictEqual(moveThenAdd.secondSaved.ok, true);
+  assert.deepStrictEqual(ids(moveThenAdd.store.store.todos), ['t3', 't1', 't2', 't4', 't5'], 'move then add');
+  const addThenMove = await overlap(addOp, moveOp);
+  assert.strictEqual(addThenMove.firstSaved.ok, true);
+  assert.strictEqual(addThenMove.secondSaved.ok, true);
+  assert.deepStrictEqual(ids(addThenMove.store.store.todos), ['t3', 't1', 't2', 't4', 't5'], 'add then move');
+
+  const deleteThenMove = await overlap([{ op: 'remove', id: 't3' }], moveOp);
+  assert.strictEqual(deleteThenMove.firstSaved.ok, true);
+  assert.strictEqual(deleteThenMove.secondSaved.ok, false);
+  assert.strictEqual(deleteThenMove.secondSaved.missing, true, 'move after delete is missing');
+  assert.deepStrictEqual(ids(deleteThenMove.store.store.todos), ['t1', 't2', 't4']);
+
+  const moveStore = memory({ todos: queue.map((item) => ({ ...item })) });
+  const moveCoord = collection.createCollectionCoordinator(moveStore);
+  const movedOnce = await moveCoord.commit({ domain: 'todos', ops: moveOp });
+  assert.strictEqual(movedOnce.ok, true);
+  assert.deepStrictEqual(ids(moveStore.store.todos), ['t3', 't1', 't2', 't4']);
+  const setsAfterMove = moveStore.sets;
+  const movedAgain = await moveCoord.commit({ domain: 'todos', ops: moveOp });
+  assert.strictEqual(movedAgain.ok, true);
+  assert.strictEqual(movedAgain.idempotent, true);
+  assert.strictEqual(moveStore.sets, setsAfterMove, 'retrying the same move does not write');
+  assert.deepStrictEqual(ids(moveStore.store.todos), ['t3', 't1', 't2', 't4']);
+
+  const baseTodo = { id: 'old', text: 'old', done: false };
+  const doneOps = collection.diffTodos([baseTodo], [{ id: 'old', text: 'old', done: true }]);
+  const textOps = collection.diffTodos([baseTodo], [{ id: 'old', text: 'new', done: false }]);
+  assert.deepStrictEqual(doneOps, [{ op: 'update', id: 'old', fields: { done: true } }], 'done patch does not send text');
+  assert.deepStrictEqual(textOps, [{ op: 'update', id: 'old', fields: { text: 'new' } }], 'text patch does not send done');
+  const doneThenText = await overlap(doneOps, textOps, [baseTodo]);
+  assert.strictEqual(doneThenText.firstSaved.ok, true);
+  assert.strictEqual(doneThenText.secondSaved.ok, true);
+  assert.deepStrictEqual(doneThenText.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: true,
+  }, 'done then text keeps both fields');
+  const textThenDone = await overlap(textOps, doneOps, [baseTodo]);
+  assert.strictEqual(textThenDone.firstSaved.ok, true);
+  assert.strictEqual(textThenDone.secondSaved.ok, true);
+  assert.deepStrictEqual(textThenDone.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: true,
+  }, 'text then done keeps both fields');
+
+  const completed = { id: 'old', text: 'old', done: true };
+  const remoteText = collection.diffTodos([completed], [{ id: 'old', text: 'new', done: true }]);
+  const staleUndo = collection.diffTodos([completed], [{ id: 'old', text: 'old', done: false }]);
+  const textThenUndo = await overlap(remoteText, staleUndo, [completed]);
+  assert.strictEqual(textThenUndo.firstSaved.ok, true);
+  assert.strictEqual(textThenUndo.secondSaved.ok, true);
+  assert.deepStrictEqual(textThenUndo.store.store.todos.find((item) => item.id === 'old'), {
+    id: 'old', text: 'new', done: false,
+  }, 'undo after a remote rename keeps the new text');
+
+  const staleEdit = collection.diffTodos([baseTodo], [{ id: 'old', text: 'edited', done: false }]);
+  const removedEdit = await overlap([{ op: 'remove', id: 'old' }], staleEdit, [baseTodo]);
+  assert.strictEqual(removedEdit.firstSaved.ok, true);
+  assert.strictEqual(removedEdit.secondSaved.ok, false);
+  assert.strictEqual(removedEdit.secondSaved.missing, true, 'stale edit after delete is missing');
+  assert.deepStrictEqual(removedEdit.store.store.todos, [], 'stale edit does not recreate');
+  const removedUndo = await overlap([{ op: 'remove', id: 'old' }], staleUndo, [completed]);
+  assert.strictEqual(removedUndo.secondSaved.missing, true, 'stale undo after delete is missing');
+  assert.deepStrictEqual(removedUndo.store.store.todos, [], 'stale undo does not recreate');
+
+  const sameField = await overlap(
+    collection.diffTodos([baseTodo], [{ id: 'old', text: 'first', done: false }]),
+    collection.diffTodos([baseTodo], [{ id: 'old', text: 'second', done: false }]),
+    [baseTodo],
+  );
+  assert.strictEqual(sameField.store.store.todos.find((item) => item.id === 'old').text, 'second', 'same-field writes stay serial');
+
   const js = fs.readFileSync(path.join(__dirname, '../extension/newtab.js'), 'utf8');
   const form = js.slice(js.indexOf("$('#todo-form').addEventListener('submit'"), js.indexOf("$('#todos').addEventListener('change'"));
   assert.ok(form.indexOf('await replaceTodos') < form.indexOf("input.value = ''"));

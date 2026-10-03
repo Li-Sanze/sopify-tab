@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const EXT = path.join(__dirname, '..', 'extension');
+const REPO = path.join(__dirname, '..');
+const EXT = path.join(REPO, 'extension');
 const KNOWN_STORAGE_KEYS = [
   'sites', 'todos', 'notes', 'name', 'cwd', 'hostUpstream', 'themePreset',
   'worksets', 'spaceView',
@@ -35,8 +36,11 @@ assert.ok(!/CLI|--force|cursor-agent/.test(desk), 'desk must not mention CLI');
 assert.ok(!desk.includes('hostUpstream') && !desk.includes('上游'));
 assert.ok(!/天气|番茄|壁纸|小组件|widget wall|taxonomy/i.test(desk));
 
-assert.ok(settings.includes('name="hostUpstream"'), 'upstream selector stays in settings');
-assert.ok(html.includes('id="open-chat"') && html.includes('hidden'), 'chat stays rail-gated');
+assert.ok(!settings.includes('name="hostUpstream"'), 'upstream selector is already offline');
+assert.ok(!html.includes('id="open-chat"'), 'chat entry is already offline');
+assert.ok(!html.includes('class="rail"'), 'chat rail is already offline');
+assert.ok(!/connectNative|sendNativeMessage|\bsidePanel\b|nativeMessaging/.test(js + html),
+  'desk sources no longer reach Host or Side Panel');
 
 assert.ok(js.includes("const DESK_KEYS = ['sites', 'todos', 'notes', 'name']"));
 assert.ok(js.includes('const WORKSET_CAP = 5'));
@@ -48,8 +52,8 @@ assert.ok(js.includes("title: '还没有下一件事'"));
 assert.ok(js.includes("action: '写一条'"));
 assert.ok(js.includes("$('#todo-input')"), 'empty resume focuses the todo field');
 assert.ok(js.includes('chrome.tabs.update'));
-assert.ok(!/permissions\.request/.test(js) || /permissions\.request\(\s*\{\s*permissions:\s*\['nativeMessaging'\]\s*\}/.test(js),
-  'no new optional permissions on the desk path');
+assert.ok(!/permissions\.request/.test(js), 'desk does not request optional permissions');
+assert.ok(!/storage\.local\.set\(\s*\{[^}]*(cwd|hostUpstream)/.test(js), 'desk no longer writes Host keys');
 assert.ok(!/chrome\.storage\.sync/.test(js));
 assert.ok(!/worksetFilter/.test(js) || !/storage\.local\.set\(\s*\{[^}]*worksetFilter/.test(js),
   'workset filter must stay in memory');
@@ -66,8 +70,33 @@ assert.ok(!/storage\.local\.set\(\s*\{[^}]*(resume|anchor|nextAction)/.test(js),
   'no resume/anchor storage keys');
 assert.ok(!/storage\.sync/.test(js));
 
-assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs', 'sidePanel']);
-assert.deepStrictEqual(manifest.optional_permissions, ['nativeMessaging']);
+assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
+assert.ok(!('optional_permissions' in manifest));
+assert.ok(!('side_panel' in manifest));
+assert.ok(!manifest.permissions.includes('nativeMessaging'));
+assert.strictEqual(manifest.action && manifest.action.default_title, 'Sopify Tab');
+assert.ok(!fs.existsSync(path.join(REPO, 'host', 'host.js')), 'host runtime is already offline');
+assert.ok(!fs.existsSync(path.join(REPO, 'host', 'install-host.sh')), 'host installer is already offline');
+for (const name of ['sidepanel.js', 'sidepanel.html', 'sidepanel.css']) {
+  assert.ok(!fs.existsSync(path.join(EXT, name)), `${name} is already offline`);
+}
+assert.ok(!html.includes('name="hostUpstream"'), 'upstream selector is already offline');
+assert.ok(!js.includes('chrome.storage.local.set({ hostUpstream: next })'));
+
+function walkExt(dir, acc) {
+  for (const name of fs.readdirSync(dir)) {
+    if (name === 'vendor' || name === 'test-gates.js') continue;
+    const full = path.join(dir, name);
+    if (fs.statSync(full).isDirectory()) walkExt(full, acc);
+    else if (/\.(js|html|css|json)$/.test(name)) acc.push(full);
+  }
+  return acc;
+}
+const bannedHost = /connectNative|sendNativeMessage|\bsidePanel\b|side_panel|nativeMessaging|openSidePanel|openPanelOnActionClick|id="open-chat"|class="rail"/;
+for (const file of walkExt(EXT, [])) {
+  const src = fs.readFileSync(file, 'utf8');
+  assert.ok(!bannedHost.test(src), `${path.relative(REPO, file)} still has a Host or Side Panel surface`);
+}
 
 assert.ok(/\.next-title[\s\S]*?-webkit-line-clamp:\s*2/.test(css), 'short titles clamp to 2 lines');
 assert.ok(/data-size="m"\][\s\S]*?-webkit-line-clamp:\s*3/.test(css), 'medium titles clamp to 3 lines');
