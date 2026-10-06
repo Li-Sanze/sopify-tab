@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <title>Sopify Tab</title>
+  <!-- Paper tile. Corner radius is 22% of the side. The tile does not rotate. -->
+  <rect width="96" height="96" rx="21.12" fill="#f6f4ef"/>
+  <!-- Mark geometry matches .studio-brand-mark: 33 by 33, gap 3, cell 15, rotate(-8). -->
+  <!-- Accent radii are the CSS fit of 5px 11px 5px 5px inside a 15px cell. -->
+  <g transform="translate(48 48) rotate(-8) scale(1.72) translate(-16.5 -16.5)">
+    <rect width="15" height="15" rx="5" fill="#262a33"/>
+    <path fill="#b55c40" transform="translate(18 0)" d="M4.6875 0A10.3125 10.3125 0 0 1 15 10.3125A4.6875 4.6875 0 0 1 10.3125 15H4.6875A4.6875 4.6875 0 0 1 0 10.3125V4.6875A4.6875 4.6875 0 0 1 4.6875 0Z"/>
+    <rect y="18" width="15" height="15" rx="5" fill="#262a33"/>
+    <rect x="18" y="18" width="15" height="15" rx="5" fill="#262a33"/>
+  </g>
+</svg>
