@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <title>Sopify Tab small</title>
+  <view id="px32" viewBox="0 0 32 32"/>
+  <!-- 16px art is outside this viewBox. Export with #svgView(viewBox(0,48,16,16)). -->
+  <view id="px16" viewBox="0 48 16 16"/>
+  <g id="i32">
+    <rect width="32" height="32" rx="7" fill="#f6f4ef"/>
+    <rect x="4" y="4" width="11" height="11" rx="3" fill="#262a33"/>
+    <path fill="#b55c40" d="M20 4H21A7 7 0 0 1 28 11V12A3 3 0 0 1 25 15H20A3 3 0 0 1 17 12V7A3 3 0 0 1 20 4Z"/>
+    <rect x="4" y="17" width="11" height="11" rx="3" fill="#262a33"/>
+    <rect x="17" y="17" width="11" height="11" rx="3" fill="#262a33"/>
+  </g>
+  <g id="i16" transform="translate(0 48)">
+    <rect width="16" height="16" rx="4" fill="#f6f4ef"/>
+    <rect x="2" y="2" width="5" height="5" fill="#262a33"/>
+    <rect x="9" y="2" width="5" height="5" fill="#b55c40"/>
+    <rect x="2" y="9" width="5" height="5" fill="#262a33"/>
+    <rect x="9" y="9" width="5" height="5" fill="#262a33"/>
+  </g>
+</svg>

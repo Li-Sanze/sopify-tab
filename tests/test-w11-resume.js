@@ -150,4 +150,27 @@ assert.ok(js.includes('filtered.slice(0, WORKSET_CAP)'), 'desk workset applies t
 assert.ok(js.includes("act.focus({ preventScroll: true })"), 'keyboard focus prefers resume');
 assert.ok(!/chrome\.history|chrome\.bookmarks|topSites/.test(js), 'no new tab taxonomy APIs');
 
+function readPngIHDR(file) {
+  const buf = fs.readFileSync(file);
+  assert.ok(buf.length >= 26, `${file} is too small to contain an IHDR`);
+  assert.strictEqual(buf.toString('ascii', 12, 16), 'IHDR', `${path.basename(file)} missing IHDR`);
+  return {
+    width: buf.readUInt32BE(16),
+    height: buf.readUInt32BE(20),
+    colorType: buf[25],
+  };
+}
+
+for (const [name, size] of [
+  ['icon16.png', 16],
+  ['icon32.png', 32],
+  ['icon48.png', 48],
+  ['icon128.png', 128],
+]) {
+  const ihdr = readPngIHDR(path.join(EXT, 'icons', name));
+  assert.strictEqual(ihdr.width, size, `${name} width`);
+  assert.strictEqual(ihdr.height, size, `${name} height`);
+  assert.strictEqual(ihdr.colorType, 6, `${name} is RGBA`);
+}
+
 console.log('test-w11-resume: ok');
