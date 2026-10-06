@@ -1,16 +1,10 @@
-# Sopify Tab
+# Sopify Tab 开发说明
 
 安静的 Chrome 新标签页工作台。打开先看到「下一件事」。
 
-![首屏：下一件事、这个窗口、接着上次、随手记，下面是常用站](../prototype/firstscreen-v3/shots/content-filled-day.png)
-
-```
-![首屏：下一件事、这个窗口、接着上次、随手记，下面是常用站](prototype/firstscreen-v3/shots/content-filled-day.png)
-```
-
 ## 功能细节
 
-## 做什么
+### 做什么
 
 默认首屏，从上到下：
 
@@ -22,7 +16,7 @@
 
 **空间视图**在设置的「实验」里打开，默认关着。关着时不加载三维；打开后才出现在常用站下方。恢复只补上还没打开的网页。
 
-## 隐私与权限
+### 隐私与权限
 
 必选权限：`storage`、`tabs`。没有别的权限。
 
@@ -36,7 +30,7 @@
 
 ## 测试
 
-## 快速开始
+### 快速开始
 
 品牌版 Google Chrome 用「加载已解压的扩展程序」。不要依赖 `--load-extension`。
 
@@ -47,13 +41,13 @@
 
 稳定扩展 ID：`cgkhllpelkjmfamddkjpnmchjikdcbgp`。
 
-## 开发者验证
+### 开发者验证
 
 需要 **Node 22 或更新**。浏览器检查用 Node 自带的全局 `WebSocket`，并需要本机 Chrome 或 Chromium。脚本会查找常见安装路径；浏览器不在那些路径上时，把可执行文件设到 `CHROME_BIN`。
 
 ```bash
 # 例：export CHROME_BIN=/usr/bin/google-chrome
-bash ../scripts/test-reliability.sh
+bash scripts/test-reliability.sh
 ```
 
 找不到浏览器时，这条命令跳过浏览器段并退出 2，不算通过。要改成失败，设置 `SOPIFY_REQUIRE_BROWSER=1`（持续集成会设上），那时退出码是 1。
@@ -63,8 +57,6 @@ bash ../scripts/test-reliability.sh
 替身和静态检查不等于亲手点过一遍。Chrome for Testing 上，这条命令会等扩展的 service worker 出现，并检查两页同时加待办、两页同时改便签，以及关掉一个标签后再打开。品牌版 Chrome 这次启动若没有露出那个 service worker，该段记为跳过并写明原因，不把「品牌版一律不接受 --load-extension」当成结论，也不记成真扩展已通过。系统中文输入法、Mac，和三维便签运行时仍不在这条命令的保证里，不能记成通过。空间视图默认关着，这条命令不打开它。
 
 ## 卸载旧 Host
-
-## 卸下旧的本机 Host
 
 这一版只有书桌，不再连接本机对话，也不再打开侧栏。以前跑过安装脚本的话，扩展更新后不再调用 Host，本机上的注册文件还在。删掉下面这些即可，别的 Native Messaging 清单不要动：
 
@@ -76,8 +68,10 @@ bash ../scripts/test-reliability.sh
 
 ## 历史
 
-## 非目标
+### 非目标
 
 天气、番茄钟、壁纸商店、云同步、Agent Pocket、未接线的 CLI、可写执行、组件墙、书签或历史聚类。Chrome 网上应用店上架暂缓。
 
 `.sopify/` 里的 Wave、Host 和侧栏方案是历史记录。当前书桌只做新标签页，权限只有 `storage` 和 `tabs`，不以那些旧方案为准。
+
+![首屏：下一件事、这个窗口、接着上次、随手记，下面是常用站](../prototype/firstscreen-v3/shots/content-filled-day.png)
