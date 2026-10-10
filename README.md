@@ -5,7 +5,9 @@
 <p align="center">安静的 Chrome 新标签页。打开先看到「下一件事」，不是搜索框，也不是壁纸。<br>
 <sub>A quiet Chrome new tab that shows your next thing first.</sub></p>
 
-![Sopify Tab 首屏](docs/images/desk-day.png)
+![Sopify Tab 演示：完成与撤销、保存并恢复窗口、按网站整理标签](docs/images/sopify-demo.gif)
+
+真实界面录屏，示例数据。
 
 ## 它做什么
 

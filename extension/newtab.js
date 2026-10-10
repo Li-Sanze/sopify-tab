@@ -120,6 +120,36 @@
     }
   }
 
+  function isOwnNewTabUrl(url) {
+    let parsed;
+    try { parsed = new URL(String(url || '').trim()); } catch { return false; }
+    if (parsed.protocol !== 'chrome-extension:') return false;
+    if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
+      try {
+        const own = new URL(chrome.runtime.getURL('newtab.html'));
+        return parsed.protocol === own.protocol && parsed.host === own.host && parsed.pathname === own.pathname;
+      } catch { /* ignore */ }
+    }
+    return (parsed.pathname || '').endsWith('/newtab.html');
+  }
+
+  function isListedWindowTab(url) {
+    let parsed;
+    try { parsed = new URL(String(url || '').trim()); } catch { return true; }
+    if (parsed.protocol === 'chrome:') return false;
+    if (isOwnNewTabUrl(url)) return false;
+    return true;
+  }
+
+  function listedWindowTabs(list) {
+    const out = [];
+    for (const t of list || []) {
+      if (!t || !isListedWindowTab(t.url || '')) continue;
+      out.push(t);
+    }
+    return out;
+  }
+
   function portLabel(url) {
     try {
       const u = new URL(url);
@@ -164,7 +194,7 @@
   function tabsToCloseForHost(list, filter, host) {
     const seen = new Set();
     const out = [];
-    const matched = filterTabs(list || [], filter).filter((t) => domainOf((t && t.url) || '') === host);
+    const matched = filterTabs(listedWindowTabs(list), filter).filter((t) => domainOf((t && t.url) || '') === host);
     for (const t of matched) {
       if (!t || t.id == null || seen.has(t.id)) continue;
       seen.add(t.id);
@@ -334,6 +364,83 @@
     return items.reduce(function (a, b) { return a.savedAt <= b.savedAt ? a : b; });
   }
 
+  function worksetUrlKey(url) {
+    const raw = url == null ? '' : String(url).trim();
+    if (!raw) return '';
+    try {
+      const u = new URL(raw);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      u.hash = '';
+      return u.href;
+    } catch {
+      return '';
+    }
+  }
+
+  function worksetUrlSet(tabs) {
+    const seen = new Set();
+    const keys = [];
+    for (const t of tabs || []) {
+      const key = worksetUrlKey(t && t.url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      keys.push(key);
+    }
+    keys.sort();
+    return keys;
+  }
+
+  function sameWorksetUrls(a, b) {
+    const left = worksetUrlSet(a);
+    const right = worksetUrlSet(b);
+    if (!left.length || left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      if (left[i] !== right[i]) return false;
+    }
+    return true;
+  }
+
+  function describeWindowPages(tabs) {
+    const listed = listedWindowTabs(tabs);
+    return {
+      pages: listed.length,
+      savable: worksetTabs(listed).length,
+      sites: groupTabs(listed).length,
+      listed: listed,
+    };
+  }
+
+  function homeWindowText(tabs) {
+    const census = describeWindowPages(tabs);
+    if (census.pages === 0) {
+      return {
+        pages: 0,
+        savable: 0,
+        sites: 0,
+        lead: '只有这一页',
+        sub: '打开几个网页后，可以在这里存下来',
+        saveHidden: true,
+      };
+    }
+    return {
+      pages: census.pages,
+      savable: census.savable,
+      sites: census.sites,
+      lead: census.pages + ' 个网页',
+      sub: census.savable === census.pages
+        ? '可以一键存下，回头恢复'
+        : ('其中 ' + census.savable + ' 个可以存下'),
+      saveHidden: census.savable === 0,
+    };
+  }
+
+  function tabsHeaderLine(tabs) {
+    const census = describeWindowPages(tabs);
+    let line = census.pages + ' 个网页，来自 ' + census.sites + ' 个网站';
+    if (census.savable !== census.pages) line += '，其中 ' + census.savable + ' 个可以存下';
+    return line;
+  }
+
   function proposeSaveWorkset(existing, tabs, opts) {
     const options = opts || {};
     const cap = options.cap == null ? 5 : options.cap;
@@ -350,6 +457,23 @@
       tabs: clipped.tabs,
     };
     const extra = { incoming: incoming, overflow: clipped.overflow, totalTabs: clipped.total };
+    for (let i = 0; i < list.length; i += 1) {
+      if (!sameWorksetUrls(list[i].tabs, incoming.tabs)) continue;
+      const current = list[i];
+      const updated = {
+        id: current.id,
+        name: current.name,
+        savedAt: savedAt,
+        tabs: current.tabs,
+      };
+      const rest = [];
+      for (let n = 0; n < list.length; n += 1) {
+        if (list[n].id !== current.id) rest.push(list[n]);
+      }
+      const worksets = [updated].concat(rest);
+      worksets.sort(function (a, b) { return b.savedAt - a.savedAt; });
+      return Object.assign({ ok: true, reason: 'duplicate', worksets: worksets }, extra);
+    }
     if (list.length < cap) {
       const worksets = list.concat([incoming]);
       worksets.sort(function (a, b) { return b.savedAt - a.savedAt; });
@@ -1370,7 +1494,8 @@
   }
 
   function renderWorkset() {
-    const eligible = worksetTabs(state.tabs);
+    const copy = homeWindowText(state.tabs);
+    const eligible = worksetTabs(listedWindowTabs(state.tabs));
     const filtered = filterTabs(eligible, state.worksetFilter);
     const shown = filtered.slice(0, WORKSET_CAP);
     const box = $('#workset');
@@ -1395,15 +1520,16 @@
       </button>`;
     }).join('') : `<p class="empty">${q ? '没有匹配的标签。' : '这个窗口还没有网页。'}</p>`;
     bindFaviconFallback(box);
-    const allCount = (state.tabs || []).length;
-    const savable = eligible.length;
     const tabCount = $('#c-tabs');
     if (tabCount) {
-      tabCount.textContent = String(savable);
-      tabCount.setAttribute('aria-label', `可保存网页 ${savable}`);
+      tabCount.textContent = String(copy.pages);
+      tabCount.setAttribute('aria-label', '网页 ' + copy.pages);
     }
     const lead = $('#window-lead');
-    if (lead) lead.innerHTML = `<b>${allCount}</b> 个标签`;
+    if (lead) {
+      if (copy.pages === 0) lead.textContent = copy.lead;
+      else lead.innerHTML = '<b>' + copy.pages + '</b> 个网页';
+    }
     const favs = $('#window-favs');
     if (favs) {
       const shownFavs = eligible.slice(0, 6);
@@ -1418,21 +1544,11 @@
       bindFaviconFallback(favs);
     }
     const sub = $('#window-sub');
+    if (sub) sub.textContent = copy.sub;
     const saveBtn = $('#workset-save');
-    if (savable === 0) {
-      if (lead) lead.textContent = '只有这一页';
-      if (sub) sub.textContent = '打开几个网页后，可以在这里存下来';
-      if (saveBtn) {
-        saveBtn.hidden = true;
-        saveBtn.disabled = false;
-      }
-    } else {
-      if (lead) lead.innerHTML = `<b>${allCount}</b> 个标签`;
-      if (sub) sub.textContent = `${savable} 个网页可以存下，回头一键恢复`;
-      if (saveBtn) {
-        saveBtn.hidden = false;
-        saveBtn.disabled = false;
-      }
+    if (saveBtn) {
+      saveBtn.hidden = copy.saveHidden === true;
+      saveBtn.disabled = false;
     }
     $('#c-tabs-sub').textContent = filtered.length > WORKSET_CAP
       ? `前 ${WORKSET_CAP} / ${filtered.length}`
@@ -1442,13 +1558,10 @@
 
   function renderGroups() {
     const q = state.filter;
-    const list = filterTabs(state.tabs, q);
+    const census = describeWindowPages(state.tabs);
+    const list = filterTabs(census.listed, q);
     const groups = groupTabs(list);
-    const allGroups = groupTabs(state.tabs);
-    const savable = worksetTabs(state.tabs).length;
-    let tabsLine = `${state.tabs.length} 个标签，来自 ${allGroups.length} 个网站`;
-    if (savable !== state.tabs.length) tabsLine += `，其中 ${savable} 个可以存下`;
-    $('#tabs-sub').textContent = tabsLine;
+    $('#tabs-sub').textContent = tabsHeaderLine(state.tabs);
     const filterOn = String(q || '').trim().length > 0;
     const closeTitle = filterOn ? '只关闭筛选里显示的这组' : '关闭这个域名下的标签';
     $('#groups').innerHTML = groups.length ? groups.map(([host, tabs]) => `
@@ -1774,53 +1887,56 @@
       name: savedWindowTitle(state.tabs, new Date(planned.savedAt)),
       savedAt: planned.savedAt,
     });
+    const duplicateSave = proposal.reason === 'duplicate';
     if (proposal.reason === 'empty') {
       toast('这个窗口没有可保存的网页');
       return;
     }
-    if (proposal.overflow) {
-      const n = proposal.totalTabs;
-      const okTabs = await confirmInPage({
-        title: '这个窗口有 ' + n + ' 个网页',
-        body: '只能存前 ' + WORKSET_TAB_CAP + ' 个。',
-        confirmLabel: '存前 ' + WORKSET_TAB_CAP + ' 个',
-        danger: false,
-        focusConfirm: true,
-      });
-      if (!okTabs) {
-        toast('未保存');
+    if (!duplicateSave) {
+      if (proposal.overflow) {
+        const n = proposal.totalTabs;
+        const okTabs = await confirmInPage({
+          title: '这个窗口有 ' + n + ' 个网页',
+          body: '只能存前 ' + WORKSET_TAB_CAP + ' 个。',
+          confirmLabel: '存前 ' + WORKSET_TAB_CAP + ' 个',
+          danger: false,
+          focusConfirm: true,
+        });
+        if (!okTabs) {
+          toast('未保存');
+          return;
+        }
+      }
+      if (proposal.reason === 'full') {
+        const oldest = proposal.oldest;
+        const label = oldest && oldest.name ? oldest.name : '最早的一条';
+        const ok = await confirmInPage({
+          title: '已经存了 ' + WORKSET_STORE_CAP + ' 个窗口',
+          body: '存这一份会替换最早的『' + label + '』。',
+          confirmLabel: '替换',
+          danger: false,
+        });
+        if (!ok) {
+          toast('未保存');
+          return;
+        }
+        const next = overwriteOldestWorkset(state.worksets, proposal.incoming);
+        if (!next.ok) {
+          toast('未保存');
+          return;
+        }
+        const overwritten = await persistWorksets(next.worksets);
+        if (!overwritten || overwritten.ok !== true) {
+          showWriteError('workset-save-error', writeFailMessage(overwritten, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
+          if (overwritten && overwritten.blocked) showWorksetLoadError();
+          return;
+        }
+        worksetSaveRecord = null;
+        hideWriteError('workset-save-error');
+        flashLastSaved();
+        toast(`已覆盖『${label}』`);
         return;
       }
-    }
-    if (proposal.reason === 'full') {
-      const oldest = proposal.oldest;
-      const label = oldest && oldest.name ? oldest.name : '最早的一条';
-      const ok = await confirmInPage({
-        title: '已经存了 ' + WORKSET_STORE_CAP + ' 个窗口',
-        body: '存这一份会替换最早的『' + label + '』。',
-        confirmLabel: '替换',
-        danger: false,
-      });
-      if (!ok) {
-        toast('未保存');
-        return;
-      }
-      const next = overwriteOldestWorkset(state.worksets, proposal.incoming);
-      if (!next.ok) {
-        toast('未保存');
-        return;
-      }
-      const overwritten = await persistWorksets(next.worksets);
-      if (!overwritten || overwritten.ok !== true) {
-        showWriteError('workset-save-error', writeFailMessage(overwritten, '存下的窗口暂时没能读取', '窗口没存上，再点一次保存'));
-        if (overwritten && overwritten.blocked) showWorksetLoadError();
-        return;
-      }
-      worksetSaveRecord = null;
-      hideWriteError('workset-save-error');
-      flashLastSaved();
-      toast(`已覆盖『${label}』`);
-      return;
     }
     const savedWindow = await persistWorksets(proposal.worksets);
     if (!savedWindow || savedWindow.ok !== true) {
@@ -1831,7 +1947,7 @@
     worksetSaveRecord = null;
     hideWriteError('workset-save-error');
     flashLastSaved();
-    toast('已存下这个窗口');
+    toast(duplicateSave ? '这个窗口已经保存过，已更新时间' : '已存下这个窗口');
   }
 
   async function restoreWorksetById(id) {
@@ -2329,7 +2445,7 @@
         failed += 1;
       }
     }
-    const all = state.tabs.filter((t) => domainOf(t.url || '') === host).length;
+    const all = listedWindowTabs(state.tabs).filter((t) => domainOf(t.url || '') === host).length;
     const hiddenLeft = String(state.filter || '').trim() && all > visible.length;
     const tail = hiddenLeft ? '，筛选外的还在' : '';
     let message;
