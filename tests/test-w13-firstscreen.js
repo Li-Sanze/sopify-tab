@@ -297,6 +297,55 @@ function todoItems(kind) {
   return [{ id: 'long', text: FOUR_LINE_TITLE, done: false }];
 }
 
+const HEAVY_TODO = '下一件事'.repeat(15);
+const HEAVY_SITE = '一二三四五六七八九十甲乙';
+const HEAVY_WINDOW = '存下的窗口'.repeat(8);
+assert.strictEqual([...HEAVY_TODO].length, 60);
+assert.strictEqual([...HEAVY_SITE].length, 12);
+assert.strictEqual([...HEAVY_WINDOW].length, 40);
+const MATRIX_SIZES = [
+  [1280, 720],
+  [1280, 800],
+  [1366, 650],
+  [1440, 900],
+  [1512, 823],
+  [1920, 1080],
+];
+
+function lightDesk() {
+  return {
+    todos: todoItems('1'),
+    sites: siteItems(6, false),
+    notes: '',
+    worksets: [],
+    tabs: [],
+  };
+}
+
+function heavyDesk() {
+  return {
+    todos: [{ id: 't0', text: HEAVY_TODO, done: false }].concat([1, 2, 3, 4].map((n) => ({
+      id: `t${n}`, text: `待办${n}`, done: false,
+    }))),
+    sites: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+      name: HEAVY_SITE,
+      url: `https://example.com/h/${n}`,
+    })),
+    notes: [1, 2, 3, 4, 5, 6].map((n) => `随手记第${n}行写在本机`).join('\n'),
+    worksets: [{
+      id: 'w1',
+      name: HEAVY_WINDOW,
+      savedAt: 1760400000000,
+      tabs: [{ title: '已存', url: 'https://saved.example/a' }],
+    }],
+    tabs: Array.from({ length: 13 }, (_, i) => ({
+      id: i + 1,
+      title: `网页${i + 1}`,
+      url: `https://site${i + 1}.example/page`,
+    })),
+  };
+}
+
 function siteItems(count, longNames) {
   const out = [];
   for (let i = 0; i < count; i += 1) {
@@ -1951,38 +2000,61 @@ async function main() {
     const longest = quoteCatalog.reduce((best, quote) => (
       [...quote.text].length > [...best.text].length ? quote : best
     ));
-    const quoteRows = [];
-    for (const [width, height] of SIZES) {
-      await loadSeed(width, height, { todos: todoItems('1'), sites: siteItems(6, false), dailyQuote: true });
-      const ready = Date.now();
-      let shown = false;
-      while (Date.now() - ready < 3000) {
-        shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
-        if (shown) break;
-        await sleep(30);
-      }
-      const measured = await evalJson(`(() => {
-        const q = document.getElementById('daily-quote');
-        const sites = document.getElementById('h-sites');
-        q.querySelector('.dq-text').textContent = ${JSON.stringify(longest.text)};
-        q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
-        const el = document.scrollingElement || document.documentElement;
-        const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
-        return {
-          overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
-          hidden: !!q.hidden,
-          chars: [...q.querySelector('.dq-text').textContent].length,
-          after,
-        };
-      })()`);
-      quoteRows.push({ size: `${width}×${height}`, shown, ...measured });
-      if (!shown || measured.overflow !== 0 || measured.hidden || measured.chars !== 34 || !measured.after) {
-        failures.push(`daily quote ${width}×${height} overflow=${measured.overflow} hidden=${measured.hidden} chars=${measured.chars} shown=${shown} after=${measured.after}`);
+    const fitRows = [];
+    for (const deskName of ['light', 'heavy']) {
+      for (const quoteOn of [false, true]) {
+        for (const [width, height] of MATRIX_SIZES) {
+          const seed = deskName === 'heavy' ? heavyDesk() : lightDesk();
+          seed.dailyQuote = quoteOn;
+          await loadSeed(width, height, seed);
+          if (quoteOn) {
+            const ready = Date.now();
+            let shown = false;
+            while (Date.now() - ready < 3000) {
+              shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+              if (shown) break;
+              await sleep(30);
+            }
+            if (!shown) failures.push(`${deskName} quote ${width}×${height} hidden`);
+          }
+          const measured = await evalJson(`(() => {
+            const el = document.scrollingElement || document.documentElement;
+            const q = document.getElementById('daily-quote');
+            const sites = document.getElementById('h-sites');
+            if (${quoteOn ? 'true' : 'false'}) {
+              q.querySelector('.dq-text').textContent = ${JSON.stringify(longest.text)};
+              q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
+            }
+            const row = document.querySelector('.sites-row');
+            const tiles = [...row.querySelectorAll('.tile')];
+            const tops = tiles.map((tile) => tile.getBoundingClientRect().top);
+            const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
+            return {
+              overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
+              hidden: !!q.hidden,
+              chars: q.querySelector('.dq-text') ? [...q.querySelector('.dq-text').textContent].length : 0,
+              after,
+              sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
+              fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
+              quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
+            };
+          })()`);
+          const label = `${deskName}\t${quoteOn ? 'on' : 'off'}\t${width}×${height}`;
+          fitRows.push({ label, ...measured });
+          if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
+          if (quoteOn && (measured.hidden || measured.chars !== 34 || !measured.after || !measured.fits || measured.quoteH > 40)) {
+            failures.push(`${label} quote hidden=${measured.hidden} chars=${measured.chars} after=${measured.after} fits=${measured.fits} h=${measured.quoteH}`);
+          }
+          if (!quoteOn && !measured.hidden) failures.push(`${label} quote should stay hidden`);
+          if (deskName === 'heavy' && width === 1280 && !measured.sitesOneLine) {
+            failures.push(`${label} sites-row wrapped`);
+          }
+        }
       }
     }
-    console.log('daily quote longest matrix');
-    for (const row of quoteRows) {
-      console.log(`${row.size}\toverflow=${row.overflow}\thidden=${row.hidden}\tchars=${row.chars}\tshown=${row.shown}`);
+    console.log('first screen fit matrix');
+    for (const row of fitRows) {
+      console.log(`${row.label}\toverflow=${row.overflow}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
     }
 
     await loadSeed(1366, 650, { todos: todoItems('long'), sites: siteItems(8, true) });
@@ -2000,6 +2072,7 @@ async function main() {
       lblMax: exception.lblMax,
       lblTitle: exception.lblTitle,
     });
+    if (exception.overflow !== 0) failures.push(`exception overflow=${exception.overflow}`);
     if (exception.lines < 4) failures.push(`exception title rendered ${exception.lines} lines, expected 4`);
     if (!exception.lblMax) failures.push('exception label max-width is not 6em');
     if (exception.lblTitle !== `${LONG_SITE}1`) failures.push(`exception label title=${exception.lblTitle}`);
