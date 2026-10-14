@@ -223,6 +223,8 @@ async function main() {
   assert.ok(!css.includes('dq-collide'));
   assert.ok(!/@media\s*\(\s*max-width:\s*754px\s*\)/.test(css));
   assert.strictEqual(quotesSrc.split('\n').filter((line) => line.startsWith('{')).length, 377);
+  assert.ok(quotesSrc.startsWith("'use strict';\n(function () {\nconst QUOTES = ["), 'quotes.js keeps the catalog inside a function');
+  assert.ok(quotesSrc.trimEnd().endsWith('})();'));
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'extension', 'manifest.json'), 'utf8'));
   assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
 

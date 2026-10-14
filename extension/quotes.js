@@ -1,4 +1,5 @@
 'use strict';
+(function () {
 const QUOTES = [
 {"text":"君子矜而不争，群而不党。","book":"论语","chapter":"卫灵公","speaker":"孔子","id":"dq-5274ece3"},
 {"text":"居善地，心善渊，与善仁，言善信，正善治，事善能，动善时。","book":"道德经","chapter":"第八章","speaker":"老子","id":"dq-290bfbc1"},
@@ -380,3 +381,4 @@ const QUOTES = [
 ];
 if (typeof window !== 'undefined') window.SopifyQuotes = QUOTES;
 if (typeof module === 'object' && module.exports) module.exports = QUOTES;
+})();

@@ -1278,6 +1278,8 @@ body.studio-home .main {
   font-size: 13px; font-weight: 500; color: var(--studio-muted);
 }
 .kicker .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--studio-accent); }
+.studio-desk .desk-quote .dq-text,
+.dq-settings-text,
 .studio-desk .next-title, .studio-desk .next-input {
   font-family: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
   font-size: clamp(34px, 3.8vw, 52px);
@@ -1431,9 +1433,10 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
 @keyframes fs-flash { from { background: var(--studio-flash); } to { background: transparent; } }
 .studio-desk .sites { margin-top: clamp(40px, 7vh, 72px); border-top: 0; padding: 0; display: block; }
 .studio-desk .sites .col-h { margin-bottom: 8px; }
-.studio-desk .sites-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: -8px; }
-.studio-desk .sites .tiles { display: flex; flex-wrap: wrap; gap: 2px; overflow: visible; }
-.studio-desk .sites .tilewrap { position: relative; }
+.studio-desk .sites-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; margin-left: -8px; min-width: 0; }
+.studio-desk .sites-row > .fs-btn { flex: none; }
+.studio-desk .sites .tiles { display: flex; flex-wrap: nowrap; gap: 2px; min-width: 0; flex: 1 1 auto; overflow: visible; }
+.studio-desk .sites .tilewrap { position: relative; min-width: 0; flex: 0 1 auto; max-width: 100%; }
 .studio-desk .sites .tile {
   display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
   width: auto; height: 36px; min-height: 36px; padding: 0 10px 0 7px; border-radius: 999px;
@@ -1452,12 +1455,13 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
 /* Trailing zone keeps a single-letter name clear of the remove control. */
 .studio-desk .sites .tile {
   padding-right: 30px;
-  min-width: 80px;
+  min-width: 0;
+  max-width: 100%;
 }
 .studio-desk .sites .tile:hover,
 .studio-desk .sites .tile:active { transform: none; }
 .studio-desk .sites .tile .glyph { flex: none; }
-.studio-desk .sites .tile .lbl { flex: none; min-width: 1ch; }
+.studio-desk .sites .tile .lbl { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .studio-desk .sites .tile-remove {
   top: 9px;
   right: 6px;
@@ -1489,6 +1493,11 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
   stroke-width: 2.2;
 }
 .studio-desk .sites .fs-btn.text { height: 36px; padding: 0 10px; }
+@media (max-height: 860px) and (min-height: 761px) {
+  body.studio-home:has(#daily-quote:not([hidden])) .hero { padding-top: 20px; }
+  body.studio-home:has(#daily-quote:not([hidden])) .next { margin-top: 24px; }
+  body.studio-home:has(#daily-quote:not([hidden])) .shelf { margin-top: 40px; }
+}
 @media (max-height: 760px) {
   body.studio-home .main { padding-bottom: 12px; }
   body.studio-home .hero { padding-top: 8px; }
@@ -1820,27 +1829,43 @@ html[data-sky="night"] .view[data-view="tabs"] .favicon:has(img.fav.ok) {
 }
 
 .studio-desk .desk-quote {
-  margin: clamp(40px, 7vh, 72px) 0 0;
-  max-width: 640px;
+  display: block;
+  margin: 24px 0 0;
+  max-width: min(900px, 100%);
   background: none;
   border: 0;
   box-shadow: none;
+  white-space: normal;
 }
+.studio-desk .desk-quote .col-h,
+.studio-desk .desk-quote .dq-text,
+.studio-desk .desk-quote .dq-src {
+  display: inline;
+}
+.studio-desk .desk-quote .col-h { margin: 0 0.75em 0 0; }
 .studio-desk .desk-quote .dq-text,
 .dq-settings-text {
   margin: 0;
-  font-family: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.6;
   font-weight: 400;
   font-style: normal;
+  letter-spacing: normal;
   color: var(--studio-ink-2);
   overflow-wrap: anywhere;
 }
-.studio-desk .desk-quote .dq-src,
+.studio-desk .desk-quote .dq-src {
+  margin: 0 0 0 1em;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--studio-muted);
+}
 .dq-settings-src {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--studio-muted);
+}
+@media (min-width: 964px) {
+  .studio-desk .desk-quote { white-space: nowrap; }
 }
