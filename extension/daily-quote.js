@@ -60,7 +60,8 @@
     const chapter = quote && quote.chapter ? quote.chapter : '';
     const speaker = quote && quote.speaker ? quote.speaker : '';
     const work = chapter ? '《' + book + '·' + chapter + '》' : '《' + book + '》';
-    return '——' + speaker + work;
+    const name = String(speaker).trim() === String(book).trim() ? '' : speaker;
+    return '——' + name + work;
   }
 
   function validateQuotes(quotes) {
