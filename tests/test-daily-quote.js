@@ -142,6 +142,17 @@ async function main() {
   const signedClassic = catalog.find((quote) => quote.book === '中庸' && quote.speaker);
   assert.ok(signedClassic);
   assert.strictEqual(daily.sourceLine(signedClassic), '——' + signedClassic.speaker + '《中庸》');
+  const mengzi = catalog.find((quote) => quote.speaker === '孟子' && quote.book === '孟子' && quote.chapter === '梁惠王上');
+  assert.ok(mengzi);
+  assert.strictEqual(daily.sourceLine(mengzi), '——《孟子·梁惠王上》');
+  assert.strictEqual(daily.sourceLine({ book: '孟子', chapter: '', speaker: '孟子' }), '——《孟子》');
+  assert.strictEqual(daily.sourceLine({ book: '孟子', chapter: '梁惠王上', speaker: '告子' }), '——告子《孟子·梁惠王上》');
+  assert.strictEqual(daily.sourceLine({ book: '孟子', chapter: '梁惠王上', speaker: ' 孟子' }), '——《孟子·梁惠王上》');
+  const omittedSpeaker = catalog.filter((quote) => {
+    const speaker = typeof quote.speaker === 'string' ? quote.speaker.trim() : '';
+    return speaker !== '' && daily.sourceLine(quote).startsWith('——《');
+  });
+  assert.strictEqual(omittedSpeaker.length, 56);
   assert.ok(daily.validateQuotes([{ id: 'e', text: '学而时习之。', book: '论语', chapter: '学而', speaker: '—孔子' }]).some((line) => line.includes('bad source format')));
 
   const morning = new Date(2026, 9, 13, 9, 30, 0);
