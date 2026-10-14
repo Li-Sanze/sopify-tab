@@ -83,9 +83,47 @@ function loaded(snap) {
   return row;
 }
 
+const invisibleKinds = ['C0', 'C1', 'zero-width', 'PUA', 'surrogate'];
+const invisibleTotals = Object.fromEntries(invisibleKinds.map((kind) => [kind, 0]));
+const residueTotals = new Map();
+const resolvedTotals = new Map();
+const removedTotals = new Map();
+
+function addMap(into, from) {
+  for (const [key, n] of from) into.set(key, (into.get(key) || 0) + n);
+}
+
+function tallyInvisible(label, text) {
+  const hits = guard.invisibleHits(text);
+  if (!hits.length) return;
+  const byKind = new Map();
+  hits.forEach((hit) => {
+    invisibleTotals[hit.kind] += 1;
+    byKind.set(hit.kind, (byKind.get(hit.kind) || 0) + 1);
+  });
+  const detail = [...byKind.entries()].map(([kind, n]) => kind + '=' + n).join(',');
+  fail(label + ' invisible ' + detail);
+}
+
+for (const snap of manifest.snapshots || []) {
+  const row = loaded(snap);
+  tallyInvisible('snapshot ' + snap.file, row.plain);
+  addMap(residueTotals, guard.templateResidues(row.plain));
+  const report = guard.templateReport(row.wikitext);
+  addMap(resolvedTotals, report.resolved);
+  addMap(removedTotals, report.removed);
+}
+
+function formatCounts(map) {
+  const keys = [...map.keys()].sort((a, b) => a.localeCompare(b, 'zh'));
+  if (!keys.length) return '(none)';
+  return keys.map((key) => key + '=' + map.get(key)).join(', ');
+}
+
 quotes.forEach((quote, index) => {
   const where = 'quote[' + index + ']';
   const line = guard.sourceLine(quote);
+  tallyInvisible(where + ' ' + quote.id, quote.text);
   if (!guard.sourceFormatOk(line)) fail(where + ' bad source format ' + line);
   if (guard.bodyLength(quote.text) > 36) fail(where + ' text length ' + guard.bodyLength(quote.text));
   const snap = byKey.get((quote.book || '') + '\0' + (quote.chapter || ''));
@@ -175,6 +213,20 @@ quotes.forEach((quote) => {
   console.log('short WARN ' + note);
 });
 console.log('short WARN count ' + shortWarnings);
+
+const supplementary = [];
+let supplementaryChars = 0;
+quotes.forEach((quote) => {
+  const found = guard.supplementaryChars(quote.text);
+  if (!found.length) return;
+  supplementaryChars += found.length;
+  supplementary.push(quote.id);
+});
+console.log('supplementary WARN chars ' + supplementaryChars + ' ids ' + (supplementary.join(',') || '(none)'));
+console.log('invisible scan ' + invisibleKinds.map((kind) => kind + '=' + invisibleTotals[kind]).join(' '));
+console.log('template residue ' + formatCounts(residueTotals));
+console.log('template resolved ' + formatCounts(resolvedTotals));
+console.log('template removed ' + formatCounts(removedTotals));
 
 if (errors.length) {
   errors.forEach((line) => console.error(line));

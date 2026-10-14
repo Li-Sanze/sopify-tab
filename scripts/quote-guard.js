@@ -19,7 +19,7 @@ const KNOWN_ERRORS = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'snapshot-kn
 const EDGE_MARKS = '（）()「」『』“”‘’"\'《》';
 
 const NORMALIZATION = 'quote-guard.plainForMatch';
-const NORMALIZATION_NOTE = 'Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.';
+const NORMALIZATION_NOTE = 'Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). {{另}} and {{另2}} keep the displayed first parameter. Other templates are removed. Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.';
 
 const BLOCKLIST = ['杀', '死', '兵', '鬼', '丧'];
 
@@ -157,14 +157,83 @@ function stripConverter(input) {
   return text;
 }
 
-function poisonTemplates(input) {
-  let text = String(input);
-  let prev = '';
-  while (text !== prev) {
-    prev = text;
-    text = text.replace(/\{\{[^{}]*\}\}/g, '\u0001');
+function splitTemplateParams(inner) {
+  const params = [];
+  let buf = '';
+  let link = 0;
+  let converter = false;
+  for (let i = 0; i < inner.length; i += 1) {
+    const two = inner.slice(i, i + 2);
+    if (!converter && two === '[[') {
+      link += 1;
+      buf += two;
+      i += 1;
+      continue;
+    }
+    if (!converter && link > 0 && two === ']]') {
+      link -= 1;
+      buf += two;
+      i += 1;
+      continue;
+    }
+    if (!converter && two === '-{') {
+      converter = true;
+      buf += two;
+      i += 1;
+      continue;
+    }
+    if (converter && two === '}-') {
+      converter = false;
+      buf += two;
+      i += 1;
+      continue;
+    }
+    if (inner[i] === '|' && link === 0 && !converter) {
+      params.push(buf);
+      buf = '';
+      continue;
+    }
+    buf += inner[i];
   }
-  return text;
+  params.push(buf);
+  return params;
+}
+
+function replaceOneTemplate(text) {
+  let start = -1;
+  for (let i = 0; i < text.length - 1; i += 1) {
+    if (text[i] === '{' && text[i + 1] === '{') {
+      start = i;
+      i += 1;
+      continue;
+    }
+    if (start < 0 || text[i] !== '}' || text[i + 1] !== '}') continue;
+    return {
+      inner: text.slice(start + 2, i),
+      text: (replacement) => text.slice(0, start) + replacement + text.slice(i + 2),
+    };
+  }
+  return null;
+}
+
+function resolveTemplates(input) {
+  const resolved = new Map();
+  const removed = new Map();
+  let text = String(input);
+  for (let guard = 0; guard < 10000; guard += 1) {
+    const found = replaceOneTemplate(text);
+    if (!found) break;
+    const params = splitTemplateParams(found.inner);
+    const name = params[0].trim();
+    if (name === '另' || name === '另2') {
+      resolved.set(name, (resolved.get(name) || 0) + 1);
+      text = found.text((params[1] || '').trim());
+      continue;
+    }
+    removed.set(name || '(blank)', (removed.get(name || '(blank)') || 0) + 1);
+    text = found.text('');
+  }
+  return { text, resolved, removed };
 }
 
 function prepareWikitext(wikitext) {
@@ -174,7 +243,7 @@ function prepareWikitext(wikitext) {
   text = text.replace(/<ref[\s\S]*?<\/ref>/gi, '');
   text = text.replace(/<!--[\s\S]*?-->/g, '');
   text = text.replace(/<[^>]+>/g, '');
-  text = poisonTemplates(text);
+  text = resolveTemplates(text).text;
   text = text.replace(/'''/g, '');
   text = text.replace(/\[\[(?:[^|\]]+\|)?([^\]]+)\]\]/g, '$1');
   return stripConverter(text);
@@ -197,7 +266,7 @@ function chapterBodies(wikitext) {
       if (trimmed.startsWith('==')) continue;
       lines.push(trimmed);
     }
-    chapters.push({ heading, text: stripConverter(lines.join('')) });
+    chapters.push({ heading, text: stripConverter(resolveTemplates(lines.join('')).text) });
   }
   return chapters;
 }
@@ -490,6 +559,107 @@ function shiShuCitation(wikitext, quote) {
   return false;
 }
 
+function controlKind(cp) {
+  if (cp === 0x09 || cp === 0x0A) return '';
+  if (cp <= 0x1F || cp === 0x7F) return 'C0';
+  if (cp >= 0x80 && cp <= 0x9F) return 'C1';
+  if ((cp >= 0x200B && cp <= 0x200F) || cp === 0x2060 || cp === 0xFEFF) return 'zero-width';
+  if (cp >= 0xE000 && cp <= 0xF8FF) return 'PUA';
+  return '';
+}
+
+function invisibleHits(text) {
+  const hits = [];
+  const s = String(text);
+  for (let i = 0; i < s.length; i += 1) {
+    const cu = s.charCodeAt(i);
+    if (cu >= 0xD800 && cu <= 0xDBFF) {
+      const next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+      if (next >= 0xDC00 && next <= 0xDFFF) {
+        i += 1;
+        continue;
+      }
+      hits.push({ kind: 'surrogate', index: i, cp: cu });
+      continue;
+    }
+    if (cu >= 0xDC00 && cu <= 0xDFFF) {
+      hits.push({ kind: 'surrogate', index: i, cp: cu });
+      continue;
+    }
+    const kind = controlKind(cu);
+    if (kind) hits.push({ kind, index: i, cp: cu });
+  }
+  return hits;
+}
+
+function supplementaryChars(text) {
+  const found = [];
+  const s = String(text);
+  for (let i = 0; i < s.length; i += 1) {
+    const cu = s.charCodeAt(i);
+    if (cu < 0xD800 || cu > 0xDBFF) continue;
+    const next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+    if (next < 0xDC00 || next > 0xDFFF) continue;
+    const cp = (cu - 0xD800) * 0x400 + (next - 0xDC00) + 0x10000;
+    found.push({ index: i, cp });
+    i += 1;
+  }
+  return found;
+}
+
+function templateResidues(text) {
+  const counts = new Map();
+  const re = /\{\{([^{}\n]*)/g;
+  let match;
+  const s = String(text);
+  while ((match = re.exec(s))) {
+    const inner = match[1];
+    const name = (inner.split('|')[0] || '(unclosed)').trim() || '(blank)';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return counts;
+}
+
+function addCounts(into, from) {
+  for (const [key, n] of from) into.set(key, (into.get(key) || 0) + n);
+}
+
+function templateReport(wikitext) {
+  const source = String(wikitext);
+  const resolved = new Map();
+  const removed = new Map();
+  const ddj = source.includes('==一章==') || /^==[零一二三四五六七八九十百]+章==/.test(source.trim());
+  if (ddj) {
+    const marker = source.indexOf('==一章==');
+    const body = marker >= 0 ? source.slice(marker) : source;
+    for (const chunk of body.split(/\n(?===)/)) {
+      const heading = (chunk.match(/^==\s*([^=\s]+)\s*==/) || [])[1] || '';
+      if (!/^[零一二三四五六七八九十百]+章$/.test(heading)) continue;
+      const lines = [];
+      for (const line of chunk.split('\n').slice(1)) {
+        const trimmed = line.trim();
+        if (/^=[^=]/.test(trimmed)) break;
+        if (!trimmed || /^[:={<\|\*]/.test(trimmed) || trimmed.startsWith('==')) continue;
+        lines.push(trimmed);
+      }
+      const part = resolveTemplates(lines.join(''));
+      addCounts(resolved, part.resolved);
+      addCounts(removed, part.removed);
+    }
+    return { resolved, removed };
+  }
+  let text = source;
+  const only = text.match(/<onlyinclude>([\s\S]*?)<\/onlyinclude>/);
+  if (only) text = only[1];
+  text = text.replace(/<ref[\s\S]*?<\/ref>/gi, '');
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
+  text = text.replace(/<[^>]+>/g, '');
+  const part = resolveTemplates(text);
+  addCounts(resolved, part.resolved);
+  addCounts(removed, part.removed);
+  return { resolved, removed };
+}
+
 function shortBodyWarning(quote, allowlist) {
   if (!quote || bodyLength(quote.text) >= 8) return '';
   const rows = Array.isArray(allowlist) ? allowlist : [];
@@ -543,4 +713,8 @@ module.exports = {
   knownSnapshotError,
   shiShuCitation,
   shortBodyWarning,
+  invisibleHits,
+  supplementaryChars,
+  templateResidues,
+  templateReport,
 };

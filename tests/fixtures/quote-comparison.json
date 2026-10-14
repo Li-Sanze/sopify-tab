@@ -1,6 +1,6 @@
 {
   "normalization": "quote-guard.plainForMatch",
-  "normalizationNote": "Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.",
+  "normalizationNote": "Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). {{另}} and {{另2}} keep the displayed first parameter. Other templates are removed. Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.",
   "rows": [
     {
       "originalId": "dq-5274ece3",
@@ -408,8 +408,8 @@
       "newText": "博厚配地，高明配天，悠久无疆。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3018,
-      "end": 3033,
+      "start": 3017,
+      "end": 3032,
       "id": "dq-7bab6cdd"
     },
     {
@@ -418,8 +418,8 @@
       "newText": "不息则久，久则征，征则悠远，悠远则博厚，博厚则高明。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2965,
-      "end": 2991,
+      "start": 2964,
+      "end": 2990,
       "id": "dq-e9832f7c"
     },
     {
@@ -428,8 +428,8 @@
       "newText": "诚者，物之终始，不诚无物。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2890,
-      "end": 2903,
+      "start": 2889,
+      "end": 2902,
       "id": "dq-658a5dc3"
     },
     {
@@ -438,8 +438,8 @@
       "newText": "诚者非自成己而已也，所以成物也。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2912,
-      "end": 2928,
+      "start": 2911,
+      "end": 2927,
       "id": "dq-6bd8777f"
     },
     {
@@ -448,8 +448,8 @@
       "newText": "凡事豫则立，不豫则废。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2380,
-      "end": 2391,
+      "start": 2379,
+      "end": 2390,
       "id": "dq-c70e79df"
     },
     {
@@ -458,8 +458,8 @@
       "newText": "非天子不议礼，不制度，不考文。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3455,
-      "end": 3470,
+      "start": 3454,
+      "end": 3469,
       "id": "dq-7865a20b"
     },
     {
@@ -468,8 +468,8 @@
       "newText": "君子素其位而行，不愿乎其外。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 913,
-      "end": 927,
+      "start": 912,
+      "end": 926,
       "id": "dq-a366f54b"
     },
     {
@@ -478,8 +478,8 @@
       "newText": "莫见乎隐，莫显乎微，故君子慎其独也。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 56,
-      "end": 74,
+      "start": 55,
+      "end": 73,
       "id": "dq-a81a4099"
     },
     {
@@ -508,8 +508,8 @@
       "newText": "君子之道，造端乎夫妇，及其至也，察乎天地。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 701,
-      "end": 722,
+      "start": 700,
+      "end": 721,
       "id": "dq-d55e73d9"
     },
     {
@@ -558,8 +558,8 @@
       "newText": "曲能有诚，诚则形，形则著，著则明，明则动，动则变，变则化。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2773,
-      "end": 2802,
+      "start": 2772,
+      "end": 2801,
       "id": "dq-dd28f4ff"
     },
     {
@@ -588,8 +588,8 @@
       "newText": "是故君子动而世为天下道，行而世为天下法，言而世为天下则。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3684,
-      "end": 3712,
+      "start": 3683,
+      "end": 3711,
       "id": "dq-27aa2107"
     },
     {
@@ -618,8 +618,8 @@
       "newText": "虽有其德，苟无其位，亦不敢作礼乐焉。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3502,
-      "end": 3520,
+      "start": 3501,
+      "end": 3519,
       "id": "dq-e2c0eaea"
     },
     {
@@ -628,8 +628,8 @@
       "newText": "虽有其位，苟无其德，不敢作礼乐焉。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3485,
-      "end": 3502,
+      "start": 3484,
+      "end": 3501,
       "id": "dq-8fd92bcc"
     },
     {
@@ -638,8 +638,8 @@
       "newText": "天地之道，可壹言而尽也。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3052,
-      "end": 3064,
+      "start": 3051,
+      "end": 3063,
       "id": "dq-9e36ac90"
     },
     {
@@ -648,8 +648,8 @@
       "newText": "天地之道：博也，厚也，高也，明也，悠也，久也。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3077,
-      "end": 3100,
+      "start": 3076,
+      "end": 3099,
       "id": "dq-bd020ab9"
     },
     {
@@ -668,8 +668,8 @@
       "newText": "唯天下至诚，为能尽其性。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2697,
-      "end": 2709,
+      "start": 2696,
+      "end": 2708,
       "id": "dq-7ca86d22"
     },
     {
@@ -738,8 +738,8 @@
       "newText": "性之德也，合外内之道也。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2940,
-      "end": 2952,
+      "start": 2939,
+      "end": 2951,
       "id": "dq-6333414b"
     },
     {
@@ -948,8 +948,8 @@
       "newText": "饭疏食，饮水，曲肱而枕之，乐亦在其中矣。",
       "source": "孔子·《论语·述而》",
       "snapshotFile": "lunyu-述而.wikitext",
-      "start": 451,
-      "end": 471,
+      "start": 456,
+      "end": 476,
       "id": "dq-2851d421"
     },
     {
@@ -958,8 +958,8 @@
       "newText": "三人行，必有我师焉。",
       "source": "孔子·《论语·述而》",
       "snapshotFile": "lunyu-述而.wikitext",
-      "start": 628,
-      "end": 638,
+      "start": 633,
+      "end": 643,
       "id": "dq-a26e4e02"
     },
     {
@@ -968,8 +968,8 @@
       "newText": "君子坦荡荡，小人长戚戚。",
       "source": "孔子·《论语·述而》",
       "snapshotFile": "lunyu-述而.wikitext",
-      "start": 1207,
-      "end": 1219,
+      "start": 1212,
+      "end": 1224,
       "id": "dq-fcd788d5"
     },
     {
@@ -1938,8 +1938,8 @@
       "newText": "信近于义，言可复也。",
       "source": "有子·《论语·学而》",
       "snapshotFile": "lunyu-学而.wikitext",
-      "start": 446,
-      "end": 456,
+      "start": 489,
+      "end": 499,
       "id": "dq-ad3495b8"
     },
     {
@@ -2348,8 +2348,8 @@
       "newText": "见义不为，无勇也。",
       "source": "孔子·《论语·为政》",
       "snapshotFile": "lunyu-为政.wikitext",
-      "start": 913,
-      "end": 922,
+      "start": 813,
+      "end": 822,
       "id": "dq-6a45a79b"
     },
     {
@@ -2358,8 +2358,8 @@
       "newText": "不患人之不己知，患不知人也。",
       "source": "孔子·《论语·学而》",
       "snapshotFile": "lunyu-学而.wikitext",
-      "start": 605,
-      "end": 619,
+      "start": 657,
+      "end": 671,
       "id": "dq-1453a7ea"
     },
     {
@@ -2708,8 +2708,8 @@
       "newText": "庸德之行，庸言之谨。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 870,
-      "end": 880,
+      "start": 869,
+      "end": 879,
       "id": "dq-d6ea4315"
     },
     {
@@ -2768,8 +2768,8 @@
       "newText": "诚则明矣，明则诚矣。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2687,
-      "end": 2697,
+      "start": 2686,
+      "end": 2696,
       "id": "dq-e7d6ddf2"
     },
     {
@@ -2778,8 +2778,8 @@
       "newText": "至诚之道，可以前知。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2811,
-      "end": 2821,
+      "start": 2810,
+      "end": 2820,
       "id": "dq-02caee4b"
     },
     {
@@ -2788,8 +2788,8 @@
       "newText": "喜怒哀乐之未发，谓之中。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 74,
-      "end": 86,
+      "start": 73,
+      "end": 85,
       "id": "dq-417b2bb8"
     },
     {
@@ -2798,19 +2798,19 @@
       "newText": "发而皆中节，谓之和。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 86,
-      "end": 96,
+      "start": 85,
+      "end": 95,
       "id": "dq-dec9f1fe"
     },
     {
-      "originalId": "",
-      "action": "新增",
-      "newText": "君子之道，\u0001如行远必自迩，\u0001如登高必自卑。",
+      "originalId": "dq-e827cbfd",
+      "action": "删除",
+      "newText": "",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 1047,
-      "end": 1068,
-      "id": "dq-e827cbfd"
+      "start": null,
+      "end": null,
+      "id": ""
     },
     {
       "originalId": "",
@@ -2818,8 +2818,8 @@
       "newText": "国无道，其默足以容。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 3389,
-      "end": 3399,
+      "start": 3388,
+      "end": 3398,
       "id": "dq-8b798baf"
     },
     {
@@ -2828,8 +2828,8 @@
       "newText": "射有似乎君子，失诸正鹄，反求诸其身。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 1029,
-      "end": 1047,
+      "start": 1028,
+      "end": 1046,
       "id": "dq-6ca2c9d0"
     },
     {
@@ -2858,8 +2858,8 @@
       "newText": "发愤忘食，乐以忘忧，不知老之将至云尔。",
       "source": "孔子·《论语·述而》",
       "snapshotFile": "lunyu-述而.wikitext",
-      "start": 561,
-      "end": 580,
+      "start": 566,
+      "end": 585,
       "id": "dq-53d9e78b"
     },
     {
@@ -2868,8 +2868,8 @@
       "newText": "我欲仁，斯仁至矣。",
       "source": "孔子·《论语·述而》",
       "snapshotFile": "lunyu-述而.wikitext",
-      "start": 925,
-      "end": 934,
+      "start": 930,
+      "end": 939,
       "id": "dq-44c2a334"
     },
     {
@@ -2898,8 +2898,8 @@
       "newText": "好学近乎知，力行近乎仁，知耻近乎勇。",
       "source": "孔子·《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 2021,
-      "end": 2039,
+      "start": 2020,
+      "end": 2038,
       "id": "dq-b89b449e"
     },
     {
@@ -2908,8 +2908,8 @@
       "newText": "上不怨天，下不尤人。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 999,
-      "end": 1009,
+      "start": 998,
+      "end": 1008,
       "id": "dq-7cac66ea"
     },
     {
@@ -2918,8 +2918,8 @@
       "newText": "君子居易以俟命，小人行险以徼幸。",
       "source": "《礼记·中庸》",
       "snapshotFile": "zhongyong.wikitext",
-      "start": 1010,
-      "end": 1026,
+      "start": 1009,
+      "end": 1025,
       "id": "dq-8dd45666"
     },
     {
@@ -2958,8 +2958,8 @@
       "newText": "人而无信，不知其可也。",
       "source": "孔子·《论语·为政》",
       "snapshotFile": "lunyu-为政.wikitext",
-      "start": 810,
-      "end": 821,
+      "start": 710,
+      "end": 721,
       "id": "dq-4ef8e0c6"
     },
     {

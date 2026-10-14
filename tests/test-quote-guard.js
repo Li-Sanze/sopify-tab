@@ -48,8 +48,29 @@ const variant = guard.extractLunyuLike('子曰：「诗、书、{{另|艺|执}}�
   book: '论语',
   chapter: '述而',
 });
-assert.ok(!variant.some((quote) => quote.text.includes('艺') || quote.text.includes('执')));
+assert.ok(variant.some((quote) => quote.text === '诗、书、艺礼，皆雅言也。'), 'variant template keeps the displayed reading');
+assert.ok(!variant.some((quote) => quote.text.includes('执')), 'variant template drops the tooltip reading');
 assert.ok(variant.some((quote) => quote.text === '学而时习之，不亦说乎。'));
+
+const variantLine = guard.plainForMatch('君子之道，{{另|譬|辟}}如行远必自迩，{{另|譬|辟}}如登高必自卑。');
+assert.strictEqual(variantLine, '君子之道，譬如行远必自迩，譬如登高必自卑。', '另 displays parameter 1');
+assert.deepStrictEqual(guard.invisibleHits(variantLine), [], 'resolved variant text has no invisible character');
+assert.strictEqual(guard.plainForMatch('愿{{另2|车马衣裘|一作「车马衣轻裘」}}，与朋友共。'), '愿车马衣裘，与朋友共。', '另2 displays parameter 1');
+assert.strictEqual(
+  guard.plainForMatch('子曰：「{{另2|《[[尚书|书]]》-{云}-：『孝乎惟孝。』施于有政，|一作其他}}{{另|是亦为政|是亦为政也}}，奚其为为政。」'),
+  '子曰：《书》云：孝乎惟孝。施于有政，是亦为政，奚其为为政。',
+  '另2 keeps the article text inside a link and a converter mark'
+);
+assert.deepStrictEqual(guard.invisibleHits(guard.plainForMatch('君子\u0001道')).map((hit) => hit.kind), ['C0'], 'converted snapshot rejects a C0 control');
+assert.deepStrictEqual(guard.invisibleHits('君子\u0001道').map((hit) => hit.kind), ['C0'], 'invisible char rejects a C0 control');
+assert.deepStrictEqual(guard.invisibleHits('君子\u0085道').map((hit) => hit.kind), ['C1'], 'invisible char rejects a C1 control');
+assert.deepStrictEqual(guard.invisibleHits('辟\u200B如').map((hit) => hit.kind), ['zero-width'], 'invisible char rejects a zero-width character');
+assert.deepStrictEqual(guard.invisibleHits('君\uE000子').map((hit) => hit.kind), ['PUA'], 'invisible char rejects a private-use character');
+assert.deepStrictEqual(guard.invisibleHits('君' + String.fromCharCode(0xD800) + '子').map((hit) => hit.kind), ['surrogate'], 'invisible char rejects a lone surrogate');
+assert.deepStrictEqual(guard.invisibleHits('君子之道，辟如行远必自迩。'), [], 'invisible char allows ordinary text');
+const extended = '君' + String.fromCodePoint(0x20000) + '子';
+assert.deepStrictEqual(guard.invisibleHits(extended), [], 'a supplementary character is not an invisible-character failure');
+assert.strictEqual(guard.supplementaryChars(extended)[0].cp, 0x20000, 'supplementary scan counts a character above U+FFFF');
 
 const zang = guard.plainForMatch('子曰：「臧文仲居蔡。」');
 assert.ok(zang.includes('臧文仲居蔡'));
