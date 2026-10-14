@@ -6,12 +6,22 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const guard = require('./quote-guard');
 
 const ROOT = path.join(__dirname, '..');
 const EXT = path.join(ROOT, 'extension');
 const MAIN_SHA = '6b0c9c78268c6d98505ea63bf89ee45feda83ca0';
 const EXT_ID = 'cgkhllpelkjmfamddkjpnmchjikdcbgp';
-const LONG = '天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。';
+const QUOTE_FILE = JSON.parse(fs.readFileSync(path.join(EXT, 'quotes.json'), 'utf8'));
+const longestQuote = QUOTE_FILE.reduce((best, quote) => (guard.bodyLength(quote.text) > guard.bodyLength(best.text) ? quote : best));
+const longestSource = QUOTE_FILE.reduce((best, quote) => {
+  const line = guard.sourceLine(quote);
+  const bestLine = guard.sourceLine(best);
+  if ([...line].length !== [...bestLine].length) return [...line].length > [...bestLine].length ? quote : best;
+  return line > bestLine ? quote : best;
+});
+const LONG = longestQuote.text;
+const LONG_SRC = guard.sourceLine(longestSource);
 const OUT = process.env.SOPIFY_QUOTE_OUT || path.join(ROOT, 'docs', 'evidence', 'daily-quote-c1');
 const CHROME = process.env.CHROME_BIN || '/usr/local/bin/google-chrome';
 
@@ -308,7 +318,7 @@ const MEASURE_JS = `(function () {
   const text = card && card.querySelector('.dq-text');
   const src = card && card.querySelector('.dq-src');
   if (text) text.textContent = LONG;
-  if (src) src.textContent = '老子·《道德经》';
+  if (src) src.textContent = ${JSON.stringify(LONG_SRC)};
   const anchors = {
     title: '#resume-title',
     kicker: '#resume-kicker',
@@ -572,7 +582,7 @@ async function prepareMain() {
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const mainExt = await prepareMain();
-  const report = { quote36: LONG, shots: {}, notes: [] };
+  const report = { quote: LONG, source: LONG_SRC, shots: {}, notes: ['macOS PingFang wrapping is unverified. Linux Chrome for Testing with Noto Sans CJK SC.'] };
   const requests = { feature: [], main: [] };
 
   async function capture(extDir, label, values, viewport, file, media) {
@@ -662,6 +672,28 @@ async function main() {
       const btn = document.querySelector('.dq-x');
       const cs = getComputedStyle(btn);
       return { active: document.activeElement === btn, outline: cs.outlineStyle + ' ' + cs.outlineWidth + ' ' + cs.outlineColor, offset: cs.outlineOffset };
+    })()`);
+    const emptyReady = await evalOn(page, `(async function () {
+      await chrome.storage.local.set({ todos: [], dailyQuote: true, dailyQuoteDismissedOn: '' });
+      const deadline = Date.now() + 2500;
+      while (Date.now() < deadline) {
+        const title = document.getElementById('resume-title');
+        const filled = document.querySelector('.next-filled');
+        const card = document.querySelector('.dq-x');
+        const hidden = title && filled && (getComputedStyle(title).display === 'none' || getComputedStyle(filled).display === 'none');
+        if (hidden && card) break;
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+      const title = document.getElementById('resume-title');
+      const filled = document.querySelector('.next-filled');
+      const button = document.querySelector('.dq-x');
+      if (button) button.focus();
+      return {
+        has: (document.getElementById('resume') || {}).dataset.has || '',
+        titleDisplay: title ? getComputedStyle(title).display : '',
+        filledDisplay: filled ? getComputedStyle(filled).display : '',
+        scrollY: window.scrollY,
+      };
     })()`);
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r' });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
@@ -883,6 +915,33 @@ async function main() {
         storage: data,
       };
     })()`);
+    await evalOn(page, `chrome.storage.local.set({ dailyQuote: true, dailyQuoteDismissedOn: '' })`);
+    await sleep(120);
+    await evalOn(page, `(async function () {
+      const deadline = Date.now() + 2500;
+      while (Date.now() < deadline) {
+        const title = document.getElementById('resume-title');
+        const card = document.getElementById('daily-quote');
+        if (title && title.textContent.indexOf('季度') !== -1 && getComputedStyle(title).display !== 'none' && card) break;
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+      const button = document.querySelector('.dq-x');
+      if (button) button.focus();
+      return window.scrollY;
+    })()`);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(120);
+    const focusWithTitleSpace = await evalOn(page, `(async function () {
+      const data = await chrome.storage.local.get(['dailyQuote', 'dailyQuoteDismissedOn']);
+      return {
+        card: !!document.getElementById('daily-quote'),
+        focus: document.activeElement && document.activeElement.id,
+        scrollY: window.scrollY,
+        tabindex: (document.getElementById('resume-title') || {}).tabIndex,
+        storage: data,
+      };
+    })()`);
 
     const perf = await evalOn(page, `performance.getEntriesByType('resource').map((entry) => entry.name)`);
     page.close();
@@ -902,8 +961,10 @@ async function main() {
       firstOverlap,
       lastClean,
       cssHide,
+      emptyReady,
       focusReady,
       focusWithTitle,
+      focusWithTitleSpace,
       sweepSample: sweepRows.filter((row) => row.width === 755 || row.width === 754 || row.width === 753),
       textBox,
       nightText,
@@ -958,11 +1019,11 @@ async function main() {
   };
   report.viewport1280x720 = { day: behavior.day720, night: behavior.night720 };
   report.contrast = images;
+  report.measuredQuote = { text: LONG, chars: [...LONG].length, source: LONG_SRC, sourceChars: [...LONG_SRC].length };
   report.keyboard = {
+    emptyDesk: { ready: behavior.emptyReady, afterEnter: behavior.afterEnter, afterSpace: behavior.afterSpace },
+    withTitle: { ready: behavior.focusReady, afterEnter: behavior.focusWithTitle, afterSpace: behavior.focusWithTitleSpace },
     focusState: behavior.focusState,
-    afterEnter: behavior.afterEnter,
-    afterSpace: behavior.afterSpace,
-    withTitle: { ready: behavior.focusReady, afterEnter: behavior.focusWithTitle },
   };
   report.probe = { injected: behavior.probe, cleared: behavior.cleared };
   report.breakpoint = {

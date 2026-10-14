@@ -1,7 +1,10 @@
 {
-  "quote36": "天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。",
+  "quote": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+  "source": "老子·《道德经·第四十六章》",
   "shots": {},
-  "notes": [],
+  "notes": [
+    "macOS PingFang wrapping is unverified. Linux Chrome for Testing with Noto Sans CJK SC."
+  ],
   "viewport1280x800": {
     "day": {
       "clock": "15:25",
@@ -34,9 +37,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。",
+      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
       "layout": {
         "title": [
           0,
@@ -154,9 +157,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。",
+      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
       "layout": {
         "title": [
           0,
@@ -452,9 +455,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。",
+      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
       "layout": {
         "title": [
           0,
@@ -572,9 +575,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "天下皆知美之为美，斯恶已；皆知善之为善，斯不善已。故有无相生，难易相成。",
+      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
       "layout": {
         "title": [
           0,
@@ -664,7 +667,7 @@
   },
   "contrast": {
     "dayText": {
-      "worst": 8.2,
+      "worst": 7.79,
       "sample": [
         344,
         48
@@ -672,7 +675,7 @@
       "color": "rgb(70, 75, 86)"
     },
     "daySrc": {
-      "worst": 5.59,
+      "worst": 5.31,
       "sample": [
         344,
         20
@@ -680,7 +683,7 @@
       "color": "rgb(95, 100, 112)"
     },
     "nightText": {
-      "worst": 9.37,
+      "worst": 8.89,
       "sample": [
         344,
         48
@@ -688,7 +691,7 @@
       "color": "rgb(201, 205, 214)"
     },
     "nightSrc": {
-      "worst": 5.78,
+      "worst": 5.62,
       "sample": [
         344,
         20
@@ -696,10 +699,10 @@
       "color": "rgb(156, 161, 174)"
     },
     "day": {
-      "meanPixelDelta": 9.16
+      "meanPixelDelta": 4.15
     },
     "night": {
-      "meanPixelDelta": 2.53
+      "meanPixelDelta": 1.59
     },
     "offDayVsMain": {
       "size": [
@@ -716,28 +719,37 @@
       "nonzero": 0
     }
   },
+  "measuredQuote": {
+    "text": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+    "chars": 35,
+    "source": "老子·《道德经·第四十六章》",
+    "sourceChars": 14
+  },
   "keyboard": {
-    "focusState": {
-      "active": true,
-      "outline": "solid 2px rgb(181, 92, 64)",
-      "offset": "2px"
-    },
-    "afterEnter": {
-      "card": false,
-      "focus": "",
-      "scrollY": 0,
-      "storage": {
-        "dailyQuote": true,
-        "dailyQuoteDismissedOn": "2026-10-13"
-      }
-    },
-    "afterSpace": {
-      "card": false,
-      "focus": "",
-      "scrollY": 0,
-      "storage": {
-        "dailyQuote": true,
-        "dailyQuoteDismissedOn": "2026-10-13"
+    "emptyDesk": {
+      "ready": {
+        "has": "0",
+        "titleDisplay": "flow-root",
+        "filledDisplay": "none",
+        "scrollY": 0
+      },
+      "afterEnter": {
+        "card": false,
+        "focus": "resume",
+        "scrollY": 0,
+        "storage": {
+          "dailyQuote": true,
+          "dailyQuoteDismissedOn": "2026-10-14"
+        }
+      },
+      "afterSpace": {
+        "card": false,
+        "focus": "resume",
+        "scrollY": 0,
+        "storage": {
+          "dailyQuote": true,
+          "dailyQuoteDismissedOn": "2026-10-14"
+        }
       }
     },
     "withTitle": {
@@ -753,9 +765,24 @@
         "scrollY": 0,
         "storage": {
           "dailyQuote": true,
-          "dailyQuoteDismissedOn": "2026-10-13"
+          "dailyQuoteDismissedOn": "2026-10-14"
+        }
+      },
+      "afterSpace": {
+        "card": false,
+        "focus": "resume-title",
+        "scrollY": 0,
+        "tabindex": -1,
+        "storage": {
+          "dailyQuote": true,
+          "dailyQuoteDismissedOn": "2026-10-14"
         }
       }
+    },
+    "focusState": {
+      "active": true,
+      "outline": "solid 2px rgb(181, 92, 64)",
+      "offset": "2px"
     }
   },
   "probe": {
@@ -865,13 +892,13 @@
       "familyName": "Noto Sans CJK SC",
       "postScriptName": "NotoSansCJKsc-Regular",
       "isCustomFont": false,
-      "glyphCount": 36
+      "glyphCount": 35
     }
   ],
   "naturalQuote": {
     "present": true,
-    "text": "人洁己以进，与其洁也，不保其往也。",
-    "src": "孔子·《论语·述而》",
+    "text": "故君子不动而敬，不言而信。",
+    "src": "《礼记·中庸》",
     "font": "-apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Segoe UI\", system-ui, sans-serif"
   },
   "network": {

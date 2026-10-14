@@ -1822,9 +1822,10 @@ body.dq-on.studio-home .main { position: relative; }
 .dq-v2 { position: absolute; top: 10px; right: 32px; z-index: 2;
   width: 400px; box-sizing: border-box; margin: 0;
   padding: 12px 40px 12px 16px; border-radius: var(--r-lg);
-  background: var(--glass-secondary);
-  -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); }
-html[data-sky="night"] .dq-v2 { background: var(--glass-primary);
+  background: rgba(253, 252, 249, .35);
+  -webkit-backdrop-filter: blur(7px) saturate(1.05); backdrop-filter: blur(7px) saturate(1.05); }
+html[data-sky="night"] .dq-v2 { background: rgba(28, 38, 58, .37);
+  -webkit-backdrop-filter: blur(7px) saturate(1.05); backdrop-filter: blur(7px) saturate(1.05);
   box-shadow: var(--resume-glow); }
 .dq-v2[hidden], .dq-v2.dq-collide { display: none !important; }
 .dq-v2 .dq-text { margin: 0; font-size: 15px; line-height: 1.6; font-weight: 400;

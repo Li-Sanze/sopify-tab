@@ -141,10 +141,10 @@ assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(desk), 'no m
 assert.ok(newtabCss.includes('inset 0 1px 0 var(--glass-hi)'), 'desk glass uses the shared hairline token');
 assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss),
   'glass keeps one backdrop blur per surface');
-const deskGlass = newtabCss.replace(/\.dq-v2 \{[^}]*\}/, '');
+const deskGlass = newtabCss.replace(/[^{}]*\.dq-v2\s*\{[^}]*\}/g, '');
 assert.ok(!/backdrop-filter:[^;]*saturate/.test(deskGlass), 'do not restore saturate glass');
-assert.ok(/\.dq-v2 \{[^}]*backdrop-filter:\s*blur\(14px\) saturate\(1\.1\)/.test(newtabCss),
-  'the daily quote card keeps the specified C1 filter');
+assert.ok(/backdrop-filter:\s*blur\(7px\) saturate\(1\.05\)/.test(newtabCss),
+  'the daily quote card keeps the G1 filter');
 assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.86\s*\)/.test(dayBlock), 'day card fill matches prototype glass');
 assert.ok(/--glass:\s*rgba\(\s*22,\s*31,\s*48,\s*0\.66\s*\)/.test(nightBlock), 'night card fill matches prototype glass');
 assert.ok(dayBlock.includes('--sky-ink: #12203a') && dayBlock.includes('--ink: #182234'),
