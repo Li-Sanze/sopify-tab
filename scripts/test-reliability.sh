@@ -149,6 +149,8 @@ run() {
   return 0
 }
 
+run scripts/check-quotes.js
+run tests/test-daily-quote.js
 run tests/test-r1-r7.js
 run tests/test-r3-collection.js
 run tests/test-r3-form-retry.js

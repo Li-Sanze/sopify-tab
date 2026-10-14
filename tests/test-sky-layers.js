@@ -133,10 +133,23 @@ for (const name of fs.readdirSync(EXT)) {
     `${name} must not open a canvas/WebGL context`);
 }
 
-const desk = newtabHtml.slice(newtabHtml.indexOf('data-view="desk"'), newtabHtml.indexOf('data-view="tabs"'));
+const desk = newtabHtml.slice(
+  newtabHtml.indexOf('<section class="view active studio-desk"'),
+  newtabHtml.indexOf('<section class="view" data-view="tabs"'),
+);
 assert.ok(!/skyMotion|sky-motion|壁纸|wallpaper/i.test(desk), 'desk first screen stays quiet');
 assert.ok(!/name="skyMotion"/.test(newtabHtml), 'no motion control chrome');
-assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(desk), 'no moodboard chrome on the desk');
+const deskQuoteSections = desk.match(/<section class="desk-quote"/g) || [];
+assert.strictEqual(deskQuoteSections.length, 1, 'the desk has one daily quote section');
+assert.ok(/<section class="desk-quote"[^>]*\shidden[\s>]/.test(desk), 'the daily quote section starts hidden');
+const deskAside = desk
+  .replace(/class="desk-quote"/g, '')
+  .replace(/id="daily-quote"/g, '')
+  .replace(/id="h-quote"/g, '')
+  .replace(/aria-labelledby="h-quote"/g, '')
+  .replace(/class="dq-text"/g, '')
+  .replace(/class="dq-src"/g, '');
+assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|\bquote\b/i.test(deskAside), 'no moodboard chrome on the desk');
 
 assert.ok(newtabCss.includes('inset 0 1px 0 var(--glass-hi)'), 'desk glass uses the shared hairline token');
 assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss),

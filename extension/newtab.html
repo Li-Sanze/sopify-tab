@@ -12,6 +12,8 @@
   <script src="note-sync.js" defer></script>
   <script src="collection-sync.js" defer></script>
   <script src="form-ops.js" defer></script>
+  <script src="quotes.js" defer></script>
+  <script src="daily-quote.js" defer></script>
   <script src="newtab.js" defer></script>
 </head>
 <body>
@@ -191,6 +193,12 @@
             <span class="sr-only count" id="c-sites">0</span>
           </section>
 
+          <section class="desk-quote" id="daily-quote" hidden aria-labelledby="h-quote">
+            <h2 class="col-h" id="h-quote">每日一句</h2>
+            <blockquote class="dq-text"></blockquote>
+            <p class="dq-src"></p>
+          </section>
+
           <section id="desk-3d-mount" class="desk-stage" aria-label="空间桌面" hidden></section>
         </div>
 
@@ -299,6 +307,15 @@
                   </label>
                 </div>
                 <p class="help">跟随系统时，随电脑的白天和夜晚切换。</p>
+              </div>
+              <div class="frow" id="dq-row">
+                <label class="space-view-opt" for="daily-quote-toggle">
+                  <input type="checkbox" id="daily-quote-toggle">
+                  <span>在首页显示每日一句</span>
+                </label>
+                <p class="help">每天一句，出自《论语》《孟子》《道德经》等，离线可用。</p>
+                <blockquote class="dq-settings-text" id="dq-settings-text"></blockquote>
+                <p class="dq-settings-src" id="dq-settings-src"></p>
               </div>
             </div>
           </section>

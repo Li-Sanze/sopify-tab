@@ -114,16 +114,27 @@ assert.ok(!/<canvas/i.test(html));
 assert.ok(!/getContext\s*\(\s*['"](?:webgl|experimental-webgl)['"]/i.test(html + js + css));
 
 const SANS_FALLBACK = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif';
-const SONG_STACK = `"Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", ${SANS_FALLBACK}`;
+const SERIF_STACK = `"Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", var(--sans)`;
+assert.ok(theme.includes(`--font-serif: ${SERIF_STACK};`), 'theme defines --font-serif');
+assert.ok(theme.includes(`--sans: ${SANS_FALLBACK};`), 'sans stack stays the system fallback');
 const titleInput = ruleBlock(css, '.studio-desk .next-title, .studio-desk .next-input');
-assert.ok(titleInput.includes(`font-family: ${SONG_STACK}`), 'next title and input use the Songti stack');
+assert.ok(!titleInput.includes('.dq-text') && !titleInput.includes('dq-settings-text'), 'quote does not share the title font rule');
+assert.ok(titleInput.includes('font-family: var(--font-serif)'), 'next title and input use --font-serif');
+assert.ok(titleInput.includes('font-size: clamp(34px, 3.8vw, 52px)'), 'title rule keeps its own size');
 assert.ok(titleInput.includes('font-weight: 700'), 'next title and input are weight 700');
 assert.ok(titleInput.includes('letter-spacing: -0.01em'), 'default tracking is -0.01em');
 assert.ok(titleInput.includes('.next-title') && titleInput.includes('.next-input'));
-const family = (titleInput.split('font-family:')[1] || '').split(';')[0];
-assert.ok(family.includes(SANS_FALLBACK), 'Songti stack falls back to the system sans');
+const family = (theme.split('--font-serif:')[1] || '').split(';')[0];
+assert.ok(family.includes('var(--sans)'), 'serif stack falls back through --sans');
 assert.ok(!/SimSun|宋体/.test(family), 'Songti stack must not name SimSun or 宋体');
 assert.ok(!/(^|,)\s*serif\s*(,|$)/i.test(family), 'Songti stack must not use bare serif');
+const quoteFont = css.slice(css.indexOf('.studio-desk .desk-quote .dq-text,\n.dq-settings-text {'));
+const quoteBody = quoteFont.slice(0, quoteFont.indexOf('}'));
+assert.ok(quoteBody.includes('font-family: var(--font-serif)'), 'quote uses --font-serif');
+assert.ok(quoteBody.includes('font-size: 16px') && quoteBody.includes('line-height: 1.6') && quoteBody.includes('font-weight: 400'), 'quote keeps its own size, line-height, and weight');
+assert.ok(!quoteBody.includes('font-weight: 700'), 'quote rule does not take the title weight');
+assert.ok(ruleBlock(css, '\n.next-title {').includes('text-wrap: wrap'), 'clamped title wraps so the last line can ellipsize');
+assert.ok(!css.includes('text-wrap: balance'), 'balance fights line-clamp and drops the ellipsis');
 assert.ok(/letter-spacing:\s*-0\.02em/.test(ruleBlock(css, '.next-title[data-size="l"]')), 'long titles keep their own tracking');
 assert.ok(day.includes('--studio-field: rgba(38, 42, 51, 0.04);'));
 assert.ok(day.includes('--studio-field-hi: rgba(38, 42, 51, 0.07);'));
@@ -153,9 +164,10 @@ assert.ok(!/(?:^|[^-])height\s*:/.test(screenRule), 'studio-screen rule does not
 assert.ok(!/overflow\s*:/.test(screenRule), 'studio-screen rule does not clip overflow');
 
 const shortQ = braceBlock(css, '@media (max-height: 760px)');
-assert.ok(shortQ.includes('.hero') && shortQ.includes('.next-actions') && shortQ.includes('.shelf') && shortQ.includes('.sites'));
+assert.ok(shortQ.includes('-webkit-line-clamp: 3'), 'short screens clamp a size-l title to 3 lines');
 assert.ok(!/overflow\s*:/.test(shortQ), 'short viewport query does not clip overflow');
 assert.ok(!/font-size\s*:/.test(shortQ), 'short viewport query does not shrink type');
+assert.ok(!css.includes('min-height: 761px'), 'quote-on 761-860 spacing band is gone');
 assert.ok(css.includes('.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }'));
 assert.ok(css.includes('html[data-boot-focus] #resume-act:focus-visible { outline: none; }'));
 assert.ok(css.includes('html[data-boot-focus] .next-input:focus-visible { outline: none; }'));
@@ -297,6 +309,73 @@ function todoItems(kind) {
   return [{ id: 'long', text: FOUR_LINE_TITLE, done: false }];
 }
 
+const HEAVY_TODO = '下一件事'.repeat(15);
+const WORST_TODO = '下一件事'.repeat(30);
+const HEAVY_SITE = '一二三四五六七八九十甲乙';
+const HEAVY_WINDOW = '存下的窗口'.repeat(8);
+assert.strictEqual([...HEAVY_TODO].length, 60);
+assert.strictEqual([...WORST_TODO].length, 120);
+assert.strictEqual([...HEAVY_SITE].length, 12);
+assert.strictEqual([...HEAVY_WINDOW].length, 40);
+const MATRIX_SIZES = [
+  [1280, 720],
+  [1280, 800],
+  [1366, 650],
+  [1440, 900],
+  [1512, 823],
+  [1920, 1080],
+];
+
+function worstDesk() {
+  const desk = heavyDesk();
+  desk.todos[0].text = WORST_TODO;
+  return desk;
+}
+
+function sweepHeights() {
+  const heights = [];
+  for (let h = 650; h <= 1080; h += 10) heights.push(h);
+  for (const extra of [761, 861]) {
+    if (!heights.includes(extra)) heights.push(extra);
+  }
+  heights.sort((a, b) => a - b);
+  return heights;
+}
+
+function lightDesk() {
+  return {
+    todos: todoItems('1'),
+    sites: siteItems(6, false),
+    notes: '',
+    worksets: [],
+    tabs: [],
+  };
+}
+
+function heavyDesk() {
+  return {
+    todos: [{ id: 't0', text: HEAVY_TODO, done: false }].concat([1, 2, 3, 4].map((n) => ({
+      id: `t${n}`, text: `待办${n}`, done: false,
+    }))),
+    sites: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+      name: HEAVY_SITE,
+      url: `https://example.com/h/${n}`,
+    })),
+    notes: [1, 2, 3, 4, 5, 6].map((n) => `随手记第${n}行写在本机`).join('\n'),
+    worksets: [{
+      id: 'w1',
+      name: HEAVY_WINDOW,
+      savedAt: 1760400000000,
+      tabs: [{ title: '已存', url: 'https://saved.example/a' }],
+    }],
+    tabs: Array.from({ length: 13 }, (_, i) => ({
+      id: i + 1,
+      title: `网页${i + 1}`,
+      url: `https://site${i + 1}.example/page`,
+    })),
+  };
+}
+
 function siteItems(count, longNames) {
   const out = [];
   for (let i = 0; i < count; i += 1) {
@@ -322,6 +401,7 @@ function stubSource(seed) {
       cwd: '',
       hostUpstream: 'cursor',
       themePreset: 'day',
+      dailyQuote: seed.dailyQuote === true,
     };
     let noteWrites = 0;
     let failTodos = !!seed.failTodos;
@@ -1946,6 +2026,193 @@ async function main() {
       }
     }
 
+    const quoteCatalog = require(path.join(__dirname, '..', 'extension', 'quotes.js'));
+    const longest = quoteCatalog.reduce((best, quote) => (
+      [...quote.text].length > [...best.text].length ? quote : best
+    ));
+    function fitExpr(quoteOn, quoteText) {
+      return `(() => {
+        const el = document.scrollingElement || document.documentElement;
+        const q = document.getElementById('daily-quote');
+        const sites = document.getElementById('h-sites');
+        if (${quoteOn ? 'true' : 'false'}) {
+          q.querySelector('.dq-text').textContent = ${JSON.stringify(quoteText)};
+          q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
+        }
+        const row = document.querySelector('.sites-row');
+        const tiles = [...row.querySelectorAll('.tile')];
+        const tops = tiles.map((tile) => tile.getBoundingClientRect().top);
+        const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
+        const last = q.hidden ? document.querySelector('.sites') : q;
+        const main = document.querySelector('.main');
+        const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
+        const title = document.getElementById('resume-title');
+        const titleLh = parseFloat(getComputedStyle(title).lineHeight) || 1;
+        return {
+          overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
+          realSlack: Math.round((window.innerHeight - (last.getBoundingClientRect().bottom + pad)) * 100) / 100,
+          hidden: !!q.hidden,
+          chars: q.querySelector('.dq-text') ? [...q.querySelector('.dq-text').textContent].length : 0,
+          after,
+          sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
+          fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
+          quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
+          titleLines: Math.round(title.getBoundingClientRect().height / titleLh),
+          titleTruncated: title.scrollHeight > title.clientHeight,
+        };
+      })()`;
+    }
+    const fitRows = [];
+    for (const deskName of ['light', 'heavy']) {
+      for (const quoteOn of [false, true]) {
+        for (const [width, height] of MATRIX_SIZES) {
+          const seed = deskName === 'heavy' ? heavyDesk() : lightDesk();
+          seed.dailyQuote = quoteOn;
+          await loadSeed(width, height, seed);
+          if (quoteOn) {
+            const ready = Date.now();
+            let shown = false;
+            while (Date.now() - ready < 3000) {
+              shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+              if (shown) break;
+              await sleep(30);
+            }
+            if (!shown) failures.push(`${deskName} quote ${width}×${height} hidden`);
+          }
+          const measured = await evalJson(fitExpr(quoteOn, longest.text));
+          const label = `${deskName}\t${quoteOn ? 'on' : 'off'}\t${width}×${height}`;
+          fitRows.push({ label, ...measured });
+          if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
+          if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+          if (quoteOn && (measured.hidden || measured.chars !== 34 || !measured.after || !measured.fits || measured.quoteH > 40)) {
+            failures.push(`${label} quote hidden=${measured.hidden} chars=${measured.chars} after=${measured.after} fits=${measured.fits} h=${measured.quoteH}`);
+          }
+          if (!quoteOn && !measured.hidden) failures.push(`${label} quote should stay hidden`);
+          if (deskName === 'heavy' && width === 1280 && !measured.sitesOneLine) {
+            failures.push(`${label} sites-row wrapped`);
+          }
+        }
+      }
+    }
+    console.log('first screen fit matrix');
+    for (const row of fitRows) {
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
+    }
+
+    const sweepRows = [];
+    const sweepHeightsList = sweepHeights();
+    for (const width of [1280, 1440]) {
+      for (const quoteOn of [false, true]) {
+        for (const height of sweepHeightsList) {
+          const seed = worstDesk();
+          seed.dailyQuote = quoteOn;
+          await loadSeed(width, height, seed);
+          if (quoteOn) {
+            const ready = Date.now();
+            let shown = false;
+            while (Date.now() - ready < 3000) {
+              shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+              if (shown) break;
+              await sleep(30);
+            }
+            if (!shown) failures.push(`worst quote ${width}×${height} hidden`);
+          }
+          const measured = await evalJson(fitExpr(quoteOn, longest.text));
+          const label = `worst\t${quoteOn ? 'on' : 'off'}\t${width}×${height}`;
+          sweepRows.push({ label, width, height, quoteOn, ...measured });
+          if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
+          if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+          if (height <= 760 && measured.titleLines > 3) failures.push(`${label} titleLines=${measured.titleLines}`);
+          if (height <= 760 && !measured.titleTruncated) failures.push(`${label} long title is not truncated`);
+          if (height === 761 && measured.titleLines < 4) failures.push(`${label} titleLines=${measured.titleLines} above 760`);
+        }
+      }
+    }
+    console.log('worst desk height sweep');
+    for (const row of sweepRows) {
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}`);
+    }
+    for (const width of [1280, 1440]) {
+      for (const quoteOn of [false, true]) {
+        const rows = sweepRows.filter((row) => row.width === width && row.quoteOn === quoteOn);
+        const tight = rows.reduce((best, row) => (row.realSlack < best.realSlack ? row : best));
+        const at760 = rows.find((row) => row.height === 760);
+        const at761 = rows.find((row) => row.height === 761);
+        console.log(`sweep min ${width} ${quoteOn ? 'on' : 'off'} slack=${tight.realSlack} at ${tight.height} 760=${at760.realSlack} 761=${at761.realSlack}`);
+      }
+    }
+    await loadSeed(1280, 650, Object.assign(worstDesk(), { dailyQuote: true }));
+    await evalJson(`(() => {
+      const cap = document.createElement('div');
+      cap.id = 'shot-caption';
+      cap.style.cssText = 'position:fixed;z-index:10000;top:8px;right:8px;margin:0;padding:4px 8px;background:#fff;color:#182234;font:13px/1.4 sans-serif;border:1px solid #182234;';
+      cap.textContent = 'size l at 650px, 3 lines';
+      document.body.appendChild(cap);
+      return true;
+    })()`);
+    await shoot('title-clamp-3.png');
+    await evalJson(`document.getElementById('shot-caption').remove()`);
+
+    const overLong = `${'把首屏长标题排满'.repeat(30)}末尾必须是省略号`;
+    await loadSeed(1366, 650, {
+      todos: [{ id: 'over', text: overLong, done: false }],
+      sites: siteItems(1, false),
+      notes: [1, 2, 3, 4, 5, 6].map((n) => `随手记第${n}行写在本机看行框`).join('\n'),
+    });
+    const clip = await evalJson(`(() => {
+      const title = document.getElementById('resume-title');
+      const note = document.getElementById('notes');
+      const tcs = getComputedStyle(title);
+      const ncs = getComputedStyle(note);
+      const pad = parseFloat(ncs.paddingTop) + parseFloat(ncs.paddingBottom);
+      const lh = parseFloat(ncs.lineHeight);
+      const content = note.clientHeight - pad;
+      const lines = content / lh;
+      const errPx = Math.abs(content - Math.round(lines) * lh);
+      return {
+        titleSH: title.scrollHeight,
+        titleCH: title.clientHeight,
+        textWrap: tcs.textWrap,
+        clamp: tcs.webkitLineClamp,
+        size: title.dataset.size,
+        noteSH: note.scrollHeight,
+        noteCH: note.clientHeight,
+        padTop: parseFloat(ncs.paddingTop),
+        padBottom: parseFloat(ncs.paddingBottom),
+        borderBottom: parseFloat(ncs.borderBottomWidth),
+        lh,
+        content,
+        lines: Math.round(lines * 1000) / 1000,
+        errPx: Math.round(errPx * 100) / 100,
+      };
+    })()`);
+    console.log(`title and notes ${JSON.stringify(clip)}`);
+    if (!(clip.titleSH > clip.titleCH)) failures.push(`title not truncated sh=${clip.titleSH} ch=${clip.titleCH}`);
+    if (clip.textWrap !== 'wrap') failures.push(`title text-wrap=${clip.textWrap}`);
+    if (String(clip.clamp) !== '3') failures.push(`title clamp=${clip.clamp}`);
+    if (clip.size !== 'l') failures.push(`title size=${clip.size}`);
+    if (!(clip.errPx <= 0.5)) failures.push(`notes line error ${clip.errPx}px lines=${clip.lines}`);
+    if (!(clip.noteSH > clip.noteCH)) failures.push(`notes does not scroll sh=${clip.noteSH} ch=${clip.noteCH}`);
+    if (!(clip.padBottom + clip.borderBottom > 0)) failures.push('notes bottom breathing room is 0');
+    await evalJson(`(() => {
+      const cap = document.createElement('div');
+      cap.id = 'shot-caption';
+      cap.style.cssText = 'position:fixed;z-index:10000;top:8px;right:8px;margin:0;padding:4px 8px;background:#fff;color:#182234;font:13px/1.4 sans-serif;border:1px solid #182234;';
+      cap.textContent = ${JSON.stringify(`title scrollHeight ${clip.titleSH} clientHeight ${clip.titleCH} clamp ${clip.clamp}`)};
+      document.body.appendChild(cap);
+      return true;
+    })()`);
+    await shoot('title-truncated.png');
+    await evalJson(`(() => {
+      const cap = document.getElementById('shot-caption');
+      cap.style.top = 'auto';
+      cap.style.bottom = '8px';
+      cap.textContent = ${JSON.stringify(`notes (${clip.noteCH} - ${clip.padTop + clip.padBottom}) / ${clip.lh} = ${clip.lines} lines, error ${clip.errPx}px, scrollHeight ${clip.noteSH}`)};
+      return true;
+    })()`);
+    await shoot('notes-integer-lines.png');
+    await evalJson(`document.getElementById('shot-caption').remove()`);
+
     await loadSeed(1366, 650, { todos: todoItems('long'), sites: siteItems(8, true) });
     const exception = await readLayout();
     const exceptionWheel = await wheelScrolls();
@@ -1961,7 +2228,8 @@ async function main() {
       lblMax: exception.lblMax,
       lblTitle: exception.lblTitle,
     });
-    if (exception.lines < 4) failures.push(`exception title rendered ${exception.lines} lines, expected 4`);
+    if (exception.overflow !== 0) failures.push(`exception overflow=${exception.overflow}`);
+    if (exception.lines !== 3) failures.push(`exception title rendered ${exception.lines} lines, expected 3`);
     if (!exception.lblMax) failures.push('exception label max-width is not 6em');
     if (exception.lblTitle !== `${LONG_SITE}1`) failures.push(`exception label title=${exception.lblTitle}`);
     if (exception.homeSites !== 8 || !exception.moreHidden) failures.push('exception should render all 8 sites without 全部');
