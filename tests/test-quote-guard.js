@@ -78,6 +78,8 @@ assert.ok(!catalog.some((quote) => quote.speaker === '子对' || quote.chapter =
 
 assert.strictEqual(guard.t2s('寳駆諠飮擧'), '宝驱喧饮举');
 assert.strictEqual(guard.t2s('乾'), '乾');
+assert.strictEqual(guard.t2s('愼'), '慎');
+assert.strictEqual(guard.t2s('茍'), '茍');
 assert.deepStrictEqual(guard.residueChars('楚国无以为寳'), ['寳']);
 assert.deepStrictEqual(guard.residueChars('乾道变化'), []);
 const drink = guard.plainForMatch('子曰：「饭疏食，飮水，曲肱而枕之。」');
@@ -127,5 +129,54 @@ const jewels = guard.findExcerpt(ch67, '我有三宝，持而保之：一曰慈�
 assert.ok(jewels);
 assert.ok(jewels.text.includes('持而保之。'));
 assert.ok(!jewels.text.includes('曰：「'));
+
+assert.strictEqual(guard.edgePunctuation('（诚不以富，亦祇以异。'), '（', 'edge punctuation rejects a leading bracket');
+assert.strictEqual(guard.edgePunctuation('尽信书。」'), '」', 'edge punctuation rejects a trailing quote mark');
+assert.strictEqual(guard.edgePunctuation('尽信《书》，则不如无《书》。'), '', 'edge punctuation allows an interior title mark');
+
+assert.strictEqual(guard.shiShuCitation(zhong, {
+  text: '兄弟既翕，和乐且耽。',
+  speaker: '孔子',
+  book: '礼记',
+  chapter: '中庸',
+}), true, 'shi shu citation rejects 孔子 on dq-32563783 style');
+assert.strictEqual(guard.shiShuCitation(zhong, {
+  text: '宜尔室家，乐尔妻帑。',
+  speaker: '孟子',
+  book: '礼记',
+  chapter: '中庸',
+}), true, 'shi shu citation rejects 孟子 on dq-d04a26f8 style');
+assert.strictEqual(guard.shiShuCitation(zhong, {
+  text: '兄弟既翕，和乐且耽。',
+  book: '礼记',
+  chapter: '中庸',
+}), false, 'shi shu citation allows an unsigned line');
+assert.strictEqual(guard.shiShuCitation(xueer, {
+  text: '学而时习之，不亦说乎。',
+  speaker: '孔子',
+  book: '论语',
+  chapter: '学而',
+}), false, 'shi shu citation allows 孔子 on 学而时习之');
+assert.strictEqual(guard.shiShuCitation(zhong, {
+  text: '君子素其位而行，不愿乎其外。',
+  speaker: '孔子',
+  book: '礼记',
+  chapter: '中庸',
+}), false, 'shi shu citation allows 孔子 after a closed poem quote');
+
+assert.strictEqual(
+  guard.shortBodyWarning({ id: 'dq-absent', text: '过犹不及。' }, []),
+  'dq-absent 过犹不及。',
+  'short line warns when the id is absent from the allowlist',
+);
+assert.strictEqual(
+  guard.shortBodyWarning({ id: 'dq-c40ccc80', text: '上善若水。' }, [{ id: 'dq-c40ccc80', reason: 'complete saying' }]),
+  '',
+  'short line stays quiet when the id is allowlisted',
+);
+
+assert.strictEqual(guard.knownSnapshotError('茍得其养，无物不长。').pattern, '茍', 'known snapshot error rejects 茍');
+assert.strictEqual(guard.knownSnapshotError('志于道，狎于德，依于仁。').pattern, '狎于德', 'known snapshot error rejects 狎于德');
+assert.strictEqual(guard.knownSnapshotError('狎大人，侮圣人之言。'), null, 'known snapshot error allows 狎大人');
 
 console.log('quote guard ok');

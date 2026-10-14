@@ -1,10 +1,11 @@
 {
-  "note": "Characters missing from OpenCC TSCharacters, or left unchanged by it, that this edition uses as traditional or variant forms. Applied to quote text and to snapshots after TSPhrases and TSCharacters. 乾 is not in this table; it stays 乾.",
+  "note": "Characters missing from OpenCC TSCharacters, or left unchanged by it, that this edition uses as traditional or variant forms. Applied to quote text and to snapshots after TSPhrases and TSCharacters. 乾 is not in this table; it stays 乾. 愼 maps to 慎. 茍 (U+830D) is not a variant of 苟 and is not in this table.",
   "map": {
     "擧": "举",
     "寳": "宝",
     "駆": "驱",
     "諠": "喧",
-    "飮": "饮"
+    "飮": "饮",
+    "愼": "慎"
   }
 }

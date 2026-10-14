@@ -102,6 +102,13 @@ quotes.forEach((quote, index) => {
   if (!guard.attributionOk(row.wikitext, quote)) {
     fail(where + ' attribution ' + line + ' ' + quote.text);
   }
+  const edge = guard.edgePunctuation(quote.text);
+  if (edge) fail(where + ' edge punctuation ' + edge + ' ' + quote.text);
+  const knownHit = guard.knownSnapshotError(quote.text);
+  if (knownHit) fail(where + ' known snapshot error ' + knownHit.pattern + ' ' + quote.text);
+  if (guard.shiShuCitation(row.wikitext, quote)) {
+    fail(where + ' shi shu citation ' + line + ' ' + quote.text);
+  }
 });
 
 for (const row of forced) {
@@ -147,6 +154,7 @@ for (let i = 0; i < quotes.length; i += 1) {
 }
 if (nearCount > 12) fail('near-duplicate pairs ' + nearCount);
 
+const shortAllow = JSON.parse(fs.readFileSync(path.join(guard.FIXTURES, 'short-allowlist.json'), 'utf8'));
 const reviewed = new Map((Array.isArray(allowlist) ? allowlist : []).map((row) => [row.text, row.reason || '']));
 let warnings = 0;
 quotes.forEach((quote) => {
@@ -158,6 +166,15 @@ quotes.forEach((quote) => {
   console.log('blocklist WARN ' + hits.join('') + ' ' + note + ' ' + quote.text);
 });
 console.log('blocklist WARN count ' + warnings);
+
+let shortWarnings = 0;
+quotes.forEach((quote) => {
+  const note = guard.shortBodyWarning(quote, shortAllow);
+  if (!note) return;
+  shortWarnings += 1;
+  console.log('short WARN ' + note);
+});
+console.log('short WARN count ' + shortWarnings);
 
 if (errors.length) {
   errors.forEach((line) => console.error(line));

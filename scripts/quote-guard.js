@@ -15,6 +15,8 @@ const VARIANT_FILE = path.join(FIXTURES, 'variant-map.json');
 const VARIANT_MAP = JSON.parse(fs.readFileSync(VARIANT_FILE, 'utf8')).map;
 const RED_CASES = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-red-cases.json'), 'utf8')).cases;
 const ATTRIBUTION_ALLOW = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-allow.json'), 'utf8'));
+const KNOWN_ERRORS = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'snapshot-known-errors.json'), 'utf8'));
+const EDGE_MARKS = '（）()「」『』“”‘’"\'《》';
 
 const NORMALIZATION = 'quote-guard.plainForMatch';
 const NORMALIZATION_NOTE = 'Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.';
@@ -434,7 +436,65 @@ function knownMisattribution(quote) {
 
 function allowHit(quote) {
   const speaker = quote && quote.speaker ? quote.speaker : '';
-  return ATTRIBUTION_ALLOW.find((row) => row.book === quote.book && row.speaker === speaker) || null;
+  return ATTRIBUTION_ALLOW.find((row) => {
+    if (row.book !== quote.book || row.speaker !== speaker) return false;
+    if (row.text && row.text !== quote.text) return false;
+    return true;
+  }) || null;
+}
+
+function edgePunctuation(text) {
+  const body = String(text || '');
+  if (!body) return '';
+  if (EDGE_MARKS.includes(body[0])) return body[0];
+  const last = body[body.length - 1];
+  if (EDGE_MARKS.includes(last)) return last;
+  return '';
+}
+
+function knownSnapshotError(text) {
+  const body = String(text || '');
+  const rows = Array.isArray(KNOWN_ERRORS) ? KNOWN_ERRORS : [];
+  return rows.find((row) => row && row.pattern && body.includes(row.pattern)) || null;
+}
+
+function shiShuCitation(wikitext, quote) {
+  const speaker = quote && quote.speaker ? quote.speaker : '';
+  if (speaker !== '孔子' && speaker !== '孟子') return false;
+  const passage = attributionPassage(wikitext);
+  const at = locateHan(passage, quote.text || '');
+  if (at < 0) return false;
+  const opens = '「『“‘';
+  const closes = '」』”’';
+  let i = at - 1;
+  while (i >= 0) {
+    const ch = passage[i];
+    if (closes.includes(ch)) {
+      let depth = 1;
+      i -= 1;
+      while (i >= 0 && depth > 0) {
+        if (closes.includes(passage[i])) depth += 1;
+        else if (opens.includes(passage[i])) depth -= 1;
+        i -= 1;
+      }
+      while (i >= 0 && '：:'.includes(passage[i])) i -= 1;
+      if (i >= 0 && (passage[i] === '曰' || passage[i] === '云')) i -= 1;
+      continue;
+    }
+    if (ch === '曰' || ch === '云') {
+      const window = passage.slice(Math.max(0, i - 6), i + 1);
+      return /诗曰|诗云|书曰|书云|《诗》|《书》/.test(window);
+    }
+    i -= 1;
+  }
+  return false;
+}
+
+function shortBodyWarning(quote, allowlist) {
+  if (!quote || bodyLength(quote.text) >= 8) return '';
+  const rows = Array.isArray(allowlist) ? allowlist : [];
+  if (rows.some((row) => row && row.id === quote.id)) return '';
+  return quote.id + ' ' + quote.text;
 }
 
 function attributionOk(wikitext, quote) {
@@ -479,4 +539,8 @@ module.exports = {
   knownMisattribution,
   attributionOk,
   locateHan,
+  edgePunctuation,
+  knownSnapshotError,
+  shiShuCitation,
+  shortBodyWarning,
 };

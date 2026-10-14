@@ -1,6 +1,6 @@
 {
-  "quote": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
-  "source": "老子·《道德经·第四十八章》",
+  "quote": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
+  "source": "老子·《道德经·第四十六章》",
   "shots": {},
   "notes": [
     "macOS PingFang wrapping is unverified. Linux Chrome for Testing with Noto Sans CJK SC."
@@ -37,9 +37,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经·第四十八章》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+      "quoteText": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
       "layout": {
         "title": [
           0,
@@ -157,9 +157,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经·第四十八章》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+      "quoteText": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
       "layout": {
         "title": [
           0,
@@ -455,9 +455,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经·第四十八章》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+      "quoteText": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
       "layout": {
         "title": [
           0,
@@ -575,9 +575,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经·第四十八章》"
+        "text": "老子·《道德经·第四十六章》"
       },
-      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+      "quoteText": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
       "layout": {
         "title": [
           0,
@@ -720,9 +720,9 @@
     }
   },
   "measuredQuote": {
-    "text": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
-    "chars": 33,
-    "source": "老子·《道德经·第四十八章》",
+    "text": "君子敬而无失，与人恭而有礼，四海之内，皆兄弟也，君子何患乎无兄弟也。",
+    "chars": 34,
+    "source": "老子·《道德经·第四十六章》",
     "sourceChars": 14
   },
   "keyboard": {
@@ -892,13 +892,13 @@
       "familyName": "Noto Sans CJK SC",
       "postScriptName": "NotoSansCJKsc-Regular",
       "isCustomFont": false,
-      "glyphCount": 33
+      "glyphCount": 34
     }
   ],
   "naturalQuote": {
     "present": true,
-    "text": "唯天下至诚，为能尽其性。",
-    "src": "《礼记·中庸》",
+    "text": "不愤不启。不悱不发。",
+    "src": "孔子·《论语·述而》",
     "font": "-apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Segoe UI\", system-ui, sans-serif"
   },
   "network": {

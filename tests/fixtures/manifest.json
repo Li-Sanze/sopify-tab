@@ -1,7 +1,7 @@
 {
   "fetched": "2026-10-14",
   "conversion": {
-    "rule": "Longest OpenCC TSPhrases match, then TSCharacters first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. 擧 maps to 举 because TSCharacters has no row. Wikisource refs, comments, and tags are removed; {{templates}} become a barrier and are not expanded; wiki links keep their visible label; converter markup keeps zh-hans. Commentary lines that start with : and colophon sections that start with a single = are not part of the classic. Match text then drops brackets and whitespace and maps ，： and sentence punctuation onto ，：。.",
+    "rule": "Longest OpenCC TSPhrases match, then TSCharacters first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. 擧 maps to 举 because TSCharacters has no row. 愼 maps to 慎.  Wikisource refs, comments, and tags are removed; {{templates}} become a barrier and are not expanded; wiki links keep their visible label; converter markup keeps zh-hans. Commentary lines that start with : and colophon sections that start with a single = are not part of the classic. Match text then drops brackets and whitespace and maps ，： and sentence punctuation onto ，：。.",
     "files": [
       {
         "file": "tests/fixtures/opencc/TSCharacters.txt",
