@@ -309,9 +309,11 @@ function todoItems(kind) {
 }
 
 const HEAVY_TODO = '下一件事'.repeat(15);
+const WORST_TODO = '下一件事'.repeat(30);
 const HEAVY_SITE = '一二三四五六七八九十甲乙';
 const HEAVY_WINDOW = '存下的窗口'.repeat(8);
 assert.strictEqual([...HEAVY_TODO].length, 60);
+assert.strictEqual([...WORST_TODO].length, 120);
 assert.strictEqual([...HEAVY_SITE].length, 12);
 assert.strictEqual([...HEAVY_WINDOW].length, 40);
 const MATRIX_SIZES = [
@@ -322,6 +324,22 @@ const MATRIX_SIZES = [
   [1512, 823],
   [1920, 1080],
 ];
+
+function worstDesk() {
+  const desk = heavyDesk();
+  desk.todos[0].text = WORST_TODO;
+  return desk;
+}
+
+function sweepHeights() {
+  const heights = [];
+  for (let h = 650; h <= 1080; h += 10) heights.push(h);
+  for (const extra of [761, 861]) {
+    if (!heights.includes(extra)) heights.push(extra);
+  }
+  heights.sort((a, b) => a - b);
+  return heights;
+}
 
 function lightDesk() {
   return {
@@ -2011,6 +2029,38 @@ async function main() {
     const longest = quoteCatalog.reduce((best, quote) => (
       [...quote.text].length > [...best.text].length ? quote : best
     ));
+    function fitExpr(quoteOn, quoteText) {
+      return `(() => {
+        const el = document.scrollingElement || document.documentElement;
+        const q = document.getElementById('daily-quote');
+        const sites = document.getElementById('h-sites');
+        if (${quoteOn ? 'true' : 'false'}) {
+          q.querySelector('.dq-text').textContent = ${JSON.stringify(quoteText)};
+          q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
+        }
+        const row = document.querySelector('.sites-row');
+        const tiles = [...row.querySelectorAll('.tile')];
+        const tops = tiles.map((tile) => tile.getBoundingClientRect().top);
+        const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
+        const last = q.hidden ? document.querySelector('.sites') : q;
+        const main = document.querySelector('.main');
+        const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
+        const title = document.getElementById('resume-title');
+        const titleLh = parseFloat(getComputedStyle(title).lineHeight) || 1;
+        return {
+          overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
+          realSlack: Math.round((window.innerHeight - (last.getBoundingClientRect().bottom + pad)) * 100) / 100,
+          hidden: !!q.hidden,
+          chars: q.querySelector('.dq-text') ? [...q.querySelector('.dq-text').textContent].length : 0,
+          after,
+          sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
+          fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
+          quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
+          titleLines: Math.round(title.getBoundingClientRect().height / titleLh),
+          titleTruncated: title.scrollHeight > title.clientHeight,
+        };
+      })()`;
+    }
     const fitRows = [];
     for (const deskName of ['light', 'heavy']) {
       for (const quoteOn of [false, true]) {
@@ -2028,40 +2078,11 @@ async function main() {
             }
             if (!shown) failures.push(`${deskName} quote ${width}×${height} hidden`);
           }
-          const measured = await evalJson(`(() => {
-            const el = document.scrollingElement || document.documentElement;
-            const q = document.getElementById('daily-quote');
-            const sites = document.getElementById('h-sites');
-            if (${quoteOn ? 'true' : 'false'}) {
-              q.querySelector('.dq-text').textContent = ${JSON.stringify(longest.text)};
-              q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
-            }
-            const row = document.querySelector('.sites-row');
-            const tiles = [...row.querySelectorAll('.tile')];
-            const tops = tiles.map((tile) => tile.getBoundingClientRect().top);
-            const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
-            const last = q.hidden ? document.querySelector('.sites') : q;
-            const main = document.querySelector('.main');
-            return {
-              overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
-              bottomGap: Math.round((window.innerHeight - last.getBoundingClientRect().bottom) * 100) / 100,
-              padBottom: main ? parseFloat(getComputedStyle(main).paddingBottom) : -1,
-              hidden: !!q.hidden,
-              chars: q.querySelector('.dq-text') ? [...q.querySelector('.dq-text').textContent].length : 0,
-              after,
-              sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
-              fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
-              quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
-            };
-          })()`);
+          const measured = await evalJson(fitExpr(quoteOn, longest.text));
           const label = `${deskName}\t${quoteOn ? 'on' : 'off'}\t${width}×${height}`;
           fitRows.push({ label, ...measured });
           if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
-          if (!(measured.bottomGap >= 16)) failures.push(`${label} bottomGap=${measured.bottomGap}`);
-          if (height <= 760) {
-            const expectedPad = quoteOn ? 24 : 32;
-            if (measured.padBottom !== expectedPad) failures.push(`${label} padBottom=${measured.padBottom} expected ${expectedPad}`);
-          }
+          if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
           if (quoteOn && (measured.hidden || measured.chars !== 34 || !measured.after || !measured.fits || measured.quoteH > 40)) {
             failures.push(`${label} quote hidden=${measured.hidden} chars=${measured.chars} after=${measured.after} fits=${measured.fits} h=${measured.quoteH}`);
           }
@@ -2074,8 +2095,62 @@ async function main() {
     }
     console.log('first screen fit matrix');
     for (const row of fitRows) {
-      console.log(`${row.label}\toverflow=${row.overflow}\tbottomGap=${row.bottomGap}\tpadBottom=${row.padBottom}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
     }
+
+    const sweepRows = [];
+    const sweepHeightsList = sweepHeights();
+    for (const width of [1280, 1440]) {
+      for (const quoteOn of [false, true]) {
+        for (const height of sweepHeightsList) {
+          const seed = worstDesk();
+          seed.dailyQuote = quoteOn;
+          await loadSeed(width, height, seed);
+          if (quoteOn) {
+            const ready = Date.now();
+            let shown = false;
+            while (Date.now() - ready < 3000) {
+              shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+              if (shown) break;
+              await sleep(30);
+            }
+            if (!shown) failures.push(`worst quote ${width}×${height} hidden`);
+          }
+          const measured = await evalJson(fitExpr(quoteOn, longest.text));
+          const label = `worst\t${quoteOn ? 'on' : 'off'}\t${width}×${height}`;
+          sweepRows.push({ label, width, height, quoteOn, ...measured });
+          if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
+          if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+          if (height <= 760 && measured.titleLines > 3) failures.push(`${label} titleLines=${measured.titleLines}`);
+          if (height <= 760 && !measured.titleTruncated) failures.push(`${label} long title is not truncated`);
+          if (height === 761 && measured.titleLines < 4) failures.push(`${label} titleLines=${measured.titleLines} above 760`);
+        }
+      }
+    }
+    console.log('worst desk height sweep');
+    for (const row of sweepRows) {
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}`);
+    }
+    for (const width of [1280, 1440]) {
+      for (const quoteOn of [false, true]) {
+        const rows = sweepRows.filter((row) => row.width === width && row.quoteOn === quoteOn);
+        const tight = rows.reduce((best, row) => (row.realSlack < best.realSlack ? row : best));
+        const at760 = rows.find((row) => row.height === 760);
+        const at761 = rows.find((row) => row.height === 761);
+        console.log(`sweep min ${width} ${quoteOn ? 'on' : 'off'} slack=${tight.realSlack} at ${tight.height} 760=${at760.realSlack} 761=${at761.realSlack}`);
+      }
+    }
+    await loadSeed(1280, 650, Object.assign(worstDesk(), { dailyQuote: true }));
+    await evalJson(`(() => {
+      const cap = document.createElement('div');
+      cap.id = 'shot-caption';
+      cap.style.cssText = 'position:fixed;z-index:10000;top:8px;right:8px;margin:0;padding:4px 8px;background:#fff;color:#182234;font:13px/1.4 sans-serif;border:1px solid #182234;';
+      cap.textContent = 'size l at 650px, 3 lines';
+      document.body.appendChild(cap);
+      return true;
+    })()`);
+    await shoot('title-clamp-3.png');
+    await evalJson(`document.getElementById('shot-caption').remove()`);
 
     const overLong = `${'把首屏长标题排满'.repeat(30)}末尾必须是省略号`;
     await loadSeed(1366, 650, {
