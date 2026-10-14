@@ -76,4 +76,56 @@ assert.ok(!catalog.some((quote) => quote.text.includes('藏文仲') || quote.tex
 assert.ok(catalog.some((quote) => quote.speaker === '有子' && quote.book === '论语'));
 assert.ok(!catalog.some((quote) => quote.speaker === '子对' || quote.chapter === '本篇'));
 
+assert.strictEqual(guard.t2s('寳駆諠飮擧'), '宝驱喧饮举');
+assert.strictEqual(guard.t2s('乾'), '乾');
+assert.deepStrictEqual(guard.residueChars('楚国无以为寳'), ['寳']);
+assert.deepStrictEqual(guard.residueChars('乾道变化'), []);
+const drink = guard.plainForMatch('子曰：「饭疏食，飮水，曲肱而枕之。」');
+assert.ok(drink.includes('饮水'));
+assert.ok(!drink.includes('飮'));
+assert.strictEqual(guard.findExcerpt(drink, '饮水，曲肱而枕之。').text, '饮水，曲肱而枕之。');
+assert.strictEqual(guard.findExcerpt('君子无所争，必也射乎。', '君子无所争。'), null);
+
+const zhong = fs.readFileSync(path.join(classics, 'zhongyong.wikitext'), 'utf8');
+const red = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'attribution-red-cases.json'), 'utf8'));
+assert.strictEqual(red.cases.length, 18);
+for (const row of red.cases) {
+  assert.strictEqual(guard.attributionOk(zhong, {
+    text: row.text,
+    speaker: row.wrongSpeaker,
+    book: row.book,
+    chapter: row.chapter,
+  }), false, row.id);
+}
+const forced = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'forced-no-speaker.json'), 'utf8'));
+assert.strictEqual(forced.length, 3);
+for (const row of forced) {
+  const quote = catalog.find((item) => item.id === row.id);
+  assert.ok(quote, row.id);
+  assert.strictEqual(quote.speaker, undefined);
+  assert.strictEqual(quote.text, row.text);
+}
+const outside = { text: '天命之谓性，率性之谓道，修道之谓教。', speaker: '孔子', book: '礼记', chapter: '中庸' };
+assert.strictEqual(guard.attributionOk(zhong, outside), false);
+assert.strictEqual(guard.attributionOk(zhong, { text: outside.text, book: '礼记', chapter: '中庸' }), true);
+
+const yang = fs.readFileSync(path.join(classics, 'lunyu-阳货.wikitext'), 'utf8');
+const gong = '恭则不侮，宽则得众，信则人任焉，敏则有功，惠则足以使人。';
+assert.strictEqual(guard.attributionOk(yang, { text: gong, speaker: '孔子', book: '论语', chapter: '阳货' }), true);
+assert.strictEqual(guard.attributionOk(xueer, { text: '学而时习之，不亦说乎。', speaker: '孔子', book: '论语', chapter: '学而' }), true);
+assert.strictEqual(guard.attributionOk(xueer, { text: '学而时习之，不亦说乎。', speaker: '孟子', book: '论语', chapter: '学而' }), false);
+
+const ddj = fs.readFileSync(path.join(classics, 'ddj-第一章.wikitext'), 'utf8');
+assert.strictEqual(guard.attributionOk(ddj, { text: '道可道，非常道。', speaker: '老子', book: '道德经', chapter: '第一章' }), true);
+assert.strictEqual(guard.attributionOk(ddj, { text: '道可道，非常道。', speaker: '孔子', book: '道德经', chapter: '第一章' }), false);
+
+const ch17 = guard.plainForMatch(fs.readFileSync(path.join(classics, 'ddj-第十七章.wikitext'), 'utf8'));
+const natural = guard.findExcerpt(ch17, '功成事遂，百姓皆谓我自然。');
+assert.strictEqual(natural.text, '功成事遂，百姓皆谓：我自然。');
+const ch67 = guard.plainForMatch(fs.readFileSync(path.join(classics, 'ddj-第六十七章.wikitext'), 'utf8'));
+const jewels = guard.findExcerpt(ch67, '我有三宝，持而保之：一曰慈，二曰俭，三曰不敢为天下先。');
+assert.ok(jewels);
+assert.ok(jewels.text.includes('持而保之。'));
+assert.ok(!jewels.text.includes('曰：「'));
+
 console.log('quote guard ok');

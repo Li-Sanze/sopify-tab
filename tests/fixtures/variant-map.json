@@ -1,0 +1,10 @@
+{
+  "note": "Characters missing from OpenCC TSCharacters, or left unchanged by it, that this edition uses as traditional or variant forms. Applied to quote text and to snapshots after TSPhrases and TSCharacters. 乾 is not in this table; it stays 乾.",
+  "map": {
+    "擧": "举",
+    "寳": "宝",
+    "駆": "驱",
+    "諠": "喧",
+    "飮": "饮"
+  }
+}

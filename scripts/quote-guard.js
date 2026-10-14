@@ -11,10 +11,13 @@ const CLASSICAL_OVERRIDE = {
   乾: '乾',
 };
 
-// OpenCC TSCharacters has no row for 擧. It is the variant of 舉 used in this Wikisource edition.
-const EXTRA_VARIANT = {
-  擧: '举',
-};
+const VARIANT_FILE = path.join(FIXTURES, 'variant-map.json');
+const VARIANT_MAP = JSON.parse(fs.readFileSync(VARIANT_FILE, 'utf8')).map;
+const RED_CASES = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-red-cases.json'), 'utf8')).cases;
+const ATTRIBUTION_ALLOW = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-allow.json'), 'utf8'));
+
+const NORMALIZATION = 'quote-guard.plainForMatch';
+const NORMALIZATION_NOTE = 'Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.';
 
 const BLOCKLIST = ['杀', '死', '兵', '鬼', '丧'];
 
@@ -57,8 +60,8 @@ function t2s(input) {
       out += CLASSICAL_OVERRIDE[ch];
       continue;
     }
-    if (Object.prototype.hasOwnProperty.call(EXTRA_VARIANT, ch)) {
-      out += EXTRA_VARIANT[ch];
+    if (Object.prototype.hasOwnProperty.call(VARIANT_MAP, ch)) {
+      out += VARIANT_MAP[ch];
       continue;
     }
     out += charMap.get(ch) || ch;
@@ -303,10 +306,157 @@ function blocklistHits(text) {
   return BLOCKLIST.filter((ch) => text.includes(ch));
 }
 
+function residueChars(text) {
+  const found = [];
+  for (const ch of String(text)) {
+    if (t2s(ch) !== ch && !found.includes(ch)) found.push(ch);
+  }
+  return found;
+}
+
+function hanChars(text) {
+  const chars = [];
+  for (const ch of String(text)) {
+    if (/\p{Script=Han}/u.test(ch)) chars.push(ch);
+  }
+  return chars;
+}
+
+function hanIndex(text) {
+  const chars = [];
+  const at = [];
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (/\p{Script=Han}/u.test(ch)) {
+      chars.push(ch);
+      at.push(i);
+    }
+  }
+  return { chars, at };
+}
+
+function locateHan(hay, needle) {
+  const want = hanChars(t2s(needle));
+  if (!want.length) return -1;
+  const { chars, at } = hanIndex(hay);
+  for (let i = 0; i <= chars.length - want.length; i += 1) {
+    let ok = true;
+    for (let j = 0; j < want.length; j += 1) {
+      if (chars[i + j] !== want[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return at[i];
+  }
+  return -1;
+}
+
+function findExcerpt(plain, hint) {
+  const norm = normalizeMatch(hint);
+  const size = bodyLength(norm);
+  if (norm && plain.includes(norm) && size >= 4 && size <= 36 && !norm.includes('\u0001')) {
+    const start = plain.indexOf(norm);
+    return { text: norm, start, end: start + norm.length };
+  }
+  const want = hanChars(norm);
+  if (want.length < 4) return null;
+  const { chars, at } = hanIndex(plain);
+  for (let i = 0; i <= chars.length - want.length; i += 1) {
+    let ok = true;
+    for (let j = 0; j < want.length; j += 1) {
+      if (chars[i + j] !== want[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    const start = at[i];
+    const last = at[i + want.length - 1];
+    let end = last + 1;
+    while (end < plain.length && !/\p{Script=Han}/u.test(plain[end]) && plain[end] !== '。') end += 1;
+    if (plain[end] !== '。') continue;
+    end += 1;
+    const text = plain.slice(start, end);
+    if (hanChars(text).length !== want.length) continue;
+    if (text.includes('\u0001')) continue;
+    const n = bodyLength(text);
+    if (n < 4 || n > 36) continue;
+    return { text, start, end };
+  }
+  return null;
+}
+
+function attributionPassage(wikitext) {
+  const source = String(wikitext);
+  const ddj = source.includes('==一章==') || /^==[零一二三四五六七八九十百]+章==/.test(source.trim());
+  if (ddj) {
+    const chapters = chapterBodies(source);
+    if (chapters.length) return t2s(chapters.map((chapter) => chapter.text).join(''));
+  }
+  return t2s(prepareWikitext(source));
+}
+
+function speechSpans(passage) {
+  const spans = [];
+  const re = /([\u4e00-\u9fff]{0,12})曰：「/g;
+  let match;
+  let carried = '';
+  while ((match = re.exec(passage))) {
+    const name = match[1];
+    const start = match.index + match[0].length;
+    const close = passage.indexOf('」', start);
+    if (close < 0) continue;
+    let speaker = '';
+    if (!name) speaker = carried;
+    else {
+      speaker = speakerFromPrefix(name);
+      carried = speaker;
+    }
+    spans.push({ start, end: close, speaker });
+  }
+  return spans;
+}
+
+function governingSpeakerAt(passage, index) {
+  let best = null;
+  for (const span of speechSpans(passage)) {
+    if (index < span.start || index >= span.end) continue;
+    if (!best || span.start >= best.start) best = span;
+  }
+  return best ? best.speaker : '';
+}
+
+function knownMisattribution(quote) {
+  const speaker = quote && quote.speaker ? quote.speaker : '';
+  return RED_CASES.some((row) => row.text === quote.text && row.wrongSpeaker === speaker);
+}
+
+function allowHit(quote) {
+  const speaker = quote && quote.speaker ? quote.speaker : '';
+  return ATTRIBUTION_ALLOW.find((row) => row.book === quote.book && row.speaker === speaker) || null;
+}
+
+function attributionOk(wikitext, quote) {
+  if (!quote || knownMisattribution(quote)) return false;
+  const speaker = quote.speaker || '';
+  if (!speaker) return true;
+  const passage = attributionPassage(wikitext);
+  const at = locateHan(passage, quote.text);
+  if (at < 0) return false;
+  const governing = governingSpeakerAt(passage, at);
+  if (governing === speaker) return true;
+  if (!governing && allowHit(quote)) return true;
+  return false;
+}
+
 module.exports = {
   BLOCKLIST,
   CLASSICAL_OVERRIDE,
-  EXTRA_VARIANT,
+  EXTRA_VARIANT: VARIANT_MAP,
+  VARIANT_FILE,
+  NORMALIZATION,
+  NORMALIZATION_NOTE,
   FIXTURES,
   OPENCC_DIR,
   t2s,
@@ -322,4 +472,11 @@ module.exports = {
   prepareWikitext,
   nearDuplicate,
   blocklistHits,
+  residueChars,
+  findExcerpt,
+  attributionPassage,
+  governingSpeakerAt,
+  knownMisattribution,
+  attributionOk,
+  locateHan,
 };

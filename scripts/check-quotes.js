@@ -10,6 +10,8 @@ const root = path.join(__dirname, '..');
 const quotes = JSON.parse(fs.readFileSync(path.join(root, 'extension', 'quotes.json'), 'utf8'));
 const manifest = JSON.parse(fs.readFileSync(path.join(guard.FIXTURES, 'manifest.json'), 'utf8'));
 const allowlist = JSON.parse(fs.readFileSync(path.join(guard.FIXTURES, 'quote-blocklist-allow.json'), 'utf8'));
+const forced = JSON.parse(fs.readFileSync(path.join(guard.FIXTURES, 'forced-no-speaker.json'), 'utf8'));
+const comparison = JSON.parse(fs.readFileSync(path.join(guard.FIXTURES, 'quote-comparison.json'), 'utf8'));
 const errors = [];
 
 function fail(message) {
@@ -74,8 +76,8 @@ function loaded(snap) {
   if (cache.has(snap.file)) return cache.get(snap.file);
   const wikitext = fs.readFileSync(path.join(classics, snap.file), 'utf8');
   const row = {
+    wikitext,
     plain: guard.plainForMatch(wikitext),
-    emitted: guard.quotesFromSnapshot(snap, wikitext),
   };
   cache.set(snap.file, row);
   return row;
@@ -95,12 +97,43 @@ quotes.forEach((quote, index) => {
   if (!row.plain.includes(guard.normalizeMatch(quote.text))) {
     fail(where + ' not contiguous in ' + snap.file + ' ' + quote.text);
   }
-  const hit = row.emitted.find((item) => item.text === quote.text
-    && item.book === quote.book
-    && item.chapter === quote.chapter
-    && (item.speaker || '') === (quote.speaker || ''));
-  if (!hit) fail(where + ' extractor mismatch ' + line + ' ' + quote.text);
+  const residue = guard.residueChars(quote.text + line);
+  if (residue.length) fail(where + ' traditional residue ' + residue.join(''));
+  if (!guard.attributionOk(row.wikitext, quote)) {
+    fail(where + ' attribution ' + line + ' ' + quote.text);
+  }
 });
+
+for (const row of forced) {
+  const quote = quotes.find((item) => item.id === row.id);
+  if (!quote) fail('forced no-speaker id missing ' + row.id);
+  else if (quote.speaker) fail('forced no-speaker id has a speaker ' + row.id);
+  else if (quote.text !== row.text) fail('forced no-speaker text changed ' + row.id);
+}
+
+if (comparison.normalization !== guard.NORMALIZATION) fail('comparison normalization name');
+if (!String(comparison.normalizationNote || '').includes('variant-map.json')) fail('comparison note omits the variant map');
+for (const row of comparison.rows || []) {
+  const where = 'comparison ' + (row.originalId || row.id || '?');
+  if (row.action === '删除') {
+    if (row.newText || row.start != null || row.end != null) fail(where + ' delete row should have empty text and null offsets');
+    continue;
+  }
+  if (!row.snapshotFile || typeof row.start !== 'number' || typeof row.end !== 'number') {
+    fail(where + ' missing slice');
+    continue;
+  }
+  const snap = (manifest.snapshots || []).find((item) => item.file === row.snapshotFile);
+  if (!snap) {
+    fail(where + ' unknown snapshot ' + row.snapshotFile);
+    continue;
+  }
+  const plain = loaded(snap).plain;
+  if (plain.slice(row.start, row.end) !== row.newText) fail(where + ' offset slice mismatch');
+  const quote = quotes.find((item) => item.id === (row.id || row.originalId));
+  if (!quote || quote.text !== row.newText) fail(where + ' catalog text mismatch');
+  if (guard.sourceLine(quote) !== row.source) fail(where + ' source mismatch');
+}
 
 let nearCount = 0;
 for (let i = 0; i < quotes.length; i += 1) {

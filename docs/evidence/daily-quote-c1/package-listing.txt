@@ -4,12 +4,12 @@ Archive:  /tmp/sopify-tab-c1.zip
     18449  2026-10-12 13:14   note-sync.js
     20368  2026-10-12 13:14   theme.css
       994  2026-10-12 13:14   manifest.json
-    65858  2026-10-14 00:26   quotes.json
+    61870  2026-10-14 01:07   quotes.json
     65408  2026-10-14 00:13   newtab.css
    125337  2026-10-12 13:14   newtab.js
     10745  2026-10-12 13:14   collection-sync.js
      1293  2026-10-12 13:14   background.js
-    88734  2026-10-14 00:28   daily-quote.js
+    84750  2026-10-14 01:07   daily-quote.js
      4433  2026-10-12 13:14   form-ops.js
         0  2026-10-12 13:14   desk-3d/
     22448  2026-10-12 13:14   desk-3d/scene.js
@@ -35,4 +35,4 @@ Archive:  /tmp/sopify-tab-c1.zip
       719  2026-10-12 13:14   icons/icon32.png
     20735  2026-10-13 15:50   newtab.html
 ---------                     -------
-  1831495                     33 files
+  1823523                     33 files

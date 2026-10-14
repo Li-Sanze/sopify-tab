@@ -1,6 +1,6 @@
 {
-  "quote": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
-  "source": "老子·《道德经·第四十六章》",
+  "quote": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+  "source": "老子·《道德经·第四十八章》",
   "shots": {},
   "notes": [
     "macOS PingFang wrapping is unverified. Linux Chrome for Testing with Noto Sans CJK SC."
@@ -37,9 +37,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经·第四十六章》"
+        "text": "老子·《道德经·第四十八章》"
       },
-      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
       "layout": {
         "title": [
           0,
@@ -157,9 +157,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经·第四十六章》"
+        "text": "老子·《道德经·第四十八章》"
       },
-      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
       "layout": {
         "title": [
           0,
@@ -455,9 +455,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(95, 100, 112)",
-        "text": "老子·《道德经·第四十六章》"
+        "text": "老子·《道德经·第四十八章》"
       },
-      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
       "layout": {
         "title": [
           0,
@@ -575,9 +575,9 @@
       "srcStyle": {
         "fontSize": "13px",
         "color": "rgb(156, 161, 174)",
-        "text": "老子·《道德经·第四十六章》"
+        "text": "老子·《道德经·第四十八章》"
       },
-      "quoteText": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
+      "quoteText": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
       "layout": {
         "title": [
           0,
@@ -720,9 +720,9 @@
     }
   },
   "measuredQuote": {
-    "text": "未有上好仁而下不好义者也，未有好义其事不终者也，未有府库财非其财者也。",
-    "chars": 35,
-    "source": "老子·《道德经·第四十六章》",
+    "text": "舜好问而好察迩言，隐恶而扬善，执其两端，用其中于民，其斯以为舜乎。",
+    "chars": 33,
+    "source": "老子·《道德经·第四十八章》",
     "sourceChars": 14
   },
   "keyboard": {
@@ -892,12 +892,12 @@
       "familyName": "Noto Sans CJK SC",
       "postScriptName": "NotoSansCJKsc-Regular",
       "isCustomFont": false,
-      "glyphCount": 35
+      "glyphCount": 33
     }
   ],
   "naturalQuote": {
     "present": true,
-    "text": "故君子不动而敬，不言而信。",
+    "text": "唯天下至诚，为能尽其性。",
     "src": "《礼记·中庸》",
     "font": "-apple-system, BlinkMacSystemFont, \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", \"Segoe UI\", system-ui, sans-serif"
   },

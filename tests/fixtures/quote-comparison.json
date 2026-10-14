@@ -1,0 +1,3156 @@
+{
+  "normalization": "quote-guard.plainForMatch",
+  "normalizationNote": "Offsets are UTF-16 code units into quote-guard.plainForMatch, end exclusive. The snapshot is prepareWikitext, or chapterBodies for 道德经 (colon commentary and the colophon dropped). Then OpenCC TSPhrases, longest first, and TSCharacters, first simplified form, then tests/fixtures/variant-map.json. 乾 stays 乾. Whitespace and 「」『』 drop. ， and , become ，. ： and : become ：. ！？；。 and their ASCII forms become 。. A 删除 row has empty newText and null offsets and is not a slice.",
+  "rows": [
+    {
+      "originalId": "dq-5274ece3",
+      "action": "替换",
+      "newText": "甘其食，美其服，安其居，乐其俗。",
+      "source": "老子·《道德经·第八十章》",
+      "snapshotFile": "ddj-第八十章.wikitext",
+      "start": 53,
+      "end": 69,
+      "id": "dq-5274ece3"
+    },
+    {
+      "originalId": "dq-c40ccc80",
+      "action": "替换",
+      "newText": "上善若水。",
+      "source": "老子·《道德经·第八章》",
+      "snapshotFile": "ddj-第八章.wikitext",
+      "start": 0,
+      "end": 5,
+      "id": "dq-c40ccc80"
+    },
+    {
+      "originalId": "dq-9e8c47de",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第二十三章》",
+      "snapshotFile": "ddj-第二十三章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1e5e968c",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第二十三章》",
+      "snapshotFile": "ddj-第二十三章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-28d2f468",
+      "action": "替换",
+      "newText": "希言自然。",
+      "source": "老子·《道德经·第二十三章》",
+      "snapshotFile": "ddj-第二十三章.wikitext",
+      "start": 0,
+      "end": 5,
+      "id": "dq-28d2f468"
+    },
+    {
+      "originalId": "dq-96d4a9da",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第二十四章》",
+      "snapshotFile": "ddj-第二十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-53f926b3",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第二十章》",
+      "snapshotFile": "ddj-第二十章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-9db7553a",
+      "action": "替换",
+      "newText": "我有三宝，持而保之。一曰慈，二曰俭，三曰不敢为天下先。",
+      "source": "老子·《道德经·第六十七章》",
+      "snapshotFile": "ddj-第六十七章.wikitext",
+      "start": 31,
+      "end": 58,
+      "id": "dq-9db7553a"
+    },
+    {
+      "originalId": "dq-2023e226",
+      "action": "替换",
+      "newText": "合抱之木，生于毫末。九层之台，起于累土。千里之行，始于足下。",
+      "source": "老子·《道德经·第六十四章》",
+      "snapshotFile": "ddj-第六十四章.wikitext",
+      "start": 33,
+      "end": 63,
+      "id": "dq-2023e226"
+    },
+    {
+      "originalId": "dq-abf1be56",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第六十七章》",
+      "snapshotFile": "ddj-第六十七章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-5e491152",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第六十四章》",
+      "snapshotFile": "ddj-第六十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8b79bc46",
+      "action": "替换",
+      "newText": "治大国，若烹小鲜。",
+      "source": "老子·《道德经·第六十章》",
+      "snapshotFile": "ddj-第六十章.wikitext",
+      "start": 0,
+      "end": 9,
+      "id": "dq-8b79bc46"
+    },
+    {
+      "originalId": "dq-8eb6c6b2",
+      "action": "替换",
+      "newText": "天之道，其犹张弓与。",
+      "source": "老子·《道德经·第七十七章》",
+      "snapshotFile": "ddj-第七十七章.wikitext",
+      "start": 0,
+      "end": 10,
+      "id": "dq-8eb6c6b2"
+    },
+    {
+      "originalId": "dq-ca71ff1a",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第六十章》",
+      "snapshotFile": "ddj-第六十章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-106af8b6",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第七十七章》",
+      "snapshotFile": "ddj-第七十七章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-c03eecb3",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第三十八章》",
+      "snapshotFile": "ddj-第三十八章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-14c28b76",
+      "action": "替换",
+      "newText": "功成事遂，百姓皆谓：我自然。",
+      "source": "老子·《道德经·第十七章》",
+      "snapshotFile": "ddj-第十七章.wikitext",
+      "start": 44,
+      "end": 58,
+      "id": "dq-14c28b76"
+    },
+    {
+      "originalId": "dq-fce8615b",
+      "action": "替换",
+      "newText": "孰能浊以静之徐清。",
+      "source": "老子·《道德经·第十五章》",
+      "snapshotFile": "ddj-第十五章.wikitext",
+      "start": 75,
+      "end": 84,
+      "id": "dq-fce8615b"
+    },
+    {
+      "originalId": "dq-fd8ae794",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第三十章》",
+      "snapshotFile": "ddj-第三十章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-a0e588c1",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第三十章》",
+      "snapshotFile": "ddj-第三十章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-0d9a1eb5",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第十七章》",
+      "snapshotFile": "ddj-第十七章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-9b719b0b",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第十五章》",
+      "snapshotFile": "ddj-第十五章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-35807538",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第四十六章》",
+      "snapshotFile": "ddj-第四十六章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1de2133d",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十八章》",
+      "snapshotFile": "ddj-第五十八章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-c336f60d",
+      "action": "替换",
+      "newText": "见小曰明，守柔曰强。",
+      "source": "老子·《道德经·第五十二章》",
+      "snapshotFile": "ddj-第五十二章.wikitext",
+      "start": 62,
+      "end": 72,
+      "id": "dq-c336f60d"
+    },
+    {
+      "originalId": "dq-397e8420",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十六章》",
+      "snapshotFile": "ddj-第五十六章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d3bd781a",
+      "action": "替换",
+      "newText": "胜人者有力，自胜者强。",
+      "source": "老子·《道德经·第三十三章》",
+      "snapshotFile": "ddj-第三十三章.wikitext",
+      "start": 10,
+      "end": 21,
+      "id": "dq-d3bd781a"
+    },
+    {
+      "originalId": "dq-3ef55f7d",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-91a9dc55",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-80cf3348",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6ce38b72",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-327a2b55",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十五章》",
+      "snapshotFile": "ddj-第五十五章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-26b71fd7",
+      "action": "删除",
+      "newText": "",
+      "source": "老子·《道德经·第五十五章》",
+      "snapshotFile": "ddj-第五十五章.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-371f5969",
+      "action": "替换",
+      "newText": "苟日新，日日新，又日新。",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": 590,
+      "end": 602,
+      "id": "dq-371f5969"
+    },
+    {
+      "originalId": "dq-facd9d28",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-febcf455",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-dc4fadd9",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e5d6e111",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-67833a04",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-9171481f",
+      "action": "修字",
+      "newText": "有斐君子，终不可喧兮者，道盛德至善，民之不能忘也。",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": 487,
+      "end": 512,
+      "id": "dq-9171481f"
+    },
+    {
+      "originalId": "dq-7bab6cdd",
+      "action": "改署名",
+      "newText": "博厚配地，高明配天，悠久无疆。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3018,
+      "end": 3033,
+      "id": "dq-7bab6cdd"
+    },
+    {
+      "originalId": "dq-e9832f7c",
+      "action": "改署名",
+      "newText": "不息则久，久则征，征则悠远，悠远则博厚，博厚则高明。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2965,
+      "end": 2991,
+      "id": "dq-e9832f7c"
+    },
+    {
+      "originalId": "dq-658a5dc3",
+      "action": "改署名",
+      "newText": "诚者，物之终始，不诚无物。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2890,
+      "end": 2903,
+      "id": "dq-658a5dc3"
+    },
+    {
+      "originalId": "dq-6bd8777f",
+      "action": "改署名",
+      "newText": "诚者非自成己而已也，所以成物也。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2912,
+      "end": 2928,
+      "id": "dq-6bd8777f"
+    },
+    {
+      "originalId": "dq-c70e79df",
+      "action": "替换",
+      "newText": "凡事豫则立，不豫则废。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2380,
+      "end": 2391,
+      "id": "dq-c70e79df"
+    },
+    {
+      "originalId": "dq-7865a20b",
+      "action": "改署名",
+      "newText": "非天子不议礼，不制度，不考文。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3455,
+      "end": 3470,
+      "id": "dq-7865a20b"
+    },
+    {
+      "originalId": "dq-a366f54b",
+      "action": "替换",
+      "newText": "君子素其位而行，不愿乎其外。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 913,
+      "end": 927,
+      "id": "dq-a366f54b"
+    },
+    {
+      "originalId": "dq-a81a4099",
+      "action": "替换",
+      "newText": "莫见乎隐，莫显乎微，故君子慎其独也。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 56,
+      "end": 74,
+      "id": "dq-a81a4099"
+    },
+    {
+      "originalId": "dq-7724b601",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-47692d9e",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d55e73d9",
+      "action": "改署名",
+      "newText": "君子之道，造端乎夫妇，及其至也，察乎天地。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 701,
+      "end": 722,
+      "id": "dq-d55e73d9"
+    },
+    {
+      "originalId": "dq-7c4a6267",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-cb53f2ac",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d10f2e0e",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-22adc327",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-dd28f4ff",
+      "action": "改署名",
+      "newText": "曲能有诚，诚则形，形则著，著则明，明则动，动则变，变则化。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2773,
+      "end": 2802,
+      "id": "dq-dd28f4ff"
+    },
+    {
+      "originalId": "dq-9df1ff38",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-49190193",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-27aa2107",
+      "action": "改署名",
+      "newText": "是故君子动而世为天下道，行而世为天下法，言而世为天下则。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3684,
+      "end": 3712,
+      "id": "dq-27aa2107"
+    },
+    {
+      "originalId": "dq-f0db036a",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-2f75e9ef",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e2c0eaea",
+      "action": "改署名",
+      "newText": "虽有其德，苟无其位，亦不敢作礼乐焉。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3502,
+      "end": 3520,
+      "id": "dq-e2c0eaea"
+    },
+    {
+      "originalId": "dq-8fd92bcc",
+      "action": "改署名",
+      "newText": "虽有其位，苟无其德，不敢作礼乐焉。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3485,
+      "end": 3502,
+      "id": "dq-8fd92bcc"
+    },
+    {
+      "originalId": "dq-9e36ac90",
+      "action": "改署名",
+      "newText": "天地之道，可壹言而尽也。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3052,
+      "end": 3064,
+      "id": "dq-9e36ac90"
+    },
+    {
+      "originalId": "dq-bd020ab9",
+      "action": "改署名",
+      "newText": "天地之道：博也，厚也，高也，明也，悠也，久也。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3077,
+      "end": 3100,
+      "id": "dq-bd020ab9"
+    },
+    {
+      "originalId": "dq-409e53f5",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7ca86d22",
+      "action": "改署名",
+      "newText": "唯天下至诚，为能尽其性。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2697,
+      "end": 2709,
+      "id": "dq-7ca86d22"
+    },
+    {
+      "originalId": "dq-b464ec09",
+      "action": "删除",
+      "newText": "",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-f5e254b8",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-890124fb",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-0c464b61",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-843b2e93",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-639b9fc0",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6333414b",
+      "action": "改署名",
+      "newText": "性之德也，合外内之道也。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2940,
+      "end": 2952,
+      "id": "dq-6333414b"
+    },
+    {
+      "originalId": "dq-2b7825d1",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8db12690",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-cde46a9e",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-fcfb0bf8",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-3c257dc0",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-71758908",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e67e0935",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-01a0747b",
+      "action": "替换",
+      "newText": "绘事后素。",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": 246,
+      "end": 251,
+      "id": "dq-01a0747b"
+    },
+    {
+      "originalId": "dq-695455dc",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-dcac46da",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6da96af3",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-ffc2fe10",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7f15c31f",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-5a1fda11",
+      "action": "替换",
+      "newText": "听其言而观其行。",
+      "source": "孔子·《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": 456,
+      "end": 464,
+      "id": "dq-5a1fda11"
+    },
+    {
+      "originalId": "dq-f3db9fe7",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-34dc66e0",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-854ebe34",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-17c7e97d",
+      "action": "替换",
+      "newText": "见善如不及，见不善如探汤。",
+      "source": "孔子·《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": 833,
+      "end": 846,
+      "id": "dq-17c7e97d"
+    },
+    {
+      "originalId": "dq-7376e3a7",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-315ee2c9",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-2851d421",
+      "action": "修字",
+      "newText": "饭疏食，饮水，曲肱而枕之，乐亦在其中矣。",
+      "source": "孔子·《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 451,
+      "end": 471,
+      "id": "dq-2851d421"
+    },
+    {
+      "originalId": "dq-a26e4e02",
+      "action": "替换",
+      "newText": "三人行，必有我师焉。",
+      "source": "孔子·《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 628,
+      "end": 638,
+      "id": "dq-a26e4e02"
+    },
+    {
+      "originalId": "dq-fcd788d5",
+      "action": "替换",
+      "newText": "君子坦荡荡，小人长戚戚。",
+      "source": "孔子·《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 1207,
+      "end": 1219,
+      "id": "dq-fcd788d5"
+    },
+    {
+      "originalId": "dq-45c7e3cd",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·泰伯》",
+      "snapshotFile": "lunyu-泰伯.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-29605130",
+      "action": "替换",
+      "newText": "往者不可谏，来者犹可追。",
+      "source": "《论语·微子》",
+      "snapshotFile": "lunyu-微子.wikitext",
+      "start": 182,
+      "end": 194,
+      "id": "dq-29605130"
+    },
+    {
+      "originalId": "dq-598f5545",
+      "action": "替换",
+      "newText": "己所不欲，勿施于人。",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": 784,
+      "end": 794,
+      "id": "dq-598f5545"
+    },
+    {
+      "originalId": "dq-85bc1c6e",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·微子》",
+      "snapshotFile": "lunyu-微子.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-4252aa89",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·微子》",
+      "snapshotFile": "lunyu-微子.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1daeaafe",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·微子》",
+      "snapshotFile": "lunyu-微子.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-bc946454",
+      "action": "替换",
+      "newText": "工欲善其事，必先利其器。",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": 384,
+      "end": 396,
+      "id": "dq-bc946454"
+    },
+    {
+      "originalId": "dq-88fc9798",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e63c5b07",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-92583e85",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d5232789",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-83bf6713",
+      "action": "替换",
+      "newText": "温故而知新，可以为师矣。",
+      "source": "孔子·《论语·为政》",
+      "snapshotFile": "lunyu-为政.wikitext",
+      "start": 373,
+      "end": 385,
+      "id": "dq-83bf6713"
+    },
+    {
+      "originalId": "dq-24276832",
+      "action": "替换",
+      "newText": "知之为知之，不知为不知，是知也。",
+      "source": "孔子·《论语·为政》",
+      "snapshotFile": "lunyu-为政.wikitext",
+      "start": 494,
+      "end": 510,
+      "id": "dq-24276832"
+    },
+    {
+      "originalId": "dq-95447b67",
+      "action": "替换",
+      "newText": "过犹不及。",
+      "source": "孔子·《论语·先进》",
+      "snapshotFile": "lunyu-先进.wikitext",
+      "start": 606,
+      "end": 611,
+      "id": "dq-95447b67"
+    },
+    {
+      "originalId": "dq-8814bd60",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·先进》",
+      "snapshotFile": "lunyu-先进.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1b8c103d",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8c0c7aac",
+      "action": "替换",
+      "newText": "君子成人之美，不成人之恶。",
+      "source": "孔子·《论语·颜渊》",
+      "snapshotFile": "lunyu-颜渊.wikitext",
+      "start": 828,
+      "end": 841,
+      "id": "dq-8c0c7aac"
+    },
+    {
+      "originalId": "dq-ca696784",
+      "action": "改署名",
+      "newText": "恭则不侮，宽则得众，信则人任焉，敏则有功，惠则足以使人。",
+      "source": "孔子·《论语·阳货》",
+      "snapshotFile": "lunyu-阳货.wikitext",
+      "start": 334,
+      "end": 362,
+      "id": "dq-ca696784"
+    },
+    {
+      "originalId": "dq-3730f8be",
+      "action": "替换",
+      "newText": "性相近也，习相远也。",
+      "source": "孔子·《论语·阳货》",
+      "snapshotFile": "lunyu-阳货.wikitext",
+      "start": 115,
+      "end": 125,
+      "id": "dq-3730f8be"
+    },
+    {
+      "originalId": "dq-04279a2a",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·阳货》",
+      "snapshotFile": "lunyu-阳货.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-0aa31411",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·尧曰》",
+      "snapshotFile": "lunyu-尧曰.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-dcb196a8",
+      "action": "改署名",
+      "newText": "仁者先难而后获，可谓仁矣。",
+      "source": "孔子·《论语·雍也》",
+      "snapshotFile": "lunyu-雍也.wikitext",
+      "start": 822,
+      "end": 835,
+      "id": "dq-dcb196a8"
+    },
+    {
+      "originalId": "dq-4db6223a",
+      "action": "删除",
+      "newText": "",
+      "source": "孔子·《论语·子罕》",
+      "snapshotFile": "lunyu-子罕.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-b518b6e4",
+      "action": "替换",
+      "newText": "欲速，则不达。见小利，则大事不成。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 857,
+      "end": 874,
+      "id": "dq-b518b6e4"
+    },
+    {
+      "originalId": "dq-44124d7a",
+      "action": "替换",
+      "newText": "其身正，不令而行。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 381,
+      "end": 390,
+      "id": "dq-44124d7a"
+    },
+    {
+      "originalId": "dq-834a8a5f",
+      "action": "删除",
+      "newText": "",
+      "source": "《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7a14c4a2",
+      "action": "删除",
+      "newText": "",
+      "source": "曾子·《论语·子张》",
+      "snapshotFile": "lunyu-子张.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1b076eb9",
+      "action": "删除",
+      "newText": "",
+      "source": "子贡·《论语·子张》",
+      "snapshotFile": "lunyu-子张.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6db393b4",
+      "action": "删除",
+      "newText": "",
+      "source": "子贡·《论语·子张》",
+      "snapshotFile": "lunyu-子张.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-c89e58d9",
+      "action": "替换",
+      "newText": "鱼，我所欲也。熊掌，亦我所欲也。",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 2016,
+      "end": 2032,
+      "id": "dq-c89e58d9"
+    },
+    {
+      "originalId": "dq-23d617f9",
+      "action": "替换",
+      "newText": "学问之道无他，求其放心而已矣。",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 2445,
+      "end": 2460,
+      "id": "dq-23d617f9"
+    },
+    {
+      "originalId": "dq-bebe05fc",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-29e32897",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d8b74a72",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8b86ee38",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-ad99b9fe",
+      "action": "替换",
+      "newText": "人恒过，然后能改。",
+      "source": "孟子·《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": 3218,
+      "end": 3227,
+      "id": "dq-ad99b9fe"
+    },
+    {
+      "originalId": "dq-0fb951a8",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-2dcb2cd6",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-818fe818",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-b2e48f41",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d9cd4d38",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-b940bf86",
+      "action": "替换",
+      "newText": "我善养吾浩然之气。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 1120,
+      "end": 1129,
+      "id": "dq-b940bf86"
+    },
+    {
+      "originalId": "dq-e1a2473a",
+      "action": "替换",
+      "newText": "自反而缩，虽千万人吾往矣。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 911,
+      "end": 924,
+      "id": "dq-e1a2473a"
+    },
+    {
+      "originalId": "dq-bf269197",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-951ba2e8",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8de6176a",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-14926692",
+      "action": "替换",
+      "newText": "天时不如地利，地利不如人和。",
+      "source": "孟子·《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": 11,
+      "end": 25,
+      "id": "dq-14926692"
+    },
+    {
+      "originalId": "dq-35fba86b",
+      "action": "替换",
+      "newText": "得道者多助，失道者寡助。",
+      "source": "孟子·《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": 144,
+      "end": 156,
+      "id": "dq-35fba86b"
+    },
+    {
+      "originalId": "dq-cc259f8c",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-340459cb",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7b64269c",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-228881b1",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-82eb5ec1",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-64730c74",
+      "action": "替换",
+      "newText": "穷则独善其身。达则兼善天下。",
+      "source": "《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 517,
+      "end": 531,
+      "id": "dq-64730c74"
+    },
+    {
+      "originalId": "dq-f4fceee0",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-c207e030",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d138de15",
+      "action": "替换",
+      "newText": "尽信《书》，则不如无《书》。",
+      "source": "孟子·《孟子·尽心下》",
+      "snapshotFile": "mengzi-尽心下.wikitext",
+      "start": 166,
+      "end": 180,
+      "id": "dq-d138de15"
+    },
+    {
+      "originalId": "dq-dee9f822",
+      "action": "替换",
+      "newText": "行有不得者，皆反求诸己。",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 740,
+      "end": 752,
+      "id": "dq-dee9f822"
+    },
+    {
+      "originalId": "dq-4059f609",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-27ca6f23",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6c9b2cbe",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-ac490781",
+      "action": "替换",
+      "newText": "爱人者，人恒爱之。敬人者，人恒敬之。",
+      "source": "孟子·《孟子·离娄下》",
+      "snapshotFile": "mengzi-离娄下.wikitext",
+      "start": 1953,
+      "end": 1971,
+      "id": "dq-ac490781"
+    },
+    {
+      "originalId": "dq-73bbe76b",
+      "action": "替换",
+      "newText": "人有不为也，而后可以有为。",
+      "source": "孟子·《孟子·离娄下》",
+      "snapshotFile": "mengzi-离娄下.wikitext",
+      "start": 555,
+      "end": 568,
+      "id": "dq-73bbe76b"
+    },
+    {
+      "originalId": "dq-70888a66",
+      "action": "替换",
+      "newText": "老吾老，以及人之老。幼吾幼，以及人之幼。",
+      "source": "《孟子·梁惠王上》",
+      "snapshotFile": "mengzi-梁惠王上.wikitext",
+      "start": 2099,
+      "end": 2119,
+      "id": "dq-70888a66"
+    },
+    {
+      "originalId": "dq-bebf7462",
+      "action": "改署名",
+      "newText": "谨庠序之教，申之以孝悌之义，颁白者不负戴于道路矣。",
+      "source": "孟子·《孟子·梁惠王上》",
+      "snapshotFile": "mengzi-梁惠王上.wikitext",
+      "start": 718,
+      "end": 743,
+      "id": "dq-bebf7462"
+    },
+    {
+      "originalId": "dq-41a79964",
+      "action": "替换",
+      "newText": "权，然后知轻重。度，然后知长短。",
+      "source": "《孟子·梁惠王上》",
+      "snapshotFile": "mengzi-梁惠王上.wikitext",
+      "start": 2219,
+      "end": 2235,
+      "id": "dq-41a79964"
+    },
+    {
+      "originalId": "dq-b19ccb01",
+      "action": "替换",
+      "newText": "乐民之乐者，民亦乐其乐。",
+      "source": "孟子·《孟子·梁惠王下》",
+      "snapshotFile": "mengzi-梁惠王下.wikitext",
+      "start": 1023,
+      "end": 1035,
+      "id": "dq-b19ccb01"
+    },
+    {
+      "originalId": "dq-4cf4ac51",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·梁惠王下》",
+      "snapshotFile": "mengzi-梁惠王下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7027508b",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·梁惠王下》",
+      "snapshotFile": "mengzi-梁惠王下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-fad20218",
+      "action": "替换",
+      "newText": "有为者亦若是。",
+      "source": "孟子·《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": 105,
+      "end": 112,
+      "id": "dq-fad20218"
+    },
+    {
+      "originalId": "dq-72c05630",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-b8a361dc",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-7bce1156",
+      "action": "删除",
+      "newText": "",
+      "source": "夷子·《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6ca4c383",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-557f1f58",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-1e15a922",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e3222969",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-2c4423ef",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-099c2f5d",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-ed5cb35d",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-a2dd322e",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-48b1bcd4",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-e615447d",
+      "action": "替换",
+      "newText": "以意逆志，是为得之。",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": 1385,
+      "end": 1395,
+      "id": "dq-e615447d"
+    },
+    {
+      "originalId": "dq-fd4627d5",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-6365f9dc",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-0d784a9f",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-3729ff91",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-dd172b81",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-8b2c5573",
+      "action": "替换",
+      "newText": "友也者，友其德也，不可以有挟也。",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 971,
+      "end": 987,
+      "id": "dq-8b2c5573"
+    },
+    {
+      "originalId": "dq-e21172f2",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-951f63d1",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-d6c86950",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-c4acccfc",
+      "action": "删除",
+      "newText": "",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "dq-713e3843",
+      "action": "删除",
+      "newText": "",
+      "source": "《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": null,
+      "end": null,
+      "id": ""
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "行有余力，则以学文。",
+      "source": "孔子·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 211,
+      "end": 221,
+      "id": "dq-dec86108"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "与朋友交，言而有信。",
+      "source": "子夏·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 250,
+      "end": 260,
+      "id": "dq-b7a293ba"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "信近于义，言可复也。",
+      "source": "有子·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 446,
+      "end": 456,
+      "id": "dq-ad3495b8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "今之孝者，是谓能养。",
+      "source": "孔子·《论语·为政》",
+      "snapshotFile": "lunyu-为政.wikitext",
+      "start": 235,
+      "end": 245,
+      "id": "dq-1ac0f012"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "举善而教不能，则劝。",
+      "source": "孔子·《论语·为政》",
+      "snapshotFile": "lunyu-为政.wikitext",
+      "start": 643,
+      "end": 653,
+      "id": "dq-802744c4"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "礼，与其奢也，宁俭。",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": 99,
+      "end": 109,
+      "id": "dq-3a92b1b6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "尔爱其羊，我爱其礼。",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": 561,
+      "end": 571,
+      "id": "dq-b33e7534"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "仁者安仁，知者利仁。",
+      "source": "孔子·《论语·里仁》",
+      "snapshotFile": "lunyu-里仁.wikitext",
+      "start": 44,
+      "end": 54,
+      "id": "dq-c5f25025"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "甯武子，邦有道则知。",
+      "source": "孔子·《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": 900,
+      "end": 910,
+      "id": "dq-f118851c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "孟武伯问：子路仁乎。",
+      "source": "《论语·公冶长》",
+      "snapshotFile": "lunyu-公冶长.wikitext",
+      "start": 233,
+      "end": 243,
+      "id": "dq-f1cddad1"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "力不足者，中道而废。",
+      "source": "孔子·《论语·雍也》",
+      "snapshotFile": "lunyu-雍也.wikitext",
+      "start": 508,
+      "end": 518,
+      "id": "dq-305eb8f9"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "知者乐水，仁者乐山。",
+      "source": "孔子·《论语·雍也》",
+      "snapshotFile": "lunyu-雍也.wikitext",
+      "start": 842,
+      "end": 852,
+      "id": "dq-15b1a9f7"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "何事于仁，必也圣乎。",
+      "source": "孔子·《论语·雍也》",
+      "snapshotFile": "lunyu-雍也.wikitext",
+      "start": 1078,
+      "end": 1088,
+      "id": "dq-d9325f1c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不图为乐之至于斯也。",
+      "source": "《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 361,
+      "end": 371,
+      "id": "dq-cbd59855"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "学如不及，犹恐失之。",
+      "source": "孔子·《论语·泰伯》",
+      "snapshotFile": "lunyu-泰伯.wikitext",
+      "start": 610,
+      "end": 620,
+      "id": "dq-491be3a7"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "可与适道，未可与立。",
+      "source": "孔子·《论语·子罕》",
+      "snapshotFile": "lunyu-子罕.wikitext",
+      "start": 1064,
+      "end": 1074,
+      "id": "dq-f6c0af2b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "先进于礼乐，野人也。",
+      "source": "孔子·《论语·先进》",
+      "snapshotFile": "lunyu-先进.wikitext",
+      "start": 7,
+      "end": 17,
+      "id": "dq-3fa71bfb"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "后进于礼乐，君子也。",
+      "source": "孔子·《论语·先进》",
+      "snapshotFile": "lunyu-先进.wikitext",
+      "start": 17,
+      "end": 27,
+      "id": "dq-ee1a9cfe"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "如其礼乐，以俟君子。",
+      "source": "《论语·先进》",
+      "snapshotFile": "lunyu-先进.wikitext",
+      "start": 1197,
+      "end": 1207,
+      "id": "dq-db9d7b46"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "博学以文，约之以礼。",
+      "source": "孔子·《论语·颜渊》",
+      "snapshotFile": "lunyu-颜渊.wikitext",
+      "start": 802,
+      "end": 812,
+      "id": "dq-a92afede"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "先事后得，非崇德与。",
+      "source": "孔子·《论语·颜渊》",
+      "snapshotFile": "lunyu-颜渊.wikitext",
+      "start": 1136,
+      "end": 1146,
+      "id": "dq-36a918c0"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "事不成，则礼乐不兴。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 169,
+      "end": 179,
+      "id": "dq-a814d14d"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "说之不以道，不说也。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 1268,
+      "end": 1278,
+      "id": "dq-e56cee45"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "说之虽不以道，说也。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 1296,
+      "end": 1306,
+      "id": "dq-56166f03"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "道之将行也与，命也。",
+      "source": "孔子·《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 1483,
+      "end": 1493,
+      "id": "dq-9062cd97"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "道之将废也与，命也。",
+      "source": "孔子·《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 1493,
+      "end": 1503,
+      "id": "dq-714539f2"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "上好礼，则民易使也。",
+      "source": "孔子·《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 1730,
+      "end": 1740,
+      "id": "dq-2a93154c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "子言衞灵公之无道也。",
+      "source": "《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 826,
+      "end": 836,
+      "id": "dq-5e7071e8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "军旅之事，未之学也。",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": 29,
+      "end": 39,
+      "id": "dq-7ead5fdc"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "人能弘道，非道弘人。",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": 925,
+      "end": 935,
+      "id": "dq-74a1aea5"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "动之不以礼，未善也。",
+      "source": "孔子·《论语·卫灵公》",
+      "snapshotFile": "lunyu-卫灵公.wikitext",
+      "start": 1086,
+      "end": 1096,
+      "id": "dq-675dca04"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "困而学之，又其次也。",
+      "source": "孔子·《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": 752,
+      "end": 762,
+      "id": "dq-09888e35"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不学《诗》，无以言。",
+      "source": "《论语·季氏》",
+      "snapshotFile": "lunyu-季氏.wikitext",
+      "start": 994,
+      "end": 1004,
+      "id": "dq-9d85e308"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "三年不为乐，乐必崩。",
+      "source": "《论语·阳货》",
+      "snapshotFile": "lunyu-阳货.wikitext",
+      "start": 1026,
+      "end": 1036,
+      "id": "dq-4a3e2d18"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "君子之道，焉可诬也。",
+      "source": "《论语·子张》",
+      "snapshotFile": "lunyu-子张.wikitext",
+      "start": 460,
+      "end": 470,
+      "id": "dq-220763d0"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "上失其道，民散久矣。",
+      "source": "曾子·《论语·子张》",
+      "snapshotFile": "lunyu-子张.wikitext",
+      "start": 662,
+      "end": 672,
+      "id": "dq-09ba0588"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "欲仁而得仁，又焉贪。",
+      "source": "孔子·《论语·尧曰》",
+      "snapshotFile": "lunyu-尧曰.wikitext",
+      "start": 319,
+      "end": 329,
+      "id": "dq-58eb5d95"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "周有大赉，善人是富。",
+      "source": "《论语·尧曰》",
+      "snapshotFile": "lunyu-尧曰.wikitext",
+      "start": 98,
+      "end": 108,
+      "id": "dq-3e049aed"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "虽有周亲，不如仁人。",
+      "source": "《论语·尧曰》",
+      "snapshotFile": "lunyu-尧曰.wikitext",
+      "start": 108,
+      "end": 118,
+      "id": "dq-39f8b1f1"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "德何如，则可以王矣。",
+      "source": "《孟子·梁惠王上》",
+      "snapshotFile": "mengzi-梁惠王上.wikitext",
+      "start": 1465,
+      "end": 1475,
+      "id": "dq-45932fe5"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "今之乐，犹古之乐也。",
+      "source": "《孟子·梁惠王下》",
+      "snapshotFile": "mengzi-梁惠王下.wikitext",
+      "start": 120,
+      "end": 130,
+      "id": "dq-7fda5011"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "此无他，与民同乐也。",
+      "source": "《孟子·梁惠王下》",
+      "snapshotFile": "mengzi-梁惠王下.wikitext",
+      "start": 420,
+      "end": 430,
+      "id": "dq-725995a7"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "仁且智，夫子既圣矣。",
+      "source": "《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 1519,
+      "end": 1529,
+      "id": "dq-391037d8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "恻隐之心，仁之端也。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 2666,
+      "end": 2676,
+      "id": "dq-6a45a79b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "辞让之心，礼之端也。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 2686,
+      "end": 2696,
+      "id": "dq-1453a7ea"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "是非之心，智之端也。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 2696,
+      "end": 2706,
+      "id": "dq-aa530fa4"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "进不隐贤，必以其道。",
+      "source": "孟子·《孟子·公孙丑上》",
+      "snapshotFile": "mengzi-公孙丑上.wikitext",
+      "start": 3206,
+      "end": 3216,
+      "id": "dq-5a27c8bb"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "父子主恩，君臣主敬。",
+      "source": "景子·《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": 411,
+      "end": 421,
+      "id": "dq-2349f3b6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "彼以其富，我以吾仁。",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": 586,
+      "end": 596,
+      "id": "dq-9620146f"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "所以为蚔蛙，则善矣。",
+      "source": "《孟子·公孙丑下》",
+      "snapshotFile": "mengzi-公孙丑下.wikitext",
+      "start": 1268,
+      "end": 1278,
+      "id": "dq-0ef55b25"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "设为庠序学校以教之。",
+      "source": "孟子·《孟子·滕文公上》",
+      "snapshotFile": "mengzi-滕文公上.wikitext",
+      "start": 955,
+      "end": 965,
+      "id": "dq-ed1159df"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "如枉道而从彼，何也。",
+      "source": "《孟子·滕文公下》",
+      "snapshotFile": "mengzi-滕文公下.wikitext",
+      "start": 318,
+      "end": 328,
+      "id": "dq-97521e29"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "朝不信道，工不信度。",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 282,
+      "end": 292,
+      "id": "dq-d031bab2"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "是故诚者，天之道也。",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 1755,
+      "end": 1765,
+      "id": "dq-90d47648"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不诚，未有能动者也。",
+      "source": "孟子·《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 1786,
+      "end": 1796,
+      "id": "dq-d65acf64"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "男女授受不亲，礼与。",
+      "source": "《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 2213,
+      "end": 2223,
+      "id": "dq-52fb4b7d"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "乐正子从于子敖之齐。",
+      "source": "《孟子·离娄上》",
+      "snapshotFile": "mengzi-离娄上.wikitext",
+      "start": 2760,
+      "end": 2770,
+      "id": "dq-224d71c9"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "信斯言也，宜莫如舜。",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": 412,
+      "end": 422,
+      "id": "dq-167aaf1b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不识此语，诚然乎哉。",
+      "source": "《孟子·万章上》",
+      "snapshotFile": "mengzi-万章上.wikitext",
+      "start": 1154,
+      "end": 1164,
+      "id": "dq-3ae8be8c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "柳下惠，圣之和者也。",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 390,
+      "end": 400,
+      "id": "dq-dabcd444"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "始条理者，智之事也。",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 452,
+      "end": 462,
+      "id": "dq-441d007e"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "用下敬上，谓之贵贵。",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 1245,
+      "end": 1255,
+      "id": "dq-abe26c17"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "用上敬下，谓之尊贤。",
+      "source": "孟子·《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 1255,
+      "end": 1265,
+      "id": "dq-ffae06d3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "予将以此道觉此民也。",
+      "source": "《孟子·万章下》",
+      "snapshotFile": "mengzi-万章下.wikitext",
+      "start": 172,
+      "end": 182,
+      "id": "dq-eae78e13"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "行吾敬，故谓之内也。",
+      "source": "《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 604,
+      "end": 614,
+      "id": "dq-b8685085"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "恭敬之心，人皆有之。",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 983,
+      "end": 993,
+      "id": "dq-9473afd3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "民之秉彝，好是懿德。",
+      "source": "孟子·《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 1103,
+      "end": 1113,
+      "id": "dq-5e3701d4"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "所敬在此，所长在彼。",
+      "source": "《孟子·告子上》",
+      "snapshotFile": "mengzi-告子上.wikitext",
+      "start": 644,
+      "end": 654,
+      "id": "dq-063f91b3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "其知者以为为无礼也。",
+      "source": "《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": 1611,
+      "end": 1621,
+      "id": "dq-0399fc83"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "禹之治水，水之道也。",
+      "source": "孟子·《孟子·告子下》",
+      "snapshotFile": "mengzi-告子下.wikitext",
+      "start": 2667,
+      "end": 2677,
+      "id": "dq-eab18e09"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "爱而不敬，兽畜之也。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 2639,
+      "end": 2649,
+      "id": "dq-160187c3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "中道而立，能者从之。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 2971,
+      "end": 2981,
+      "id": "dq-5f982808"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "天下有道，以道殉身。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 2993,
+      "end": 3003,
+      "id": "dq-8b582706"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "天下无道，以身殉道。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 3003,
+      "end": 3013,
+      "id": "dq-4ac389cb"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "未闻以道殉乎人者也。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 3013,
+      "end": 3023,
+      "id": "dq-5368106c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "于民也，仁之而弗亲。",
+      "source": "孟子·《孟子·尽心上》",
+      "snapshotFile": "mengzi-尽心上.wikitext",
+      "start": 3169,
+      "end": 3179,
+      "id": "dq-82165e43"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不信仁贤，则国空虚。",
+      "source": "孟子·《孟子·尽心下》",
+      "snapshotFile": "mengzi-尽心下.wikitext",
+      "start": 626,
+      "end": 636,
+      "id": "dq-3868daf4"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "如切如磋者，道学也。",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": 447,
+      "end": 457,
+      "id": "dq-7ab37751"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "德者本也，财者末也。",
+      "source": "《礼记·大学》",
+      "snapshotFile": "daxue.wikitext",
+      "start": 1552,
+      "end": 1562,
+      "id": "dq-f91eee8a"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "庸德之行，庸言之谨。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 870,
+      "end": 880,
+      "id": "dq-d6ea4315"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "兄弟既翕，和乐且耽。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 1081,
+      "end": 1091,
+      "id": "dq-32563783"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "宜尔室家，乐尔妻帑。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 1091,
+      "end": 1101,
+      "id": "dq-d04a26f8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "人道敏政，地道敏树。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 1762,
+      "end": 1772,
+      "id": "dq-b9256df8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "仁者人也，亲亲为大。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 1802,
+      "end": 1812,
+      "id": "dq-981d5f6e"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "义者宜也，尊贤为大。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 1812,
+      "end": 1822,
+      "id": "dq-6c532332"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "诚则明矣，明则诚矣。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2687,
+      "end": 2697,
+      "id": "dq-e7d6ddf2"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "至诚之道，可以前知。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 2811,
+      "end": 2821,
+      "id": "dq-02caee4b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "吾学殷礼，有宋存焉。",
+      "source": "孔子·《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3534,
+      "end": 3544,
+      "id": "dq-417b2bb8"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "发而皆中节，谓之和。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 86,
+      "end": 96,
+      "id": "dq-dec9f1fe"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "国有道，其言足以兴。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3379,
+      "end": 3389,
+      "id": "dq-e827cbfd"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "国无道，其默足以容。",
+      "source": "《礼记·中庸》",
+      "snapshotFile": "zhongyong.wikitext",
+      "start": 3389,
+      "end": 3399,
+      "id": "dq-8b798baf"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "信不足焉，有不信焉。",
+      "source": "老子·《道德经·第十七章》",
+      "snapshotFile": "ddj-第十七章.wikitext",
+      "start": 28,
+      "end": 38,
+      "id": "dq-6ca2c9d0"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不善人者，善人之资。",
+      "source": "老子·《道德经·第二十七章》",
+      "snapshotFile": "ddj-第二十七章.wikitext",
+      "start": 79,
+      "end": 89,
+      "id": "dq-e1871cfd"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "修之于家，其德乃余。",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": 30,
+      "end": 40,
+      "id": "dq-5da78d4c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "修之于乡，其德乃长。",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": 40,
+      "end": 50,
+      "id": "dq-53d9e78b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "修之于国，其德乃丰。",
+      "source": "老子·《道德经·第五十四章》",
+      "snapshotFile": "ddj-第五十四章.wikitext",
+      "start": 50,
+      "end": 60,
+      "id": "dq-44c2a334"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "正复为奇，善复为妖。",
+      "source": "老子·《道德经·第五十八章》",
+      "snapshotFile": "ddj-第五十八章.wikitext",
+      "start": 43,
+      "end": 53,
+      "id": "dq-94b2b27c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "人之不善，何弃之有。",
+      "source": "老子·《道德经·第六十二章》",
+      "snapshotFile": "ddj-第六十二章.wikitext",
+      "start": 32,
+      "end": 42,
+      "id": "dq-cbf139d6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "古之所以贵此道者何。",
+      "source": "老子·《道德经·第六十二章》",
+      "snapshotFile": "ddj-第六十二章.wikitext",
+      "start": 67,
+      "end": 77,
+      "id": "dq-b89b449e"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "民之难治，以其智多。",
+      "source": "老子·《道德经·第六十五章》",
+      "snapshotFile": "ddj-第六十五章.wikitext",
+      "start": 17,
+      "end": 27,
+      "id": "dq-7cac66ea"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "常知稽式，是谓玄德。",
+      "source": "老子·《道德经·第六十五章》",
+      "snapshotFile": "ddj-第六十五章.wikitext",
+      "start": 55,
+      "end": 65,
+      "id": "dq-8dd45666"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "学而时习之，不亦说乎。",
+      "source": "孔子·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 6,
+      "end": 17,
+      "id": "dq-319924d6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "君子务本，本立而道生。",
+      "source": "有子·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 81,
+      "end": 92,
+      "id": "dq-ae3eb22d"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "愼终追远，民德归厚矣。",
+      "source": "曾子·《论语·学而》",
+      "snapshotFile": "lunyu-学而.wikitext",
+      "start": 316,
+      "end": 327,
+      "id": "dq-9b547cb0"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "人而无信，不知其可也。",
+      "source": "孔子·《论语·为政》",
+      "snapshotFile": "lunyu-为政.wikitext",
+      "start": 810,
+      "end": 821,
+      "id": "dq-4ef8e0c6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "事君尽礼，人以为谄也。",
+      "source": "孔子·《论语·八佾》",
+      "snapshotFile": "lunyu-八佾.wikitext",
+      "start": 578,
+      "end": 589,
+      "id": "dq-8b33a170"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "不以其道得之，不去也。",
+      "source": "孔子·《论语·里仁》",
+      "snapshotFile": "lunyu-里仁.wikitext",
+      "start": 126,
+      "end": 137,
+      "id": "dq-743276d1"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "能以礼让为国乎，何有。",
+      "source": "孔子·《论语·里仁》",
+      "snapshotFile": "lunyu-里仁.wikitext",
+      "start": 388,
+      "end": 399,
+      "id": "dq-c3da1c03"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "夫子之道，忠恕而已矣。",
+      "source": "曾子·《论语·里仁》",
+      "snapshotFile": "lunyu-里仁.wikitext",
+      "start": 479,
+      "end": 490,
+      "id": "dq-cc2db58a"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "回也，其心三月不违仁。",
+      "source": "孔子·《论语·雍也》",
+      "snapshotFile": "lunyu-雍也.wikitext",
+      "start": 258,
+      "end": 269,
+      "id": "dq-536e80f2"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "善人，吾不得而见之矣。",
+      "source": "孔子·《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 760,
+      "end": 771,
+      "id": "dq-10ee1695"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "陈司败问：昭公知礼乎。",
+      "source": "《论语·述而》",
+      "snapshotFile": "lunyu-述而.wikitext",
+      "start": 938,
+      "end": 949,
+      "id": "dq-1cb394c3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "仁以为己任，不亦重乎。",
+      "source": "曾子·《论语·泰伯》",
+      "snapshotFile": "lunyu-泰伯.wikitext",
+      "start": 335,
+      "end": 346,
+      "id": "dq-28558435"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "曾子有疾，孟敬子问之。",
+      "source": "《论语·泰伯》",
+      "snapshotFile": "lunyu-泰伯.wikitext",
+      "start": 143,
+      "end": 154,
+      "id": "dq-e214201c"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "吾未见好德如好色者也。",
+      "source": "孔子·《论语·子罕》",
+      "snapshotFile": "lunyu-子罕.wikitext",
+      "start": 682,
+      "end": 693,
+      "id": "dq-bd07d95b"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "可与共学，未可与适道。",
+      "source": "孔子·《论语·子罕》",
+      "snapshotFile": "lunyu-子罕.wikitext",
+      "start": 1053,
+      "end": 1064,
+      "id": "dq-a51c1225"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "主忠信，徙义：崇德也。",
+      "source": "孔子·《论语·颜渊》",
+      "snapshotFile": "lunyu-颜渊.wikitext",
+      "start": 607,
+      "end": 618,
+      "id": "dq-3c79ffa3"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "（诚不以富，亦祇以异。",
+      "source": "《论语·颜渊》",
+      "snapshotFile": "lunyu-颜渊.wikitext",
+      "start": 644,
+      "end": 655,
+      "id": "dq-6ad8ad50"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "上好礼，则民莫敢不敬。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 280,
+      "end": 291,
+      "id": "dq-e40d39dc"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "上好义，则民莫敢不服。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 291,
+      "end": 302,
+      "id": "dq-7a24b4f6"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "如有王者，必世而后仁。",
+      "source": "孔子·《论语·子路》",
+      "snapshotFile": "lunyu-子路.wikitext",
+      "start": 574,
+      "end": 585,
+      "id": "dq-5aa0e87a"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "乐然后笑，人不厌其笑。",
+      "source": "《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 546,
+      "end": 557,
+      "id": "dq-10a001a1"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "义然后取，人不厌其取。",
+      "source": "《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 557,
+      "end": 568,
+      "id": "dq-682f23a2"
+    },
+    {
+      "originalId": "",
+      "action": "新增",
+      "newText": "骥不称其力，称其德也。",
+      "source": "孔子·《论语·宪问》",
+      "snapshotFile": "lunyu-宪问.wikitext",
+      "start": 1340,
+      "end": 1351,
+      "id": "dq-4ac5a59b"
+    }
+  ]
+}
