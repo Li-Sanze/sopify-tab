@@ -164,9 +164,10 @@ assert.ok(!/(?:^|[^-])height\s*:/.test(screenRule), 'studio-screen rule does not
 assert.ok(!/overflow\s*:/.test(screenRule), 'studio-screen rule does not clip overflow');
 
 const shortQ = braceBlock(css, '@media (max-height: 760px)');
-assert.ok(shortQ.includes('.hero') && shortQ.includes('.next-actions') && shortQ.includes('.shelf') && shortQ.includes('.sites'));
+assert.ok(shortQ.includes('-webkit-line-clamp: 3'), 'short screens clamp a size-l title to 3 lines');
 assert.ok(!/overflow\s*:/.test(shortQ), 'short viewport query does not clip overflow');
 assert.ok(!/font-size\s*:/.test(shortQ), 'short viewport query does not shrink type');
+assert.ok(!css.includes('min-height: 761px'), 'quote-on 761-860 spacing band is gone');
 assert.ok(css.includes('.studio-desk .sites .tile .lbl { font-size: 13px; max-width: 6em; color: inherit; }'));
 assert.ok(css.includes('html[data-boot-focus] #resume-act:focus-visible { outline: none; }'));
 assert.ok(css.includes('html[data-boot-focus] .next-input:focus-visible { outline: none; }'));
@@ -2188,7 +2189,7 @@ async function main() {
     console.log(`title and notes ${JSON.stringify(clip)}`);
     if (!(clip.titleSH > clip.titleCH)) failures.push(`title not truncated sh=${clip.titleSH} ch=${clip.titleCH}`);
     if (clip.textWrap !== 'wrap') failures.push(`title text-wrap=${clip.textWrap}`);
-    if (String(clip.clamp) !== '4') failures.push(`title clamp=${clip.clamp}`);
+    if (String(clip.clamp) !== '3') failures.push(`title clamp=${clip.clamp}`);
     if (clip.size !== 'l') failures.push(`title size=${clip.size}`);
     if (!(clip.errPx <= 0.5)) failures.push(`notes line error ${clip.errPx}px lines=${clip.lines}`);
     if (!(clip.noteSH > clip.noteCH)) failures.push(`notes does not scroll sh=${clip.noteSH} ch=${clip.noteCH}`);
@@ -2228,7 +2229,7 @@ async function main() {
       lblTitle: exception.lblTitle,
     });
     if (exception.overflow !== 0) failures.push(`exception overflow=${exception.overflow}`);
-    if (exception.lines < 4) failures.push(`exception title rendered ${exception.lines} lines, expected 4`);
+    if (exception.lines !== 3) failures.push(`exception title rendered ${exception.lines} lines, expected 3`);
     if (!exception.lblMax) failures.push('exception label max-width is not 6em');
     if (exception.lblTitle !== `${LONG_SITE}1`) failures.push(`exception label title=${exception.lblTitle}`);
     if (exception.homeSites !== 8 || !exception.moreHidden) failures.push('exception should render all 8 sites without 全部');

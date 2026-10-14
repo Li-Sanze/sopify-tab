@@ -168,6 +168,7 @@ body:has(.studio-desk.active) .shell {
 }
 body:has(.studio-desk.active) .main {
   padding: 0 32px 32px;
+  padding-bottom: clamp(24px, calc(24px + 8px * var(--desk-rise)), 32px);
   max-width: calc(1040px + 64px);
   margin-inline: auto;
   width: 100%;
@@ -1494,28 +1495,30 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
   stroke-width: 2.2;
 }
 .studio-desk .sites .fs-btn.text { height: 36px; padding: 0 10px; }
-@media (max-height: 860px) and (min-height: 761px) {
-  body.studio-home:has(#daily-quote:not([hidden])) .hero { padding-top: 20px; }
-  body.studio-home:has(#daily-quote:not([hidden])) .next { margin-top: 24px; }
-  body.studio-home:has(#daily-quote:not([hidden])) .shelf { margin-top: 40px; }
+/* Full spacing returns at 1010px. Returning it at 900px leaves the 4-line title under the 24px floor at 761px. */
+body.studio-home,
+body:has(.studio-desk.active) {
+  --desk-rise: calc((100dvh - 650px) / 360px);
 }
+body.studio-home .hero { padding-top: clamp(8px, calc(8px + 28px * var(--desk-rise)), 36px); }
+body.studio-home .next { margin-top: clamp(10px, calc(10px + 30.5px * var(--desk-rise)), 40.5px); }
+body.studio-home .next-title { margin-top: clamp(8px, calc(8px + 6px * var(--desk-rise)), 14px); }
+body.studio-home .next-actions { margin-top: clamp(10px, calc(10px + 14px * var(--desk-rise)), 24px); }
+body.studio-home .next-compose { margin-top: clamp(8px, calc(8px + 4px * var(--desk-rise)), 12px); }
+body.studio-home .hint { margin-top: clamp(8px, calc(8px + 4px * var(--desk-rise)), 12px); }
+body.studio-home .shelf {
+  margin-top: clamp(16px, calc(16px + 47px * var(--desk-rise)), 63px);
+  row-gap: clamp(12px, calc(12px + 16px * var(--desk-rise)), 28px);
+}
+body.studio-home .shelf .col { padding-top: clamp(8px, calc(8px + 8px * var(--desk-rise)), 16px); }
+body.studio-home .shelf .col-h { margin-bottom: clamp(6px, calc(6px + 6px * var(--desk-rise)), 12px); }
+body.studio-home .shelf .col-sub { margin-top: clamp(4px, calc(4px + 2px * var(--desk-rise)), 6px); }
+body.studio-home .shelf .col-actions { margin-top: clamp(8px, calc(8px + 8px * var(--desk-rise)), 16px); }
+body.studio-home .studio-desk .sites { margin-top: clamp(16px, calc(16px + 47px * var(--desk-rise)), 63px); }
+body.studio-home .studio-desk .sites .col-h { margin-bottom: clamp(4px, calc(4px + 4px * var(--desk-rise)), 8px); }
+body.studio-home .studio-desk .desk-quote { margin-top: clamp(16px, calc(16px + 8px * var(--desk-rise)), 24px); }
 @media (max-height: 760px) {
-  body.studio-home .main { padding-bottom: 12px; }
-  body.studio-home .hero { padding-top: 8px; }
-  body.studio-home .next { margin-top: 10px; }
-  body.studio-home .next-title { margin-top: 8px; }
-  body.studio-home .next-actions { margin-top: 10px; }
-  body.studio-home .next-compose { margin-top: 8px; }
-  body.studio-home .hint { margin-top: 8px; }
-  body.studio-home .shelf { margin-top: 16px; row-gap: 12px; }
-  body.studio-home .shelf .col { padding-top: 8px; }
-  body.studio-home .shelf .col-h { margin-bottom: 6px; }
-  body.studio-home .shelf .col-sub { margin-top: 4px; }
-  body.studio-home .shelf .col-actions { margin-top: 8px; }
-  body.studio-home .studio-desk .sites { margin-top: 16px; }
-  body.studio-home .studio-desk .desk-quote { margin-top: 16px; }
-  body.studio-home:has(#daily-quote:not([hidden])) .main { padding-bottom: 24px; }
-  body.studio-home .studio-desk .sites .col-h { margin-bottom: 4px; }
+  body.studio-home .next-title[data-size="l"] { -webkit-line-clamp: 3; }
 }
 .space-view-opt { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 .stars-layer {
