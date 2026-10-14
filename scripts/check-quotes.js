@@ -74,7 +74,13 @@ for (const snap of manifest.snapshots || []) {
 const cache = new Map();
 function loaded(snap) {
   if (cache.has(snap.file)) return cache.get(snap.file);
-  const wikitext = fs.readFileSync(path.join(classics, snap.file), 'utf8');
+  const bytes = fs.readFileSync(path.join(classics, snap.file));
+  let wikitext = '';
+  try {
+    wikitext = guard.decodeSnapshot(bytes);
+  } catch (err) {
+    fail('snapshot ' + snap.file + ' ' + err.message);
+  }
   const row = {
     wikitext,
     plain: guard.plainForMatch(wikitext),
@@ -83,7 +89,7 @@ function loaded(snap) {
   return row;
 }
 
-const invisibleKinds = ['C0', 'C1', 'zero-width', 'PUA', 'surrogate'];
+const invisibleKinds = ['C0', 'C1', 'zero-width', 'PUA', 'surrogate', 'FFFD'];
 const invisibleTotals = Object.fromEntries(invisibleKinds.map((kind) => [kind, 0]));
 const residueTotals = new Map();
 const resolvedTotals = new Map();
@@ -93,12 +99,12 @@ function addMap(into, from) {
   for (const [key, n] of from) into.set(key, (into.get(key) || 0) + n);
 }
 
-function tallyInvisible(label, text) {
-  const hits = guard.invisibleHits(text);
+function tallyInvisible(label, text, scan) {
+  const hits = (scan || guard.invisibleHits)(text);
   if (!hits.length) return;
   const byKind = new Map();
   hits.forEach((hit) => {
-    invisibleTotals[hit.kind] += 1;
+    invisibleTotals[hit.kind] = (invisibleTotals[hit.kind] || 0) + 1;
     byKind.set(hit.kind, (byKind.get(hit.kind) || 0) + 1);
   });
   const detail = [...byKind.entries()].map(([kind, n]) => kind + '=' + n).join(',');
@@ -107,7 +113,7 @@ function tallyInvisible(label, text) {
 
 for (const snap of manifest.snapshots || []) {
   const row = loaded(snap);
-  tallyInvisible('snapshot ' + snap.file, row.plain);
+  tallyInvisible('snapshot ' + snap.file, row.wikitext, guard.snapshotInvisibleHits);
   addMap(residueTotals, guard.templateResidues(row.plain));
   const report = guard.templateReport(row.wikitext);
   addMap(resolvedTotals, report.resolved);

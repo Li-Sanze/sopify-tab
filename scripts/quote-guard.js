@@ -12,7 +12,9 @@ const CLASSICAL_OVERRIDE = {
 };
 
 const VARIANT_FILE = path.join(FIXTURES, 'variant-map.json');
-const VARIANT_MAP = JSON.parse(fs.readFileSync(VARIANT_FILE, 'utf8')).map;
+const VARIANT_DOC = JSON.parse(fs.readFileSync(VARIANT_FILE, 'utf8'));
+const VARIANT_MAP = VARIANT_DOC.map;
+const EDITION_PHRASES = Object.entries(VARIANT_DOC.phrases || {}).sort((a, b) => b[0].length - a[0].length);
 const RED_CASES = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-red-cases.json'), 'utf8')).cases;
 const ATTRIBUTION_ALLOW = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'attribution-allow.json'), 'utf8'));
 const KNOWN_ERRORS = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'snapshot-known-errors.json'), 'utf8'));
@@ -53,6 +55,9 @@ function tables() {
 function t2s(input) {
   const { phrases: phraseRows, chars: charMap } = tables();
   let text = String(input);
+  for (const [from, to] of EDITION_PHRASES) {
+    if (text.includes(from)) text = text.split(from).join(to);
+  }
   for (const [from, to] of phraseRows) {
     if (text.includes(from)) text = text.split(from).join(to);
   }
@@ -470,20 +475,20 @@ function attributionPassage(wikitext) {
 
 function speechSpans(passage) {
   const spans = [];
-  const re = /([\u4e00-\u9fff]{0,12})曰：「/g;
+  const re = /([\u4e00-\u9fff]{0,12})曰：?(「|『)/g;
   let match;
   let carried = '';
   while ((match = re.exec(passage))) {
     const name = match[1];
+    const open = match[2];
     const start = match.index + match[0].length;
-    const close = passage.indexOf('」', start);
+    const close = passage.indexOf(open === '『' ? '』' : '」', start);
     if (close < 0) continue;
     let speaker = '';
     if (!name) speaker = carried;
-    else {
-      speaker = speakerFromPrefix(name);
-      carried = speaker;
-    }
+    else speaker = speakerFromPrefix(name);
+    if (open === '『' && !speaker) continue;
+    if (open === '「') carried = speaker;
     spans.push({ start, end: close, speaker });
   }
   return spans;
@@ -590,6 +595,25 @@ function invisibleHits(text) {
     if (kind) hits.push({ kind, index: i, cp: cu });
   }
   return hits;
+}
+
+function snapshotInvisibleHits(text) {
+  const hits = invisibleHits(text);
+  const s = String(text);
+  for (let i = 0; i < s.length; i += 1) {
+    if (s.charCodeAt(i) === 0xFFFD) hits.push({ kind: 'FFFD', index: i, cp: 0xFFFD });
+  }
+  return hits;
+}
+
+function decodeSnapshot(buffer) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch (err) {
+    const error = new Error('invalid UTF-8');
+    error.code = 'INVALID_UTF8';
+    throw error;
+  }
 }
 
 function supplementaryChars(text) {
@@ -714,6 +738,8 @@ module.exports = {
   shiShuCitation,
   shortBodyWarning,
   invisibleHits,
+  snapshotInvisibleHits,
+  decodeSnapshot,
   supplementaryChars,
   templateResidues,
   templateReport,
