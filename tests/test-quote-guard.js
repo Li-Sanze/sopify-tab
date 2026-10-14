@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const guard = require('../scripts/quote-guard');
@@ -111,7 +112,7 @@ assert.strictEqual(guard.findExcerpt('君子无所争，必也射乎。', '君�
 
 const zhong = fs.readFileSync(path.join(classics, 'zhongyong.wikitext'), 'utf8');
 const red = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'attribution-red-cases.json'), 'utf8'));
-assert.strictEqual(red.cases.length, 18);
+assert.strictEqual(red.cases.length, 19);
 for (const row of red.cases) {
   assert.strictEqual(guard.attributionOk(zhong, {
     text: row.text,
@@ -121,7 +122,7 @@ for (const row of red.cases) {
   }), false, row.id);
 }
 const forced = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'forced-no-speaker.json'), 'utf8'));
-assert.strictEqual(forced.length, 3);
+assert.strictEqual(forced.length, 5);
 for (const row of forced) {
   const quote = catalog.find((item) => item.id === row.id);
   assert.ok(quote, row.id);
@@ -199,5 +200,111 @@ assert.strictEqual(
 assert.strictEqual(guard.knownSnapshotError('茍得其养，无物不长。').pattern, '茍', 'known snapshot error rejects 茍');
 assert.strictEqual(guard.knownSnapshotError('志于道，狎于德，依于仁。').pattern, '狎于德', 'known snapshot error rejects 狎于德');
 assert.strictEqual(guard.knownSnapshotError('狎大人，侮圣人之言。'), null, 'known snapshot error allows 狎大人');
+
+const relay = '孟子曰：「曾子谓子襄曰：『路人皆可为尧舜。』」';
+assert.strictEqual(guard.attributionOk(relay, {
+  text: '路人皆可为尧舜。',
+  speaker: '孟子',
+  book: '孟子',
+  chapter: '公孙丑上',
+}), false, 'a speaker inside 『』 is not the outer speaker');
+console.log('GREEN nested 『 speaker rejects outer 孟子');
+assert.strictEqual(guard.attributionOk('孟子曰：「路人皆可为尧舜。」', {
+  text: '路人皆可为尧舜。',
+  speaker: '孟子',
+  book: '孟子',
+  chapter: '公孙丑上',
+}), true, 'outer speaker still governs a direct quotation');
+const gongsun = fs.readFileSync(path.join(classics, 'mengzi-公孙丑上.wikitext'), 'utf8');
+assert.strictEqual(guard.attributionOk(gongsun, {
+  text: '自反而缩，虽千万人吾往矣。',
+  speaker: '孟子',
+  book: '孟子',
+  chapter: '公孙丑上',
+}), false, 'dq-e1a2473a is not the outer speaker');
+console.log('GREEN dq-e1a2473a signed 孟子 fails');
+assert.strictEqual(guard.attributionOk(gongsun, {
+  text: '自反而缩，虽千万人吾往矣。',
+  book: '孟子',
+  chapter: '公孙丑上',
+}), true, 'dq-e1a2473a may stay unsigned');
+
+assert.strictEqual(
+  guard.t2s('君子無終食之閒違仁，造次必於是，顛沛必於是。'),
+  '君子无终食之间违仁，造次必于是，颠沛必于是。',
+  '终食之閒 becomes 终食之间',
+);
+assert.strictEqual(guard.t2s('终食之閎'), '终食之间', '终食之閎 becomes 终食之间');
+assert.strictEqual(guard.t2s('大德不踰閑，小德出入可也。'), '大德不逾闲，小德出入可也。', '大德不逾闲 stays 闲');
+assert.strictEqual(guard.t2s('閎'), '闳', '閎 is not globally mapped to 间');
+console.log('GREEN 终食之閒 and 终食之閎 become 终食之间');
+console.log('GREEN 大德不逾闲 stays 闲');
+console.log('GREEN 閎 stays 闳');
+
+function signedCheck(id) {
+  const root = path.join(__dirname, '..');
+  const quotesPath = path.join(root, 'extension', 'quotes.json');
+  const embedPath = path.join(root, 'extension', 'daily-quote.js');
+  const comparisonPath = path.join(root, 'tests', 'fixtures', 'quote-comparison.json');
+  const saved = [quotesPath, embedPath, comparisonPath].map((file) => [file, fs.readFileSync(file)]);
+  try {
+    const quotes = JSON.parse(fs.readFileSync(quotesPath, 'utf8'));
+    quotes.find((item) => item.id === id).speaker = '孔子';
+    fs.writeFileSync(quotesPath, JSON.stringify(quotes, null, 2) + '\n');
+    const embed = fs.readFileSync(embedPath, 'utf8');
+    const start = embed.indexOf('  const BUNDLED_QUOTES = [');
+    const end = embed.indexOf('  /* CATALOG_END */');
+    const json = JSON.stringify(quotes, null, 2).split('\n').map((line) => '  ' + line).join('\n');
+    fs.writeFileSync(embedPath, embed.slice(0, start) + '  const BUNDLED_QUOTES = ' + json.trimStart() + ';\n' + embed.slice(end));
+    const comparison = JSON.parse(fs.readFileSync(comparisonPath, 'utf8'));
+    comparison.rows.find((item) => item.id === id).source = '孔子·《礼记·中庸》';
+    fs.writeFileSync(comparisonPath, JSON.stringify(comparison, null, 2) + '\n');
+    return spawnSync(process.execPath, ['scripts/check-quotes.js'], { cwd: root, encoding: 'utf8' });
+  } finally {
+    for (const [file, buf] of saved) fs.writeFileSync(file, buf);
+  }
+}
+for (const id of ['dq-7cac66ea', 'dq-8dd45666']) {
+  const result = signedCheck(id);
+  const output = result.stdout + result.stderr;
+  assert.notStrictEqual(result.status, 0, id + ' signed as 孔子 fails check-quotes');
+  assert.ok(output.includes('forced no-speaker id has a speaker ' + id), id + ' failure is the never-attribute rule');
+  console.log('GREEN ' + id + ' signed as 孔子 exits ' + result.status);
+  const line = output.split('\n').find((item) => item.includes('forced no-speaker id has a speaker ' + id));
+  console.log('GREEN ' + line);
+}
+
+const snapshotClasses = [
+  ['C0', '\u0001', 'U+0001'],
+  ['C1', '\u0085', 'U+0085'],
+  ['zero-width', '\u200B', 'U+200B'],
+  ['zero-width', '\u200C', 'U+200C'],
+  ['zero-width', '\u200D', 'U+200D'],
+  ['zero-width', '\u200E', 'U+200E'],
+  ['zero-width', '\u200F', 'U+200F'],
+  ['zero-width', '\u2060', 'U+2060'],
+  ['zero-width', '\uFEFF', 'U+FEFF'],
+  ['PUA', '\uE000', 'U+E000'],
+  ['surrogate', String.fromCharCode(0xD800), 'U+D800'],
+  ['FFFD', '\uFFFD', 'U+FFFD'],
+];
+for (const [kind, ch, label] of snapshotClasses) {
+  const raw = '子曰：「学而时习之。」\n<!--' + ch + '-->\n';
+  assert.strictEqual(guard.plainForMatch(raw).includes(ch), false, label + ' sits in a region plainForMatch strips');
+  assert.deepStrictEqual(guard.invisibleHits(guard.plainForMatch(raw)), [], label + ' is absent from the stripped scan');
+  assert.ok(guard.snapshotInvisibleHits(raw).some((hit) => hit.kind === kind), label + ' fails the raw snapshot scan');
+  console.log('GREEN raw snapshot ' + label + ' ' + kind);
+}
+assert.deepStrictEqual(guard.invisibleHits('君子\uFFFD道'), [], 'library scan accepts U+FFFD');
+console.log('GREEN library scan accepts U+FFFD');
+assert.throws(
+  () => guard.decodeSnapshot(Buffer.from([0x80])),
+  (err) => err && err.code === 'INVALID_UTF8',
+  'invalid UTF-8 fails the snapshot decode',
+);
+console.log('GREEN invalid UTF-8 byte 0x80 throws INVALID_UTF8');
+assert.deepStrictEqual(guard.snapshotInvisibleHits('子曰：「学而时习之。」\n'), [], 'raw snapshot allows ordinary text');
+assert.strictEqual(guard.decodeSnapshot(Buffer.from('子曰：「学而时习之。」\n', 'utf8')), '子曰：「学而时习之。」\n', 'strict UTF-8 decodes ordinary text');
+console.log('GREEN ordinary snapshot text decodes and has no invisible hits');
 
 console.log('quote guard ok');
