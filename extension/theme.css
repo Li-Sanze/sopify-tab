@@ -8,6 +8,7 @@
   --r-md: 12px;
   --r-sm: 8px;
   --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Songti SC", "Songti TC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", var(--sans);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --dur: 160ms;
   --dur-slow: 200ms;
