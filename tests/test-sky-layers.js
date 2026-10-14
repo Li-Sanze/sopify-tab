@@ -136,15 +136,13 @@ for (const name of fs.readdirSync(EXT)) {
 const desk = newtabHtml.slice(newtabHtml.indexOf('data-view="desk"'), newtabHtml.indexOf('data-view="tabs"'));
 assert.ok(!/skyMotion|sky-motion|壁纸|wallpaper/i.test(desk), 'desk first screen stays quiet');
 assert.ok(!/name="skyMotion"/.test(newtabHtml), 'no motion control chrome');
-assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(desk), 'no moodboard chrome on the desk');
+const deskQuiet = desk.replace(/<section class="desk-quote"[\s\S]*?<\/section>/, '');
+assert.ok(!/天气|番茄|壁纸|搜索栏|focus timer|quote/i.test(deskQuiet), 'no moodboard chrome on the desk');
 
 assert.ok(newtabCss.includes('inset 0 1px 0 var(--glass-hi)'), 'desk glass uses the shared hairline token');
 assert.ok(/backdrop-filter:\s*blur\(26px\)/.test(newtabCss),
   'glass keeps one backdrop blur per surface');
-const deskGlass = newtabCss.replace(/[^{}]*\.dq-v2\s*\{[^}]*\}/g, '');
-assert.ok(!/backdrop-filter:[^;]*saturate/.test(deskGlass), 'do not restore saturate glass');
-assert.ok(/backdrop-filter:\s*blur\(7px\) saturate\(1\.05\)/.test(newtabCss),
-  'the daily quote card keeps the G1 filter');
+assert.ok(!/backdrop-filter:[^;]*saturate/.test(newtabCss), 'do not restore saturate glass');
 assert.ok(/--glass:\s*rgba\(\s*253,\s*252,\s*249,\s*0\.86\s*\)/.test(dayBlock), 'day card fill matches prototype glass');
 assert.ok(/--glass:\s*rgba\(\s*22,\s*31,\s*48,\s*0\.66\s*\)/.test(nightBlock), 'night card fill matches prototype glass');
 assert.ok(dayBlock.includes('--sky-ink: #12203a') && dayBlock.includes('--ink: #182234'),

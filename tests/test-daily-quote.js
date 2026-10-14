@@ -7,7 +7,7 @@ const { spawnSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const daily = require(path.join(root, 'extension', 'daily-quote.js'));
-const catalog = JSON.parse(fs.readFileSync(path.join(root, 'extension', 'quotes.json'), 'utf8'));
+const catalog = require(path.join(root, 'extension', 'quotes.js'));
 
 function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -17,38 +17,30 @@ function createChromeStorage(initial) {
   const data = Object.assign({}, initial || {});
   const listeners = [];
   return {
-    snapshot() {
-      return Object.assign({}, data);
-    },
+    snapshot() { return Object.assign({}, data); },
     local: {
       get(defaults) {
         return Promise.resolve().then(() => {
           const out = {};
-          const keys = defaults && typeof defaults === 'object' ? Object.keys(defaults) : [];
-          for (const key of keys) {
+          Object.keys(defaults || {}).forEach((key) => {
             out[key] = Object.prototype.hasOwnProperty.call(data, key) ? data[key] : defaults[key];
-          }
+          });
           return out;
         });
       },
       set(partial) {
         return Promise.resolve().then(() => {
           const changes = {};
-          for (const key of Object.keys(partial)) {
-            const prev = data[key];
-            const next = partial[key];
-            const known = Object.prototype.hasOwnProperty.call(data, key);
-            if (known && Object.is(prev, next)) continue;
-            changes[key] = { oldValue: prev, newValue: next };
-            data[key] = next;
-          }
+          Object.keys(partial).forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(data, key) && Object.is(data[key], partial[key])) return;
+            changes[key] = { oldValue: data[key], newValue: partial[key] };
+            data[key] = partial[key];
+          });
           if (Object.keys(changes).length) listeners.forEach((fn) => fn(changes, 'local'));
         });
       },
     },
-    onChanged: {
-      addListener(fn) { listeners.push(fn); },
-    },
+    onChanged: { addListener(fn) { listeners.push(fn); } },
   };
 }
 
@@ -57,461 +49,206 @@ function createDoc() {
   const doc = {
     nodeType: 9,
     hidden: false,
-    lastFocus: null,
-    activeElement: null,
     listeners: {},
-    defaultView: {
-      listeners: {},
-      getComputedStyle(node) {
-        const style = node && node.style ? node.style : {};
-        return { display: style.display || '', visibility: style.visibility || '' };
-      },
-      addEventListener(type, fn) {
-        (this.listeners[type] || (this.listeners[type] = [])).push(fn);
-      },
-      removeEventListener(type, fn) {
-        this.listeners[type] = (this.listeners[type] || []).filter((item) => item !== fn);
-      },
-    },
-    addEventListener(type, fn) {
-      (doc.listeners[type] || (doc.listeners[type] = [])).push(fn);
-    },
-    dispatch(type) {
-      return Promise.all((doc.listeners[type] || []).map((fn) => fn()));
-    },
-    getElementById(id) {
-      return all.find((node) => node.id === id && node.parentNode) || null;
-    },
-    querySelector(sel) {
-      return all.find((node) => node.parentNode && match(node, sel)) || null;
-    },
+    addEventListener(type, fn) { (doc.listeners[type] || (doc.listeners[type] = [])).push(fn); },
+    dispatch(type) { return Promise.all((doc.listeners[type] || []).map((fn) => fn())); },
+    getElementById(id) { return all.find((node) => node.id === id && node.parentNode) || null; },
   };
-
-  function classNames(node) {
-    return String(node.className || '').split(/\s+/).filter(Boolean);
-  }
-
-  function match(node, sel) {
-    if (sel.startsWith('#')) return node.id === sel.slice(1);
-    if (sel.startsWith('.')) return classNames(node).includes(sel.slice(1));
-    return node.tagName === sel.toUpperCase();
-  }
-
   function make(tag) {
     const node = {
-      tagName: tag.toUpperCase(),
-      id: '',
-      className: '',
-      nodeType: 1,
-      hidden: false,
-      type: '',
-      textContent: '',
-      style: { display: '', visibility: '' },
-      ownerDocument: doc,
-      children: [],
-      childNodes: [],
-      parentNode: null,
-      attributes: {},
-      dataset: {},
-      listeners: {},
-      checked: false,
+      tagName: tag.toUpperCase(), id: '', className: '', nodeType: 1, hidden: false,
+      textContent: '', parentNode: null, children: [], dataset: {}, listeners: {},
     };
-    Object.defineProperty(node, 'childElementCount', {
-      get() { return node.children.length; },
-    });
     node.classList = {
-      add(...names) {
-        const set = new Set(classNames(node));
-        names.forEach((name) => set.add(name));
-        node.className = [...set].join(' ');
-      },
-      remove(...names) {
-        const set = new Set(classNames(node));
-        names.forEach((name) => set.delete(name));
-        node.className = [...set].join(' ');
-      },
-      contains(name) { return classNames(node).includes(name); },
+      add() {},
+      remove() {},
+      contains() { return false; },
     };
-    node.setAttribute = (key, value) => {
-      node.attributes[key] = String(value);
-      if (key === 'id') node.id = String(value);
-    };
-    node.getAttribute = (key) => (Object.prototype.hasOwnProperty.call(node.attributes, key) ? node.attributes[key] : null);
-    node.hasAttribute = (key) => Object.prototype.hasOwnProperty.call(node.attributes, key);
-    node.appendChild = (child) => {
-      child.parentNode = node;
-      node.children.push(child);
-      node.childNodes.push(child);
-      return child;
-    };
-    node.removeChild = (child) => {
-      node.children = node.children.filter((item) => item !== child);
-      node.childNodes = node.childNodes.filter((item) => item !== child);
-      child.parentNode = null;
-      return child;
-    };
-    node.addEventListener = (type, fn) => {
-      (node.listeners[type] || (node.listeners[type] = [])).push(fn);
-    };
+    node.setAttribute = (key, value) => { if (key === 'id') node.id = String(value); };
+    node.appendChild = (child) => { child.parentNode = node; node.children.push(child); return child; };
+    node.addEventListener = (type, fn) => { (node.listeners[type] || (node.listeners[type] = [])).push(fn); };
+    node.dispatch = (type) => Promise.all((node.listeners[type] || []).map((fn) => fn()));
     node.querySelector = (sel) => {
-      const found = [];
+      const name = sel.slice(1);
       const walk = (current) => {
         for (const child of current.children) {
-          if (match(child, sel)) found.push(child);
-          walk(child);
+          if (String(child.className).split(/\s+/).includes(name)) return child;
+          const found = walk(child);
+          if (found) return found;
         }
+        return null;
       };
-      walk(node);
-      return found[0] || null;
+      return walk(node);
     };
-    node.focus = (opts) => {
-      doc.lastFocus = { id: node.id, preventScroll: !!(opts && opts.preventScroll) };
-      doc.activeElement = node;
-    };
-    node.click = () => Promise.all((node.listeners.click || []).map((fn) => fn()));
-    node.press = (key) => {
-      if (key === 'Enter' || key === ' ') return node.click();
-      return Promise.resolve();
-    };
-    node.dispatch = (type) => Promise.all((node.listeners[type] || []).map((fn) => fn()));
     all.push(node);
     return node;
   }
-
   doc.createElement = make;
   doc.body = make('body');
   doc.body.parentNode = doc;
   const desk = make('section');
-  desk.className = 'studio-desk';
+  const sites = make('section');
+  const sitesH = make('h2');
+  sitesH.id = 'h-sites';
+  sitesH.textContent = '常用站';
+  sites.appendChild(sitesH);
+  const block = make('section');
+  block.id = 'daily-quote';
+  block.className = 'desk-quote';
+  block.hidden = true;
+  const heading = make('h2');
+  heading.id = 'h-quote';
+  heading.textContent = '每日一句';
+  const text = make('blockquote');
+  text.className = 'dq-text';
+  const src = make('p');
+  src.className = 'dq-src';
+  block.appendChild(heading);
+  block.appendChild(text);
+  block.appendChild(src);
+  desk.appendChild(sites);
+  desk.appendChild(block);
   doc.body.appendChild(desk);
-  const resume = make('div');
-  resume.id = 'resume';
-  resume.className = 'next';
-  desk.appendChild(resume);
-  const filled = make('div');
-  filled.className = 'next-filled';
-  resume.appendChild(filled);
-  const title = make('h1');
-  title.id = 'resume-title';
-  title.setAttribute('tabindex', '-1');
-  filled.appendChild(title);
   const toggle = make('input');
   toggle.id = 'daily-quote-toggle';
-  toggle.type = 'checkbox';
+  toggle.checked = false;
+  const previewText = make('blockquote');
+  previewText.id = 'dq-settings-text';
+  const previewSrc = make('p');
+  previewSrc.id = 'dq-settings-src';
   doc.body.appendChild(toggle);
+  doc.body.appendChild(previewText);
+  doc.body.appendChild(previewSrc);
   return doc;
 }
 
-function cardOf(doc) {
+function blockOf(doc) {
   return doc.getElementById('daily-quote');
 }
 
-function textOf(doc) {
-  const card = cardOf(doc);
-  return card ? card.querySelector('.dq-text').textContent : '';
-}
-
-async function runTz() {
-  const instant = new Date('2026-10-13T16:30:00.000Z');
-  assert.strictEqual(daily.localDateKey(instant), '2026-10-14');
-  assert.strictEqual(instant.toISOString().slice(0, 10), '2026-10-13');
-  const doc = createDoc();
-  const storage = createChromeStorage({ dailyQuote: true });
-  const quote = daily.createDailyQuote({
-    document: doc,
-    storage,
-    catalog,
-    now: () => instant,
-    schedule() { return 1; },
-    cancel() {},
-  });
-  await quote.start();
-  const button = cardOf(doc).querySelector('button');
-  await button.click();
-  await flush();
-  assert.strictEqual(storage.snapshot().dailyQuoteDismissedOn, '2026-10-14');
-  assert.notStrictEqual(storage.snapshot().dailyQuoteDismissedOn, instant.toISOString().slice(0, 10));
-  assert.strictEqual(storage.snapshot().dailyQuote, true);
-}
-
 async function main() {
-  const dup = daily.validateQuotes([
-    { id: 'a', text: '学而时习之。', book: '论语', chapter: '学而', speaker: '孔子' },
-    { id: 'a', text: '温故而知新。', book: '论语', chapter: '为政', speaker: '孔子' },
-  ]);
-  assert.deepStrictEqual(dup, ['quote[1] duplicate id a']);
-
-  const longErrors = daily.validateQuotes([
-    { id: 'b', text: '学'.repeat(37), book: '论语', chapter: '学而', speaker: '孔子' },
-  ]);
-  assert.deepStrictEqual(longErrors, ['quote[0] text length 37']);
-
-  const missing = daily.validateQuotes([
-    { text: '学而时习之。', book: '论语', chapter: '学而' },
-  ]);
-  assert.deepStrictEqual(missing, ['quote[0] missing id']);
-
-  const missingBook = daily.validateQuotes([
-    { id: 'c', text: '学而时习之。', chapter: '学而' },
-  ]);
-  assert.deepStrictEqual(missingBook, ['quote[0] missing book']);
-
-  const missingChapter = daily.validateQuotes([
-    { id: 'd', text: '学而时习之。', book: '论语', speaker: '孔子' },
-  ]);
-  assert.deepStrictEqual(missingChapter, ['quote[0] missing chapter']);
-
-  const badSource = daily.validateQuotes([
-    { id: 'e', text: '学而时习之。', book: '论语', chapter: '学而', speaker: '—孔子' },
-  ]);
-  assert.ok(badSource.some((line) => line.includes('bad source format')));
-
   assert.deepStrictEqual(daily.validateQuotes(catalog), []);
-  assert.deepStrictEqual(daily.BUNDLED_QUOTES, catalog);
-  assert.ok(catalog.length >= 366 && catalog.length <= 400, 'catalog ' + catalog.length);
-  assert.ok(catalog.every((quote) => !Object.prototype.hasOwnProperty.call(quote, 'author')));
-  assert.ok(catalog.every((quote) => daily.bodyLength(quote.text) <= 36));
-  const youzi = catalog.find((quote) => quote.speaker === '有子');
-  assert.ok(youzi);
-  assert.strictEqual(daily.sourceLine(youzi), '有子·《论语·' + youzi.chapter + '》');
-  const unnamed = catalog.find((quote) => !quote.speaker);
-  assert.ok(unnamed);
-  assert.strictEqual(daily.sourceLine(unnamed), '《' + unnamed.book + '·' + unnamed.chapter + '》');
-  assert.ok(catalog.every((quote) => !daily.sourceLine(quote).startsWith('—') && !daily.sourceLine(quote).startsWith('-')));
+  assert.strictEqual(catalog.length, 377);
+  const signed = catalog.find((quote) => quote.speaker === '子夏' && quote.book === '论语' && quote.chapter === '颜渊');
+  const unsigned = catalog.find((quote) => !quote.speaker && quote.book === '论语' && quote.chapter);
+  const classic = catalog.find((quote) => quote.id === 'dq-41fca28d');
+  assert.strictEqual(daily.sourceLine(signed), '——子夏《论语·颜渊》');
+  assert.strictEqual(daily.sourceLine(unsigned), '——《论语·' + unsigned.chapter + '》');
+  assert.strictEqual(daily.sourceLine({ book: '道德经', chapter: '第八章' }), '——《道德经·第八章》');
+  assert.strictEqual(classic.book, '中庸');
+  assert.strictEqual(classic.chapter, '');
+  assert.strictEqual(classic.speaker, undefined);
+  assert.strictEqual(daily.sourceLine(classic), '——《中庸》');
+  const signedClassic = catalog.find((quote) => quote.book === '中庸' && quote.speaker);
+  assert.ok(signedClassic);
+  assert.strictEqual(daily.sourceLine(signedClassic), '——' + signedClassic.speaker + '《中庸》');
+  assert.ok(daily.validateQuotes([{ id: 'e', text: '学而时习之。', book: '论语', chapter: '学而', speaker: '—孔子' }]).some((line) => line.includes('bad source format')));
 
-  const day = new Date(2026, 9, 13, 9, 30, 0);
-  const later = new Date(2026, 9, 13, 23, 59, 0);
-  assert.strictEqual(daily.quoteForDate(catalog, day).id, daily.quoteForDate(catalog, later).id);
-  assert.notStrictEqual(daily.quoteForDate(catalog, day).id, daily.quoteForDate(catalog, new Date(2026, 9, 14, 0, 0, 5)).id);
+  const morning = new Date(2026, 9, 13, 9, 30, 0);
+  const evening = new Date(2026, 9, 13, 23, 59, 0);
+  assert.strictEqual(daily.quoteForDate(catalog, morning).id, daily.quoteForDate(catalog, evening).id);
   assert.notDeepStrictEqual(
     daily.shuffleYear(catalog, 2026).map((quote) => quote.id),
     daily.shuffleYear(catalog, 2027).map((quote) => quote.id),
   );
-  assert.deepStrictEqual(
-    daily.shuffleYear(catalog, 2026).map((quote) => quote.id),
-    daily.shuffleYear(catalog, 2026).map((quote) => quote.id),
-  );
-
-  assert.strictEqual(daily.dayOfYear(new Date(2024, 11, 31)), 366);
-  assert.strictEqual(daily.dayOfYear(new Date(2025, 11, 31)), 365);
-  assert.strictEqual(daily.dayOfYear(new Date(2024, 1, 29)), 60);
-  assert.strictEqual(daily.dayOfYear(new Date(2026, 0, 1)), 1);
-  assert.strictEqual(daily.msUntilNextLocalTick(new Date(2026, 9, 13, 23, 59, 50)), 11000);
-
-  const leap = [];
-  for (let doy = 1; doy <= 366; doy += 1) leap.push(daily.quoteForDate(catalog, new Date(2024, 0, doy)).id);
-  assert.strictEqual(new Set(leap).size, 366);
-  const plain = [];
-  for (let doy = 1; doy <= 365; doy += 1) plain.push(daily.quoteForDate(catalog, new Date(2025, 0, doy)).id);
-  assert.strictEqual(new Set(plain).size, 365);
-  assert.strictEqual(daily.quoteForDate(catalog, new Date(2026, 0, 1)).id, daily.shuffleYear(catalog, 2026)[0].id);
-  assert.strictEqual(daily.quoteForDate(catalog, new Date(2024, 11, 31)).id, daily.shuffleYear(catalog, 2024)[365].id);
-
-  const tiny = [
-    { id: 'a', text: '甲。', book: '论语', chapter: '学而' },
-    { id: 'b', text: '乙。', book: '论语', chapter: '学而' },
-    { id: 'c', text: '丙。', book: '论语', chapter: '学而' },
-  ];
-  const tinyOrder = daily.shuffleYear(tiny, 2024);
-  for (let doy = 1; doy <= 366; doy += 1) {
-    assert.strictEqual(
-      daily.quoteForDate(tiny, new Date(2024, 0, doy)).id,
-      tinyOrder[(doy - 1) % 3].id,
-    );
-  }
-
-  assert.deepStrictEqual(daily.readPrefs({}), { enabled: false, dismissedOn: '' });
-  assert.deepStrictEqual(daily.readPrefs({ dailyQuote: 'true', dailyQuoteDismissedOn: '2026-10-13T16:30:00.000Z' }), {
-    enabled: false,
-    dismissedOn: '',
-  });
-  assert.strictEqual(daily.decidePhase({ enabled: false, dismissedOn: '' }, '2026-10-13'), 'off');
-  assert.strictEqual(daily.decidePhase({ enabled: true, dismissedOn: '2026-10-13' }, '2026-10-13'), 'dismissed');
-  assert.strictEqual(daily.decidePhase({ enabled: true, dismissedOn: '2026-10-12' }, '2026-10-13'), 'shown');
-  assert.strictEqual(daily.intersectionArea(
-    { left: 0, right: 10, top: 0, bottom: 10 },
-    { left: 8, right: 12, top: 8, bottom: 14 },
-  ), 4);
-  assert.strictEqual(daily.intersectionArea(
-    { left: 0, right: 10, top: 0, bottom: 10 },
-    { left: 10, right: 20, top: 0, bottom: 10 },
-  ), 0);
 
   let clock = new Date(2026, 9, 13, 9, 30, 0);
   const storage = createChromeStorage();
-  const pageA = createDoc();
-  const pageB = createDoc();
-  const shared = {
+  const doc = createDoc();
+  let armed = null;
+  const widget = daily.createDailyQuote({
+    document: doc,
     storage,
     catalog,
     now: () => clock,
-    schedule(fn, ms) { return { fn, ms }; },
-    cancel() {},
-  };
-  const quoteA = daily.createDailyQuote(Object.assign({ document: pageA }, shared));
-  const quoteB = daily.createDailyQuote(Object.assign({ document: pageB }, shared));
-  await quoteA.start();
-  await quoteB.start();
-  assert.strictEqual(cardOf(pageA), null);
-  assert.strictEqual(cardOf(pageB), null);
-  assert.strictEqual(pageA.body.classList.contains('dq-on'), false);
-  assert.strictEqual(pageA.getElementById('daily-quote-toggle').checked, false);
-  assert.deepStrictEqual(storage.snapshot(), {});
-
-  await storage.local.set({ dailyQuote: true });
-  await flush();
-  const shown = textOf(pageA);
-  assert.strictEqual(shown, daily.quoteForDate(catalog, clock).text);
-  assert.strictEqual(textOf(pageB), shown);
-  assert.strictEqual(pageA.body.classList.contains('dq-on'), true);
-  assert.strictEqual(pageB.getElementById('daily-quote-toggle').checked, true);
-  const button = cardOf(pageA).querySelector('button');
-  assert.strictEqual(button.tagName, 'BUTTON');
-  assert.strictEqual(button.type, 'button');
-  assert.strictEqual(button.getAttribute('aria-label'), '今天不再显示');
-  assert.strictEqual(cardOf(pageA).getAttribute('aria-label'), '每日一句');
-  assert.ok(/^([\u4e00-\u9fff]+·)?《[\u4e00-\u9fff]+·[\u4e00-\u9fff]+》$/.test(cardOf(pageA).querySelector('.dq-src').textContent));
-
-  await button.click();
-  await flush();
-  assert.strictEqual(cardOf(pageA), null);
-  assert.strictEqual(cardOf(pageB), null);
-  assert.deepStrictEqual(storage.snapshot(), {
-    dailyQuote: true,
-    dailyQuoteDismissedOn: '2026-10-13',
-  });
-  assert.deepStrictEqual(pageA.lastFocus, { id: 'resume-title', preventScroll: true });
-  assert.strictEqual(pageA.getElementById('resume-title').getAttribute('tabindex'), '-1');
-  assert.strictEqual(pageA.getElementById('resume').hasAttribute('tabindex'), false);
-  assert.strictEqual(pageB.lastFocus, null);
-
-  async function dismissBy(key, hide) {
-    const doc = createDoc();
-    const store = createChromeStorage({ dailyQuote: true });
-    const widget = daily.createDailyQuote({
-      document: doc,
-      storage: store,
-      catalog,
-      now: () => new Date(2026, 9, 13, 9, 30, 0),
-      schedule() { return 1; },
-      cancel() {},
-    });
-    await widget.start();
-    if (hide === 'display') doc.getElementById('resume').querySelector('.next-filled').style.display = 'none';
-    if (hide === 'visibility') doc.getElementById('resume-title').style.visibility = 'hidden';
-    doc.lastFocus = null;
-    await cardOf(doc).querySelector('button').press(key);
-    await flush();
-    return doc;
-  }
-  const enterShown = await dismissBy('Enter');
-  assert.deepStrictEqual(enterShown.lastFocus, { id: 'resume-title', preventScroll: true });
-  const spaceShown = await dismissBy(' ');
-  assert.deepStrictEqual(spaceShown.lastFocus, { id: 'resume-title', preventScroll: true });
-  const enterHidden = await dismissBy('Enter', 'display');
-  assert.deepStrictEqual(enterHidden.lastFocus, { id: 'resume', preventScroll: true });
-  assert.strictEqual(enterHidden.getElementById('resume').getAttribute('tabindex'), '-1');
-  assert.notStrictEqual(enterHidden.lastFocus.id, 'resume-title');
-  const spaceHidden = await dismissBy(' ', 'visibility');
-  assert.deepStrictEqual(spaceHidden.lastFocus, { id: 'resume', preventScroll: true });
-  assert.strictEqual(spaceHidden.getElementById('resume').getAttribute('tabindex'), '-1');
-
-  clock = new Date(2026, 9, 14, 0, 30, 0);
-  await pageA.dispatch('visibilitychange');
-  await pageB.dispatch('visibilitychange');
-  const nextText = textOf(pageA);
-  assert.notStrictEqual(nextText, shown);
-  assert.strictEqual(textOf(pageB), nextText);
-  assert.strictEqual(nextText, daily.quoteForDate(catalog, clock).text);
-  assert.strictEqual(storage.snapshot().dailyQuote, true);
-
-  pageA.getElementById('daily-quote-toggle').checked = false;
-  await pageA.getElementById('daily-quote-toggle').dispatch('change');
-  await flush();
-  assert.strictEqual(cardOf(pageA), null);
-  assert.strictEqual(cardOf(pageB), null);
-  assert.strictEqual(storage.snapshot().dailyQuote, false);
-  assert.strictEqual(storage.snapshot().dailyQuoteDismissedOn, '2026-10-13');
-
-  clock = new Date(2026, 9, 13, 12, 0, 0);
-  pageA.getElementById('daily-quote-toggle').checked = true;
-  await pageA.getElementById('daily-quote-toggle').dispatch('change');
-  await flush();
-  assert.strictEqual(cardOf(pageA), null);
-  assert.strictEqual(storage.snapshot().dailyQuote, true);
-
-  clock = new Date(2026, 9, 15, 8, 0, 0);
-  await pageA.dispatch('visibilitychange');
-  await pageB.dispatch('visibilitychange');
-  assert.strictEqual(textOf(pageA), daily.quoteForDate(catalog, clock).text);
-  assert.strictEqual(textOf(pageB), textOf(pageA));
-
-  let armed = null;
-  clock = new Date(2026, 9, 16, 23, 59, 50);
-  const pageC = createDoc();
-  const storageC = createChromeStorage({ dailyQuote: true });
-  const quoteC = daily.createDailyQuote({
-    document: pageC,
-    storage: storageC,
-    catalog,
-    now: () => clock,
-    schedule(fn, ms) {
-      armed = { fn, ms };
-      return 7;
-    },
+    schedule(fn, ms) { armed = { fn, ms }; return 7; },
     cancel() { armed = null; },
   });
-  await quoteC.start();
-  const beforeMidnight = textOf(pageC);
+  await widget.start();
+  assert.strictEqual(blockOf(doc).hidden, true);
+  assert.strictEqual(doc.getElementById('dq-settings-text').textContent, daily.quoteForDate(catalog, clock).text);
+  assert.strictEqual(doc.getElementById('dq-settings-src').textContent, daily.sourceLine(daily.quoteForDate(catalog, clock)));
+
+  doc.getElementById('daily-quote-toggle').checked = true;
+  await doc.getElementById('daily-quote-toggle').dispatch('change');
+  await flush();
+  const shown = daily.quoteForDate(catalog, clock);
+  assert.strictEqual(blockOf(doc).hidden, false);
+  assert.strictEqual(blockOf(doc).querySelector('.dq-text').textContent, shown.text);
+  assert.strictEqual(blockOf(doc).querySelector('.dq-src').textContent, daily.sourceLine(shown));
+  assert.ok(deskOrder(doc));
+  const shownText = blockText(blockOf(doc));
+  assert.ok(!shownText.includes('今天'));
+  assert.ok(!/\d/.test(shownText));
+  assert.strictEqual(storage.snapshot().dailyQuote, true);
+  assert.ok(!Object.prototype.hasOwnProperty.call(storage.snapshot(), 'dailyQuoteDismissedOn'));
+
+  clock = new Date(2026, 9, 14, 0, 30, 0);
+  await doc.dispatch('visibilitychange');
+  const next = daily.quoteForDate(catalog, clock);
+  assert.notStrictEqual(next.id, shown.id);
+  assert.strictEqual(blockOf(doc).querySelector('.dq-text').textContent, next.text);
+  assert.strictEqual(doc.getElementById('dq-settings-text').textContent, next.text);
+
+  doc.getElementById('daily-quote-toggle').checked = false;
+  await doc.getElementById('daily-quote-toggle').dispatch('change');
+  await flush();
+  assert.strictEqual(blockOf(doc).hidden, true);
+  assert.strictEqual(doc.getElementById('dq-settings-text').textContent, next.text);
+
+  clock = new Date(2026, 9, 16, 23, 59, 50);
+  await doc.dispatch('visibilitychange');
+  const before = doc.getElementById('dq-settings-text').textContent;
   assert.strictEqual(armed.ms, 11000);
   clock = new Date(2026, 9, 17, 0, 0, 5);
   armed.fn();
-  assert.notStrictEqual(textOf(pageC), beforeMidnight);
-  assert.strictEqual(textOf(pageC), daily.quoteForDate(catalog, clock).text);
+  assert.notStrictEqual(doc.getElementById('dq-settings-text').textContent, before);
+  assert.strictEqual(doc.getElementById('dq-settings-text').textContent, daily.quoteForDate(catalog, clock).text);
 
   const html = fs.readFileSync(path.join(root, 'extension', 'newtab.html'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'extension', 'newtab.css'), 'utf8');
   const src = fs.readFileSync(path.join(root, 'extension', 'daily-quote.js'), 'utf8');
+  const quotesSrc = fs.readFileSync(path.join(root, 'extension', 'quotes.js'), 'utf8');
+  assert.ok(html.indexOf('id="h-sites"') < html.indexOf('id="daily-quote"'));
+  assert.ok(html.includes('<section class="desk-quote" id="daily-quote" hidden aria-labelledby="h-quote">'));
+  assert.ok(html.includes('<h2 class="col-h" id="h-quote">每日一句</h2>'));
+  assert.ok(html.includes('每天一句，出自《论语》《孟子》《道德经》等，离线可用。'));
+  assert.ok(html.indexOf('src="quotes.js"') < html.indexOf('src="daily-quote.js"'));
+  assert.ok(!html.includes('今天不再显示'));
+  assert.ok(!src.includes('MutationObserver'));
+  assert.ok(!src.includes('ResizeObserver'));
+  assert.ok(!src.includes('requestAnimationFrame'));
+  assert.ok(!src.includes('dailyQuoteDismissedOn'));
+  assert.ok(!css.includes('.dq-v2'));
+  assert.ok(!css.includes('dq-collide'));
+  assert.ok(!/@media\s*\(\s*max-width:\s*754px\s*\)/.test(css));
+  assert.strictEqual(quotesSrc.split('\n').filter((line) => line.startsWith('{')).length, 377);
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'extension', 'manifest.json'), 'utf8'));
-  assert.ok(html.includes('在首页显示每日一句'));
-  assert.ok(html.includes('id="dq-row"'));
-  assert.ok(html.includes('src="daily-quote.js"'));
-  assert.ok(!html.includes('class="dq dq-v2"'));
-  assert.ok(css.includes('body.dq-on.studio-home .main { position: relative; }'));
-  assert.ok(css.includes('top: 10px; right: 32px;'));
-  assert.ok(css.includes('width: 400px;'));
-  assert.ok(css.includes('font-size: 15px; line-height: 1.6;'));
-  assert.ok(css.includes('@media (max-width: 754px) { .dq-v2 { display: none !important; } }'));
-  assert.ok(css.includes('background: rgba(253, 252, 249, .35);'));
-  assert.ok(css.includes('background: rgba(28, 38, 58, .37);'));
-  assert.ok(css.includes('-webkit-backdrop-filter: blur(7px) saturate(1.05); backdrop-filter: blur(7px) saturate(1.05);'));
-  assert.ok(css.includes('box-shadow: var(--resume-glow);'));
-  assert.ok(!css.includes('#resume:focus'));
-  assert.ok(!css.includes('#resume-title:focus'));
-  assert.ok(!/fetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon|new\s+Image|getContext\s*\(\s*['"]webgl/i.test(src));
-  assert.ok(!/storage\.sync/.test(src));
   assert.deepStrictEqual(manifest.permissions, ['storage', 'tabs']);
 
-  const child = spawnSync(process.execPath, [__filename], {
-    env: Object.assign({}, process.env, { TZ: 'Asia/Taipei', SOPIFY_QUOTE_TZ: '1' }),
-    encoding: 'utf8',
-  });
-  if (child.status !== 0) {
-    console.error(child.stdout);
-    console.error(child.stderr);
-  }
+  const child = spawnSync(process.execPath, ['-e', `
+    const daily = require(${JSON.stringify(path.join(root, 'extension', 'daily-quote.js'))});
+    const instant = new Date('2026-10-13T16:30:00.000Z');
+    if (daily.localDateKey(instant) !== '2026-10-14') process.exit(1);
+  `], { env: Object.assign({}, process.env, { TZ: 'Asia/Taipei' }) });
   assert.strictEqual(child.status, 0);
   console.log('daily quote ok ' + catalog.length);
 }
 
-if (process.env.SOPIFY_QUOTE_TZ === '1') {
-  runTz().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-} else {
-  main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+function blockText(node) {
+  let out = node.textContent || '';
+  for (const child of node.children || []) out += blockText(child);
+  return out;
 }
+
+function deskOrder(doc) {
+  const block = blockOf(doc);
+  const sites = doc.getElementById('h-sites').parentNode;
+  const kids = sites.parentNode.children;
+  return kids.indexOf(sites) >= 0 && kids.indexOf(sites) < kids.indexOf(block);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

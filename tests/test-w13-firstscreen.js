@@ -322,6 +322,7 @@ function stubSource(seed) {
       cwd: '',
       hostUpstream: 'cursor',
       themePreset: 'day',
+      dailyQuote: seed.dailyQuote === true,
     };
     let noteWrites = 0;
     let failTodos = !!seed.failTodos;
@@ -1944,6 +1945,44 @@ async function main() {
           }
         }
       }
+    }
+
+    const quoteCatalog = require(path.join(__dirname, '..', 'extension', 'quotes.js'));
+    const longest = quoteCatalog.reduce((best, quote) => (
+      [...quote.text].length > [...best.text].length ? quote : best
+    ));
+    const quoteRows = [];
+    for (const [width, height] of SIZES) {
+      await loadSeed(width, height, { todos: todoItems('1'), sites: siteItems(6, false), dailyQuote: true });
+      const ready = Date.now();
+      let shown = false;
+      while (Date.now() - ready < 3000) {
+        shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+        if (shown) break;
+        await sleep(30);
+      }
+      const measured = await evalJson(`(() => {
+        const q = document.getElementById('daily-quote');
+        const sites = document.getElementById('h-sites');
+        q.querySelector('.dq-text').textContent = ${JSON.stringify(longest.text)};
+        q.querySelector('.dq-src').textContent = ${JSON.stringify('——子夏《论语·颜渊》')};
+        const el = document.scrollingElement || document.documentElement;
+        const after = !!(sites && q.compareDocumentPosition(sites) & Node.DOCUMENT_POSITION_PRECEDING);
+        return {
+          overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
+          hidden: !!q.hidden,
+          chars: [...q.querySelector('.dq-text').textContent].length,
+          after,
+        };
+      })()`);
+      quoteRows.push({ size: `${width}×${height}`, shown, ...measured });
+      if (!shown || measured.overflow !== 0 || measured.hidden || measured.chars !== 34 || !measured.after) {
+        failures.push(`daily quote ${width}×${height} overflow=${measured.overflow} hidden=${measured.hidden} chars=${measured.chars} shown=${shown} after=${measured.after}`);
+      }
+    }
+    console.log('daily quote longest matrix');
+    for (const row of quoteRows) {
+      console.log(`${row.size}\toverflow=${row.overflow}\thidden=${row.hidden}\tchars=${row.chars}\tshown=${row.shown}`);
     }
 
     await loadSeed(1366, 650, { todos: todoItems('long'), sites: siteItems(8, true) });

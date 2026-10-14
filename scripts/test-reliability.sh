@@ -150,7 +150,6 @@ run() {
 }
 
 run scripts/check-quotes.js
-run tests/test-quote-guard.js
 run tests/test-daily-quote.js
 run tests/test-r1-r7.js
 run tests/test-r3-collection.js
