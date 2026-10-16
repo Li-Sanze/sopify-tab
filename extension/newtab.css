@@ -1437,7 +1437,7 @@ html[data-sky="night"] .studio-desk .fav:not(.more) { box-shadow: inset 0 0 0 1p
 .studio-desk .sites .col-h { margin-bottom: 8px; }
 .studio-desk .sites-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; margin-left: -8px; min-width: 0; }
 .studio-desk .sites-row > .fs-btn { flex: none; }
-.studio-desk .sites .tiles { display: flex; flex-wrap: nowrap; gap: 2px; min-width: 0; flex: 1 1 auto; overflow: visible; }
+.studio-desk .sites .tiles { display: flex; flex-wrap: nowrap; gap: 2px; min-width: 0; flex: 0 1 auto; overflow: visible; }
 .studio-desk .sites .tilewrap { position: relative; min-width: 0; flex: 0 1 auto; max-width: 100%; }
 .studio-desk .sites .tile {
   display: inline-flex; flex-direction: row; align-items: center; gap: 8px;
@@ -1517,6 +1517,17 @@ body.studio-home .shelf .col-actions { margin-top: clamp(8px, calc(8px + 8px * v
 body.studio-home .studio-desk .sites { margin-top: clamp(16px, calc(16px + 47px * var(--desk-rise)), 63px); }
 body.studio-home .studio-desk .sites .col-h { margin-bottom: clamp(4px, calc(4px + 4px * var(--desk-rise)), 8px); }
 body.studio-home .studio-desk .desk-quote { margin-top: clamp(16px, calc(16px + 8px * var(--desk-rise)), 24px); }
+/* Spare space is split 1:2 above the greeting and above the daily quote; the daily quote sits at the bottom as a sign-off; the h2 is visible to screen readers only. */
+body.studio-home .studio-screen { flex: 1 0 auto; }
+body.studio-home .studio-screen::before,
+body.studio-home .studio-screen::after { content: ""; min-height: 0; }
+body.studio-home .studio-screen::before { flex: 1 0 0; max-height: 14vh; }
+body.studio-home .studio-screen::after { flex: 2 0 0; order: 1; }
+body.studio-home .studio-desk .desk-quote { order: 2; }
+body.studio-home .studio-desk #desk-3d-mount { order: 3; }
+body.studio-home .studio-desk .desk-quote .col-h {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
 @media (max-height: 760px) {
   body.studio-home .next-title[data-size="l"] { -webkit-line-clamp: 3; }
 }
