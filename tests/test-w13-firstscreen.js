@@ -2073,6 +2073,8 @@ async function main() {
           sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
           fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
           quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
+          sitesBottom: row ? round2(row.getBoundingClientRect().bottom) : null,
+          quoteTop: round2(q.getBoundingClientRect().top),
           titleLines: Math.round(title.getBoundingClientRect().height / titleLh),
           titleTruncated: title.scrollHeight > title.clientHeight,
         };
@@ -2172,6 +2174,29 @@ async function main() {
     const shotWidest = shotOpen.reduce((best, row) => (row.ratioDev > best.ratioDev ? row : best), shotOpen[0]);
     if (shotWidest) {
       console.log(`ratio preset screenshot maxDev=${shotWidest.ratioDev} before=${shotWidest.beforeH} after=${shotWidest.afterH} at ${shotWidest.label}`);
+    }
+
+    for (const [width, height] of [[860, 900], [700, 900]]) {
+      const seed = lightDesk();
+      seed.dailyQuote = true;
+      await loadSeed(width, height, seed);
+      const ready = Date.now();
+      let shown = false;
+      while (Date.now() - ready < 3000) {
+        shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+        if (shown) break;
+        await sleep(30);
+      }
+      if (!shown) failures.push(`light quote ${width}×${height} hidden`);
+      const measured = await evalJson(fitExpr(true, longest.text));
+      const label = `light\ton\t${width}×${height}`;
+      console.log(`${label}\toverflow=${measured.overflow}\tanchorGap=${measured.anchorGap}\tsitesBottom=${measured.sitesBottom}\tquoteTop=${measured.quoteTop}`);
+      if (!(typeof measured.sitesBottom === 'number' && measured.sitesBottom <= measured.quoteTop)) {
+        failures.push(`${label} sitesBottom=${measured.sitesBottom} quoteTop=${measured.quoteTop}`);
+      }
+      if (measured.overflow === 0 && !(measured.anchorGap <= 1)) {
+        failures.push(`${label} anchorGap=${measured.anchorGap} overflow=${measured.overflow}`);
+      }
     }
 
     const sweepRows = [];
