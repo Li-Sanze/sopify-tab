@@ -1525,6 +1525,7 @@ body.studio-home .studio-screen::before { flex: 1 0 0; max-height: 14vh; }
 body.studio-home .studio-screen::after { flex: 2 0 0; order: 1; }
 body.studio-home .studio-desk .desk-quote { order: 2; }
 body.studio-home .studio-desk #desk-3d-mount { order: 3; }
+body.studio-home .studio-desk .sites { order: 0; }
 body.studio-home .studio-desk .desk-quote .col-h {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
