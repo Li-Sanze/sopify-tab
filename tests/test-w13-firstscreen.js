@@ -162,6 +162,9 @@ assert.ok(!/height:\s*calc\(\s*100dvh\s*-\s*64px\s*\)/.test(css), 'studio-screen
 const screenRule = braceBlock(css, '.studio-screen {');
 assert.ok(!/(?:^|[^-])height\s*:/.test(screenRule), 'studio-screen rule does not set a height');
 assert.ok(!/overflow\s*:/.test(screenRule), 'studio-screen rule does not clip overflow');
+assert.ok(/body\.studio-home \.studio-screen::after \{[^}]*order:\s*1;/.test(css), '::after order is 1');
+assert.ok(/body\.studio-home \.studio-desk \.desk-quote \{[^}]*order:\s*2;/.test(css), '.desk-quote order is 2');
+assert.ok(/body\.studio-home \.studio-desk #desk-3d-mount \{[^}]*order:\s*3;/.test(css), '#desk-3d-mount order is 3');
 
 const shortQ = braceBlock(css, '@media (max-height: 760px)');
 assert.ok(shortQ.includes('-webkit-line-clamp: 3'), 'short screens clamp a size-l title to 3 lines');
@@ -2048,15 +2051,30 @@ async function main() {
         const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
         const title = document.getElementById('resume-title');
         const titleLh = parseFloat(getComputedStyle(title).lineHeight) || 1;
+        const screen = document.querySelector('.studio-screen');
+        const beforeRaw = screen ? parseFloat(getComputedStyle(screen, '::before').height) : NaN;
+        const afterRaw = screen ? parseFloat(getComputedStyle(screen, '::after').height) : NaN;
+        const beforePx = Number.isFinite(beforeRaw) ? beforeRaw : 0;
+        const afterPx = Number.isFinite(afterRaw) ? afterRaw : 0;
+        const capPx = window.innerHeight * 0.14;
+        const round2 = (n) => Math.round(n * 100) / 100;
         return {
-          overflow: Math.round((el.scrollHeight - window.innerHeight) * 100) / 100,
-          realSlack: Math.round((window.innerHeight - (last.getBoundingClientRect().bottom + pad)) * 100) / 100,
+          overflow: round2(el.scrollHeight - window.innerHeight),
+          realSlack: round2(beforePx + afterPx),
+          anchorGap: round2(window.innerHeight - (last.getBoundingClientRect().bottom + pad)),
+          beforeH: round2(beforePx),
+          afterH: round2(afterPx),
+          capPx: round2(capPx),
+          beforeAtCap: beforePx >= capPx - 0.5,
+          ratioDev: round2(Math.abs(afterPx - 2 * beforePx)),
           hidden: !!q.hidden,
           chars: q.querySelector('.dq-text') ? [...q.querySelector('.dq-text').textContent].length : 0,
           after,
           sitesOneLine: tops.length === 0 || Math.max(...tops) - Math.min(...tops) < 4,
           fits: !q.hidden && q.scrollWidth <= q.clientWidth + 1,
           quoteH: q.hidden ? 0 : Math.round(q.getBoundingClientRect().height),
+          sitesBottom: row ? round2(row.getBoundingClientRect().bottom) : null,
+          quoteTop: round2(q.getBoundingClientRect().top),
           titleLines: Math.round(title.getBoundingClientRect().height / titleLh),
           titleTruncated: title.scrollHeight > title.clientHeight,
         };
@@ -2084,6 +2102,15 @@ async function main() {
           fitRows.push({ label, ...measured });
           if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
           if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+          if (quoteOn && measured.overflow === 0 && !(measured.anchorGap <= 1)) {
+            failures.push(`${label} anchorGap=${measured.anchorGap}`);
+          }
+          if (!quoteOn && !(measured.afterH >= measured.beforeH)) {
+            failures.push(`${label} afterH=${measured.afterH} beforeH=${measured.beforeH}`);
+          }
+          if (quoteOn && !measured.beforeAtCap && !(measured.ratioDev <= 1)) {
+            failures.push(`${label} ratioDev=${measured.ratioDev} before=${measured.beforeH} after=${measured.afterH} cap=${measured.capPx}`);
+          }
           if (quoteOn && (measured.hidden || measured.chars !== 34 || !measured.after || !measured.fits || measured.quoteH > 40)) {
             failures.push(`${label} quote hidden=${measured.hidden} chars=${measured.chars} after=${measured.after} fits=${measured.fits} h=${measured.quoteH}`);
           }
@@ -2096,7 +2123,80 @@ async function main() {
     }
     console.log('first screen fit matrix');
     for (const row of fitRows) {
-      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\tanchorGap=${row.anchorGap}\tbefore=${row.beforeH}\tafter=${row.afterH}\tratioDev=${row.ratioDev}\tcapped=${row.beforeAtCap}\ttitleLines=${row.titleLines}\tsitesOneLine=${row.sitesOneLine}\tquoteH=${row.quoteH}`);
+    }
+    for (const deskName of ['light', 'heavy']) {
+      const open = fitRows.filter((row) => row.label.startsWith(`${deskName}\ton\t`) && !row.beforeAtCap);
+      const widest = open.reduce((best, row) => (row.ratioDev > best.ratioDev ? row : best), open[0]);
+      if (widest) {
+        console.log(`ratio preset ${deskName} maxDev=${widest.ratioDev} before=${widest.beforeH} after=${widest.afterH} at ${widest.label}`);
+      }
+    }
+    const shotSeed = {
+      todos: todoItems('1'),
+      sites: siteItems(6, false),
+      notes: '记在这一页',
+      worksets: [{
+        id: 'w-shot',
+        name: '早上打开的',
+        savedAt: 1760400000000,
+        tabs: [{ title: '已存', url: 'https://saved.example/a' }],
+      }],
+      tabs: [
+        { id: 1, title: '说明', url: 'https://example.com/docs' },
+        { id: 2, title: '邮件', url: 'https://example.com/mail' },
+      ],
+    };
+    const shotRows = [];
+    for (const [width, height] of [[1500, 816], [1920, 1080], [2560, 1300]]) {
+      const seed = Object.assign({}, shotSeed, { dailyQuote: true });
+      await loadSeed(width, height, seed);
+      const ready = Date.now();
+      let shown = false;
+      while (Date.now() - ready < 3000) {
+        shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+        if (shown) break;
+        await sleep(30);
+      }
+      if (!shown) failures.push(`screenshot quote ${width}×${height} hidden`);
+      const measured = await evalJson(fitExpr(true, longest.text));
+      const label = `screenshot\ton\t${width}×${height}`;
+      shotRows.push({ label, ...measured });
+      console.log(`${label}\toverflow=${measured.overflow}\trealSlack=${measured.realSlack}\tanchorGap=${measured.anchorGap}\tbefore=${measured.beforeH}\tafter=${measured.afterH}\tratioDev=${measured.ratioDev}\tcapped=${measured.beforeAtCap}`);
+      if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
+      if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+      if (measured.overflow === 0 && !(measured.anchorGap <= 1)) failures.push(`${label} anchorGap=${measured.anchorGap}`);
+      if (!measured.beforeAtCap && !(measured.ratioDev <= 1)) {
+        failures.push(`${label} ratioDev=${measured.ratioDev} before=${measured.beforeH} after=${measured.afterH} cap=${measured.capPx}`);
+      }
+    }
+    const shotOpen = shotRows.filter((row) => !row.beforeAtCap);
+    const shotWidest = shotOpen.reduce((best, row) => (row.ratioDev > best.ratioDev ? row : best), shotOpen[0]);
+    if (shotWidest) {
+      console.log(`ratio preset screenshot maxDev=${shotWidest.ratioDev} before=${shotWidest.beforeH} after=${shotWidest.afterH} at ${shotWidest.label}`);
+    }
+
+    for (const [width, height] of [[860, 900], [700, 900]]) {
+      const seed = lightDesk();
+      seed.dailyQuote = true;
+      await loadSeed(width, height, seed);
+      const ready = Date.now();
+      let shown = false;
+      while (Date.now() - ready < 3000) {
+        shown = await evalJson(`!!(document.getElementById('daily-quote') && !document.getElementById('daily-quote').hidden)`);
+        if (shown) break;
+        await sleep(30);
+      }
+      if (!shown) failures.push(`light quote ${width}×${height} hidden`);
+      const measured = await evalJson(fitExpr(true, longest.text));
+      const label = `light\ton\t${width}×${height}`;
+      console.log(`${label}\toverflow=${measured.overflow}\tanchorGap=${measured.anchorGap}\tsitesBottom=${measured.sitesBottom}\tquoteTop=${measured.quoteTop}`);
+      if (!(typeof measured.sitesBottom === 'number' && measured.sitesBottom <= measured.quoteTop)) {
+        failures.push(`${label} sitesBottom=${measured.sitesBottom} quoteTop=${measured.quoteTop}`);
+      }
+      if (measured.overflow === 0 && !(measured.anchorGap <= 1)) {
+        failures.push(`${label} anchorGap=${measured.anchorGap} overflow=${measured.overflow}`);
+      }
     }
 
     const sweepRows = [];
@@ -2122,6 +2222,15 @@ async function main() {
           sweepRows.push({ label, width, height, quoteOn, ...measured });
           if (measured.overflow !== 0) failures.push(`${label} overflow=${measured.overflow}`);
           if (!(measured.realSlack >= 24)) failures.push(`${label} realSlack=${measured.realSlack}`);
+          if (quoteOn && measured.overflow === 0 && !(measured.anchorGap <= 1)) {
+            failures.push(`${label} anchorGap=${measured.anchorGap}`);
+          }
+          if (!quoteOn && !(measured.afterH >= measured.beforeH)) {
+            failures.push(`${label} afterH=${measured.afterH} beforeH=${measured.beforeH}`);
+          }
+          if (quoteOn && !measured.beforeAtCap && !(measured.ratioDev <= 1)) {
+            failures.push(`${label} ratioDev=${measured.ratioDev} before=${measured.beforeH} after=${measured.afterH} cap=${measured.capPx}`);
+          }
           if (height <= 760 && measured.titleLines > 3) failures.push(`${label} titleLines=${measured.titleLines}`);
           if (height <= 760 && !measured.titleTruncated) failures.push(`${label} long title is not truncated`);
           if (height === 761 && measured.titleLines < 4) failures.push(`${label} titleLines=${measured.titleLines} above 760`);
@@ -2130,7 +2239,7 @@ async function main() {
     }
     console.log('worst desk height sweep');
     for (const row of sweepRows) {
-      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\ttitleLines=${row.titleLines}`);
+      console.log(`${row.label}\toverflow=${row.overflow}\trealSlack=${row.realSlack}\tanchorGap=${row.anchorGap}\ttitleLines=${row.titleLines}`);
     }
     for (const width of [1280, 1440]) {
       for (const quoteOn of [false, true]) {
